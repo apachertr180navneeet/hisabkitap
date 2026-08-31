@@ -90,15 +90,13 @@ class HisabKitapErpTest extends TestCase
         $appResponse->assertSee('PSO SEALED & LOCKED', false);
     }
 
-    public function test_login_page_loads_and_shows_personas(): void
+    public function test_login_page_loads_cleanly(): void
     {
-        $response = $this->get('/login');
+        $response = $this->get('/admin/login');
         $response->assertStatus(200);
         $response->assertSee('Sign In to Dashboard', false);
-        $response->assertSee('Ramesh Sharma');
-        $response->assertSee('Pooja Verma');
-        $response->assertSee('Suresh Gupta');
-        $response->assertSee('Vikram Mehta');
+        $response->assertSee('Work Email Address', false);
+        $response->assertSee('Authenticate & Open ERP', false);
     }
 
     public function test_credential_login_and_logout_flow(): void
@@ -121,5 +119,35 @@ class HisabKitapErpTest extends TestCase
         $response = $this->get('/admin/login/quick?role_code=usr_02');
         $response->assertRedirect('/admin/dashboard');
         $this->assertAuthenticated();
+    }
+
+    public function test_profile_page_loads_and_change_password(): void
+    {
+        // Login as admin
+        $this->post('/admin/login', [
+            'email' => 'admin@hisabkitap.in',
+            'password' => 'password',
+        ]);
+
+        $response = $this->get('/admin/profile');
+        $response->assertStatus(200);
+        $response->assertSee('My Account Profile', false);
+        $response->assertSee('Change Account Password', false);
+
+        // Update profile
+        $updateRes = $this->post('/admin/profile/update', [
+            'name' => 'Suresh Gupta (Lead Admin)',
+            'email' => 'admin@hisabkitap.in',
+        ]);
+        $updateRes->assertRedirect('/admin/profile');
+
+        // Change password
+        $passRes = $this->post('/admin/profile/change-password', [
+            'current_password' => 'password',
+            'new_password' => 'newpassword123',
+            'new_password_confirmation' => 'newpassword123',
+        ]);
+        $passRes->assertRedirect('/admin/profile');
+        $passRes->assertSessionHas('success');
     }
 }

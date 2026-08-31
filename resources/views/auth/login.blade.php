@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login | HisabKitap ERP - PSO & Bill Reconciliation System</title>
+  <title>Sign In | HisabKitap ERP - Fuel Station & PSO Reconciliation</title>
   
   <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,7 +41,7 @@
 
     .login-container {
       width: 100%;
-      max-width: 1080px;
+      max-width: 980px;
       background: var(--erp-card-bg);
       border-radius: 16px;
       overflow: hidden;
@@ -52,7 +52,7 @@
     .brand-side {
       background: linear-gradient(145deg, #1e3a8a, #0f172a);
       color: white;
-      padding: 3rem 2.5rem;
+      padding: 3.5rem 3rem;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -62,52 +62,59 @@
     .brand-side::after {
       content: "";
       position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
+      top: 0; right: 0; bottom: 0; left: 0;
       background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
       background-size: 20px 20px;
       pointer-events: none;
     }
 
     .brand-logo-icon {
-      width: 50px;
-      height: 50px;
+      width: 52px;
+      height: 52px;
       background: linear-gradient(135deg, #3b82f6, #1d4ed8);
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.6rem;
+      font-size: 1.7rem;
       color: white;
       box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
     }
 
-    .persona-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 0.85rem;
-      background: #f8fafc;
-      transition: all 0.2s ease;
-      cursor: pointer;
-      text-decoration: none;
-      color: inherit;
+    .feature-item {
       display: flex;
-      align-items: center;
-      gap: 0.85rem;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .persona-card:hover {
-      background: #ffffff;
-      border-color: #3b82f6;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    .feature-item:last-child {
+      border-bottom: none;
+    }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: #60a5fa;
+      flex-shrink: 0;
     }
 
     .form-side {
-      padding: 3rem 2.5rem;
+      padding: 3.5rem 3rem;
       background: #ffffff;
+    }
+
+    .form-control {
+      padding: 0.75rem 1rem;
+      border-color: #cbd5e1;
+      font-size: 0.95rem;
     }
 
     .form-control:focus {
@@ -119,16 +126,17 @@
       background: linear-gradient(135deg, #1e3a8a, #2563eb);
       color: white;
       font-weight: 600;
-      padding: 0.75rem;
+      padding: 0.85rem;
       border-radius: 8px;
       border: none;
+      font-size: 1rem;
       transition: all 0.2s ease;
     }
 
     .btn-login:hover {
       background: linear-gradient(135deg, #172554, #1d4ed8);
       color: white;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
     }
   </style>
 </head>
@@ -137,7 +145,7 @@
   <div class="login-container">
     <div class="row g-0">
       
-      <!-- LEFT BRAND & PERSONAS SIDE -->
+      <!-- LEFT BRAND & OVERVIEW SIDE -->
       <div class="col-lg-5 brand-side">
         <div>
           <div class="d-flex align-items-center gap-3 mb-4">
@@ -146,51 +154,60 @@
             </div>
             <div>
               <h4 class="fw-bold mb-0 text-white">HisabKitap ERP</h4>
-              <small class="text-white-50">PSO & Daily Bill Reconciliation Core</small>
+              <small class="text-white-50">Fuel & Counter PSO Reconciliation Core</small>
             </div>
           </div>
 
           <p class="text-white-50 small mb-4">
-            Automated statutory reconciliation engine for PSO counter series, Tally ERP ingestion, variance tracking, and cryptographic digital day sealing.
+            Enterprise statutory accounting platform for fuel station counter sales, Tally ERP DayBook ingestion, credit ledgers, and digital day sealing.
           </p>
 
-          <div class="mb-3">
-            <span class="text-uppercase fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.05em;">
-              One-Click Persona Login (Instant Demo Access)
-            </span>
-          </div>
+          <!-- Core System Capabilities Highlights -->
+          <div class="mb-4">
+            <div class="feature-item">
+              <div class="feature-icon">
+                <i class="bi bi-file-earmark-spreadsheet"></i>
+              </div>
+              <div>
+                <div class="fw-bold text-white small">Tally Prime Ingestion</div>
+                <div class="text-white-50" style="font-size: 0.76rem;">Automatic DayBook sequence & gap verification</div>
+              </div>
+            </div>
 
-          <!-- Quick Persona Login Cards -->
-          <div class="d-flex flex-column gap-2 mb-4">
-            @foreach($personas as $p)
-              <a href="{{ route('login.quick', ['role_code' => $p->code]) }}" class="persona-card">
-                <div class="bg-{{ $p->badge_color }} text-white rounded-circle fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 0.85rem;">
-                  {{ $p->avatar }}
-                </div>
-                <div class="flex-grow-1">
-                  <div class="fw-bold text-dark" style="font-size: 0.85rem;">{{ $p->name }}</div>
-                  <div class="text-muted" style="font-size: 0.72rem;">{{ $p->role_name }}</div>
-                </div>
-                <span class="badge bg-{{ $p->badge_color }}-subtle text-{{ $p->badge_color }} small">
-                  {{ $p->role_code }} <i class="bi bi-arrow-right-short"></i>
-                </span>
-              </a>
-            @endforeach
+            <div class="feature-item">
+              <div class="feature-icon">
+                <i class="bi bi-shield-lock"></i>
+              </div>
+              <div>
+                <div class="fw-bold text-white small">SHA-256 Digital Sealing</div>
+                <div class="text-white-50" style="font-size: 0.76rem;">Immutable cryptographic locking of daily books</div>
+              </div>
+            </div>
+
+            <div class="feature-item">
+              <div class="feature-icon">
+                <i class="bi bi-person-lines-fill"></i>
+              </div>
+              <div>
+                <div class="fw-bold text-white small">Credit & Ledger Tracking</div>
+                <div class="text-white-50" style="font-size: 0.76rem;">Real-time salesman recovery & cash routing</div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="pt-3 border-top border-white border-opacity-10 text-white-50 small d-flex justify-content-between align-items-center">
-          <span><i class="bi bi-shield-lock me-1"></i> 256-Bit Encrypted</span>
+          <span><i class="bi bi-lock-fill me-1"></i> 256-Bit SSL Encrypted</span>
           <span class="font-mono">v2.4-IND</span>
         </div>
       </div>
 
-      <!-- RIGHT STANDARD CREDENTIALS LOGIN FORM -->
+      <!-- RIGHT CREDENTIALS LOGIN FORM -->
       <div class="col-lg-7 form-side d-flex flex-column justify-content-between">
         <div>
           <div class="mb-4">
             <h3 class="fw-bold text-dark mb-1">Sign In to Dashboard</h3>
-            <p class="text-muted small mb-0">Enter your official ERP credentials to access daily counter operations.</p>
+            <p class="text-muted small mb-0">Enter your official ERP work credentials to access the system.</p>
           </div>
 
           <!-- Flash Alerts -->
@@ -215,24 +232,23 @@
             </div>
           @endif
 
-          <form action="{{ route('login.post') }}" method="POST">
+          <form action="{{ route('admin.login.post') }}" method="POST">
             @csrf
             <div class="mb-3">
               <label class="form-label fw-semibold" for="email">Work Email Address <span class="text-danger">*</span></label>
               <div class="input-group">
                 <span class="input-group-text bg-light"><i class="bi bi-envelope text-muted"></i></span>
-                <input type="email" name="email" id="email" class="form-control" placeholder="ramesh.sharma@hisabkitap.in" value="{{ old('email', 'ramesh.sharma@hisabkitap.in') }}" required autofocus>
+                <input type="email" name="email" id="email" class="form-control" placeholder="name@company.com" value="{{ old('email') }}" required autofocus>
               </div>
             </div>
 
             <div class="mb-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <label class="form-label fw-semibold" for="password">Password <span class="text-danger">*</span></label>
-                <span class="text-muted small">Default: <code>password</code></span>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label fw-semibold mb-0" for="password">Password <span class="text-danger">*</span></label>
               </div>
               <div class="input-group">
                 <span class="input-group-text bg-light"><i class="bi bi-key text-muted"></i></span>
-                <input type="password" name="password" id="password" class="form-control" value="password" placeholder="••••••••" required>
+                <input type="password" name="password" id="password" class="form-control" placeholder="Enter your password" required>
                 <button class="btn btn-outline-secondary" type="button" onclick="const p = document.getElementById('password'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('bi-eye'); this.querySelector('i').classList.toggle('bi-eye-slash');">
                   <i class="bi bi-eye"></i>
                 </button>
@@ -246,7 +262,7 @@
                   Keep me signed in
                 </label>
               </div>
-              <a href="javascript:void(0)" class="small text-decoration-none text-primary" onclick="alert('Demo Mode: Use default password: password or click any persona on the left side.')">Forgot Password?</a>
+              <a href="javascript:void(0)" class="small text-decoration-none text-primary" onclick="alert('For password resets, please contact your System Administrator (Suresh Gupta).')">Forgot Password?</a>
             </div>
 
             <button type="submit" class="btn btn-login w-100 mb-3">
@@ -254,23 +270,9 @@
             </button>
           </form>
 
-          <!-- Quick Credentials Reference -->
-          <div class="p-3 bg-light rounded border mt-4">
-            <div class="fw-bold small text-dark mb-2"><i class="bi bi-info-circle text-primary me-1"></i> Pre-configured Test Accounts:</div>
-            <div class="row g-2 text-muted" style="font-size: 0.76rem;">
-              <div class="col-6">
-                <strong>Operator:</strong> <code>ramesh.sharma@hisabkitap.in</code>
-              </div>
-              <div class="col-6">
-                <strong>Approver:</strong> <code>pooja.verma@hisabkitap.in</code>
-              </div>
-              <div class="col-6">
-                <strong>Admin:</strong> <code>admin@hisabkitap.in</code>
-              </div>
-              <div class="col-6">
-                <strong>Auditor:</strong> <code>auditor@hisabkitap.in</code>
-              </div>
-            </div>
+          <div class="p-3 bg-light rounded border text-muted small mt-4 d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle text-primary fs-5"></i>
+            <span>Authorized access only. All login attempts, sessions, and data transactions are monitored and recorded.</span>
           </div>
         </div>
 

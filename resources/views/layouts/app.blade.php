@@ -257,22 +257,45 @@
               </div>
               <i class="bi bi-chevron-down text-muted" style="font-size: 0.75rem;"></i>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow">
-              <li><h6 class="dropdown-header">Switch Active Role</h6></li>
-              @foreach($allUsers as $u)
-                <li>
-                  <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ route('role.switch', ['role_code' => $u->code]) }}">
-                    <span><i class="bi {{ $u->icon }} text-{{ $u->badge_color }} me-2"></i>{{ $u->name }} ({{ $u->role_name }})</span>
-                    @if(($currentUser['code'] ?? '') === $u->code)
-                      <i class="bi bi-check2 text-primary"></i>
-                    @endif
-                  </a>
-                </li>
-              @endforeach
-              <li><hr class="dropdown-divider"></li>
+            <ul class="dropdown-menu dropdown-menu-end shadow p-2" style="min-width: 240px;">
+              <!-- User Info Header -->
+              <li class="p-2 border-bottom mb-2 bg-light rounded">
+                <div class="fw-bold text-dark" style="font-size: 0.88rem;">{{ $currentUser['name'] ?? 'Suresh Gupta' }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">{{ $currentUser['email'] ?? 'admin@hisabkitap.in' }}</div>
+                <span class="badge bg-{{ $currentUser['badge_color'] ?? 'primary' }} mt-1" style="font-size: 0.68rem;">
+                  {{ $currentUser['role_name'] ?? 'System Administrator' }}
+                </span>
+              </li>
+              
+              <!-- 1. My Profile -->
               <li>
-                <a class="dropdown-item text-danger" href="{{ route('logout.get') }}">
-                  <i class="bi bi-box-arrow-right me-2"></i>Sign Out / Lock Session
+                <a class="dropdown-item d-flex align-items-center py-2" href="{{ route('admin.profile') }}">
+                  <i class="bi bi-person-circle text-primary fs-5 me-2.5"></i>
+                  <div>
+                    <div class="fw-semibold">My Profile</div>
+                    <small class="text-muted" style="font-size: 0.72rem;">Account & operator details</small>
+                  </div>
+                </a>
+              </li>
+
+              <!-- 2. Change Password -->
+              <li>
+                <a class="dropdown-item d-flex align-items-center py-2" href="{{ route('admin.profile') }}#change-password">
+                  <i class="bi bi-key-fill text-warning fs-5 me-2.5"></i>
+                  <div>
+                    <div class="fw-semibold">Change Password</div>
+                    <small class="text-muted" style="font-size: 0.72rem;">Update security credentials</small>
+                  </div>
+                </a>
+              </li>
+
+              <li><hr class="dropdown-divider my-2"></li>
+
+              <!-- 3. Logout -->
+              <li>
+                <a class="dropdown-item d-flex align-items-center text-danger py-2" href="{{ route('admin.logout.get') }}">
+                  <i class="bi bi-box-arrow-right fs-5 me-2.5"></i>
+                  <div class="fw-semibold">Logout</div>
                 </a>
               </li>
             </ul>
