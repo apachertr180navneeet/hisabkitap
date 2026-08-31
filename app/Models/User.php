@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -98,6 +99,11 @@ class User extends Authenticatable
         return in_array($this->role_code, ['APPROVER', 'AUDITOR']);
     }
 
+    public function isReadOnly(): bool
+    {
+        return (bool) ($this->is_read_only ?? false);
+    }
+
     /**
      * Permission check (Super admin has all permissions)
      */
@@ -136,7 +142,7 @@ class User extends Authenticatable
                     'can_manage_users' => true,
                     'is_read_only' => false,
                 ],
-                'allowed_modules' => ['All Modules']
+                'allowed_modules' => ['All Modules'],
             ],
             'OPERATOR' => [
                 'role_code' => 'OPERATOR',
@@ -158,7 +164,7 @@ class User extends Authenticatable
                     'can_manage_users' => false,
                     'is_read_only' => false,
                 ],
-                'allowed_modules' => ['Dashboard', 'PSO Series', 'Tally Import', 'Bill Verification', 'Payment Classification', 'Corrections', 'Credit Collection', 'PSO Summary', 'Reports']
+                'allowed_modules' => ['Dashboard', 'PSO Series', 'Tally Import', 'Bill Verification', 'Payment Classification', 'Corrections', 'Credit Collection', 'PSO Summary', 'Reports'],
             ],
             'APPROVER' => [
                 'role_code' => 'APPROVER',
@@ -180,7 +186,7 @@ class User extends Authenticatable
                     'can_manage_users' => false,
                     'is_read_only' => false,
                 ],
-                'allowed_modules' => ['Dashboard', 'Bill Verification', 'Master Reconciliation', 'Approval & Sealing', '7-Day Retention', 'Reports']
+                'allowed_modules' => ['Dashboard', 'Bill Verification', 'Master Reconciliation', 'Approval & Sealing', '7-Day Retention', 'Reports'],
             ],
         ];
     }

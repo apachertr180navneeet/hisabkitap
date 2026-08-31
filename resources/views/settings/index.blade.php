@@ -18,7 +18,7 @@
         <span class="badge bg-danger"><i class="bi bi-shield-lock-fill me-1"></i>Super Admin Only</span>
       </div>
 
-      @if(($currentUser['role_code'] ?? '') !== 'ADMIN')
+      @if(!in_array(($currentUser['role_code'] ?? ''), ['SUPER_ADMIN', 'ADMIN']))
         <div class="alert alert-warning small mb-3">
           <i class="bi bi-exclamation-triangle me-1"></i> You are currently viewing as <strong>{{ $currentUser['name'] }} ({{ $currentUser['role_name'] }})</strong>. Modification is restricted to Super Admin (Suresh Gupta).
         </div>
@@ -28,16 +28,16 @@
         @csrf
         <div class="mb-3">
           <label class="form-label fw-semibold">Cutoff Time (24h Format)</label>
-          <input type="time" name="cutoff_time" class="form-control font-mono" value="{{ $cutoffTime }}" {{ ($currentUser['role_code'] ?? '') !== 'ADMIN' ? 'disabled' : '' }} required>
+          <input type="time" name="cutoff_time" class="form-control font-mono" value="{{ $cutoffTime }}" {{ !in_array(($currentUser['role_code'] ?? ''), ['SUPER_ADMIN', 'ADMIN']) ? 'disabled' : '' }} required>
           <small class="text-muted">Standard Default: 7:00 PM (19:00 IST)</small>
         </div>
         
         <div class="form-check form-switch mb-3">
-          <input class="form-check-input" type="checkbox" name="cutoff_rollover_active" id="setting-cutoff-toggle" {{ $rolloverActive ? 'checked' : '' }} {{ ($currentUser['role_code'] ?? '') !== 'ADMIN' ? 'disabled' : '' }}>
+          <input class="form-check-input" type="checkbox" name="cutoff_rollover_active" id="setting-cutoff-toggle" {{ $rolloverActive ? 'checked' : '' }} {{ !in_array(($currentUser['role_code'] ?? ''), ['SUPER_ADMIN', 'ADMIN']) ? 'disabled' : '' }}>
           <label class="form-check-label fw-semibold" for="setting-cutoff-toggle">Enable Automatic Next-Day PSO Rollover</label>
         </div>
 
-        <button type="submit" class="btn btn-primary" {{ ($currentUser['role_code'] ?? '') !== 'ADMIN' ? 'disabled' : '' }}>
+        <button type="submit" class="btn btn-primary" {{ !in_array(($currentUser['role_code'] ?? ''), ['SUPER_ADMIN', 'ADMIN']) ? 'disabled' : '' }}>
           Save Cutoff Settings
         </button>
       </form>

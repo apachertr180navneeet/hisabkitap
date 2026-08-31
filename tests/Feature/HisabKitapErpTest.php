@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Bill;
+use App\Models\PsoConfig;
+use App\Models\User;
+use Database\Seeders\HisabKitapDatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use Database\Seeders\HisabKitapDatabaseSeeder;
-use App\Models\User;
-use App\Models\PsoConfig;
-use App\Models\Bill;
 
 class HisabKitapErpTest extends TestCase
 {
@@ -38,6 +38,11 @@ class HisabKitapErpTest extends TestCase
 
     public function test_admin_dashboard_loads_clean_empty_state(): void
     {
+        $this->post('/admin/login', [
+            'email' => 'admin@hisabkitap.in',
+            'password' => 'password',
+        ]);
+
         $response = $this->get('/admin/dashboard');
         $response->assertStatus(200);
         $response->assertSee('HisabKitap ERP');
@@ -50,6 +55,11 @@ class HisabKitapErpTest extends TestCase
 
     public function test_pso_management_can_configure_new_series(): void
     {
+        $this->post('/admin/login', [
+            'email' => 'admin@hisabkitap.in',
+            'password' => 'password',
+        ]);
+
         $response = $this->get('/admin/pso');
         $response->assertStatus(200);
         $response->assertSee('PSO Series Management');
@@ -69,6 +79,11 @@ class HisabKitapErpTest extends TestCase
 
     public function test_bill_verification_and_resolution_flow(): void
     {
+        $this->post('/admin/login', [
+            'email' => 'admin@hisabkitap.in',
+            'password' => 'password',
+        ]);
+
         // Seed a sample bill
         Bill::create([
             'bill_no' => 'CB 01',
@@ -94,7 +109,7 @@ class HisabKitapErpTest extends TestCase
         $res = $this->postJson('/admin/verification/resolve-missing', [
             'bill_no' => 'CB 01',
             'reason' => 'Physical Slip Found & Verified in Counter Bundle',
-            'remark' => 'Verified counter slip'
+            'remark' => 'Verified counter slip',
         ]);
 
         $res->assertStatus(200);
@@ -160,6 +175,11 @@ class HisabKitapErpTest extends TestCase
 
     public function test_user_and_role_management_crud_and_permissions(): void
     {
+        $this->post('/admin/login', [
+            'email' => 'admin@hisabkitap.in',
+            'password' => 'password',
+        ]);
+
         $superAdmin = User::first();
         $this->assertTrue($superAdmin->isSuperAdmin());
         $this->assertTrue($superAdmin->hasPermission('can_manage_users'));

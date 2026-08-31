@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Bill;
-use App\Models\CreditCollection;
-use App\Models\Correction;
 use App\Models\AuditLog;
+use App\Models\Bill;
+use App\Models\Correction;
+use App\Models\CreditCollection;
 use App\Models\PsoConfig;
 use App\Services\ReconciliationService;
+use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportsController extends Controller
@@ -89,6 +89,17 @@ class ReportsController extends Controller
                 fputcsv($handle, ['Bill No', 'Customer', 'Salesman', 'Bill Date', 'Due Date', 'Amount', 'Paid', 'Outstanding', 'Status']);
                 foreach (CreditCollection::all() as $c) {
                     fputcsv($handle, [$c->bill_no, $c->customer_name, $c->salesman_name, $c->bill_date, $c->due_date, $c->bill_amount, $c->paid_amount, $c->outstanding_amount, $c->collection_status]);
+                }
+            } elseif ($reportType === 'missing_bills') {
+                fputcsv($handle, ['Bill No', 'PSO', 'Customer', 'Amount', 'Payment Type', 'CD', 'Refund', 'Net Amount', 'Status', 'Remark']);
+                $missingBills = Bill::whereDate('business_date', $businessDate)->where('status', '!=', 'Matched')->get();
+                foreach ($missingBills as $b) {
+                    fputcsv($handle, [$b->bill_no, $b->pso_code, $b->customer_name, $b->amount, $b->payment_type, $b->cd_amount, $b->refund_amount, $b->net_amount, $b->status, $b->remark]);
+                }
+            } elseif ($reportType === 'corrections_log') {
+                fputcsv($handle, ['Corr Code', 'Bill No', 'Original Amount', 'Type', 'CD', 'Return', 'Refund', 'Net Adjustment', 'Reason', 'Approved By']);
+                foreach (Correction::all() as $c) {
+                    fputcsv($handle, [$c->corr_code, $c->bill_no, $c->original_amount, $c->correction_type, $c->cd_amount, $c->goods_return_amount, $c->refund_amount, $c->net_adjustment, $c->reason, $c->approved_by]);
                 }
             } else {
                 fputcsv($handle, ['ID', 'User', 'Action', 'Details', 'Timestamp']);

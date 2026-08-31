@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Correction;
-use App\Models\Bill;
 use App\Models\AuditLog;
+use App\Models\Bill;
+use App\Models\Correction;
 use App\Services\ReconciliationService;
+use Illuminate\Http\Request;
 
 class CorrectionsController extends Controller
 {
@@ -50,8 +50,8 @@ class CorrectionsController extends Controller
         $refund = (float) ($request->refund_amount ?? 0);
         $netAdj = -($cd + $returnAmt + $refund);
 
-        $nextId = Correction::count() + 1;
-        $corrCode = 'CORR-' . sprintf('%02d', $nextId);
+        $nextId = (Correction::max('id') ?? 0) + 1;
+        $corrCode = 'CORR-'.sprintf('%02d', $nextId);
 
         $corr = Correction::create([
             'corr_code' => $corrCode,
@@ -73,7 +73,7 @@ class CorrectionsController extends Controller
         $bill->net_amount = (float) $bill->amount - ($bill->cd_amount + $bill->refund_amount);
         $bill->save();
 
-        AuditLog::log('CORRECTION_ADDED', "Recorded adjustment {$corrCode} for {$bill->bill_no}: Net deduction ₹" . abs($netAdj) . " ({$request->reason})");
+        AuditLog::log('CORRECTION_ADDED', "Recorded adjustment {$corrCode} for {$bill->bill_no}: Net deduction ₹".abs($netAdj)." ({$request->reason})");
 
         return redirect()->back()->with('success', "Adjustment {$corrCode} recorded successfully for bill {$bill->bill_no}.");
     }

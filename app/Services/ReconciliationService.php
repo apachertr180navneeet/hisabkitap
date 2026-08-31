@@ -3,12 +3,12 @@
 namespace App\Services;
 
 use App\Models\Bill;
+use App\Models\Correction;
+use App\Models\CreditCollection;
 use App\Models\PsoConfig;
 use App\Models\PsoDailySeal;
 use App\Models\SystemSetting;
-use App\Models\Correction;
-use App\Models\CreditCollection;
-use App\Models\TallyImport;
+use App\Models\User;
 
 class ReconciliationService
 {
@@ -32,6 +32,7 @@ class ReconciliationService
             ->get();
 
         $tallyTotal = 0;
+        $psoCollection = 0;
         $pso1Total = 0;
         $pso2Total = 0;
         $pso3Total = 0;
@@ -80,7 +81,9 @@ class ReconciliationService
 
             // PSO breakdown (Only if non-missing)
             $psoAmt = ($bill->status === 'Missing') ? 0 : (float) $bill->net_amount;
+            $psoCollection += $psoAmt;
 
+            // Explicit breakdown for the standard PSO-1/2/3 counters
             if ($bill->pso_code === 'PSO-1') {
                 $pso1Total += $psoAmt;
             } elseif ($bill->pso_code === 'PSO-2') {
@@ -90,7 +93,6 @@ class ReconciliationService
             }
         }
 
-        $psoCollection = $pso1Total + $pso2Total + $pso3Total;
         $expectedCollection = $tallyTotal - ($totCd + $totRefund + $totCancelled);
         $difference = $expectedCollection - $psoCollection;
         $hasBills = ($totalBillsCount > 0);
@@ -105,7 +107,7 @@ class ReconciliationService
         $totalPsoCount = PsoConfig::count();
         $correctionsCount = Correction::count();
         $creditRecordsCount = CreditCollection::where('outstanding_amount', '>', 0)->count();
-        $totalUsersCount = \App\Models\User::count();
+        $totalUsersCount = User::count();
 
         // Pending credit calculation
         $creditPending = CreditCollection::whereDate('bill_date', $date)

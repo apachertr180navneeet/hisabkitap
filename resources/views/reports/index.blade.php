@@ -103,25 +103,75 @@
               @endforeach
             </tbody>
           </table>
-        @elseif($reportType === 'audit_history')
-          <div class="p-2 border-bottom mb-2 fw-bold">STATUTORY AUDIT LOG REGISTER</div>
+        @elseif($reportType === 'recon_sheet')
+          <div class="p-2 border-bottom mb-2 fw-bold">TALLY vs PSO MASTER RECONCILIATION SHEET (Date: {{ $businessDate }})</div>
+          <p>Total Tally: ₹{{ number_format($metrics['tallyTotal'], 2) }} | PSO Collection: ₹{{ number_format($metrics['psoCollection'], 2) }} | Variance: <strong>₹{{ number_format($metrics['difference'], 2) }}</strong></p>
           <table class="table table-sm table-bordered bg-white">
             <thead>
-              <tr><th>ID</th><th>User</th><th>Action</th><th>Details</th><th>Timestamp</th></tr>
+              <tr><th>Bill No</th><th>PSO</th><th>Customer</th><th>Amount</th><th>Pay Type</th><th>CD</th><th>Net</th><th>Status</th></tr>
             </thead>
             <tbody>
-              @foreach($reportData['logs'] as $l)
+              @foreach($reportData['bills'] as $b)
                 <tr>
-                  <td>#{{ $l->id }}</td>
-                  <td><strong>{{ $l->user_name }}</strong></td>
-                  <td><span class="badge bg-primary">{{ $l->action }}</span></td>
-                  <td>{{ $l->details }}</td>
-                  <td>{{ $l->created_at }}</td>
+                  <td>{{ $b->bill_no }}</td>
+                  <td>{{ $b->pso_code }}</td>
+                  <td>{{ $b->customer_name }}</td>
+                  <td>₹{{ number_format($b->amount) }}</td>
+                  <td>{{ $b->payment_type }}</td>
+                  <td>₹{{ number_format($b->cd_amount) }}</td>
+                  <td>₹{{ number_format($b->net_amount) }}</td>
+                  <td>{{ $b->status }}</td>
                 </tr>
               @endforeach
             </tbody>
           </table>
-        @else
+        @elseif($reportType === 'missing_bills')
+          <div class="p-2 border-bottom mb-2 fw-bold">MISSING & DISCREPANCY BILL INVESTIGATION LOG (Date: {{ $businessDate }})</div>
+          <table class="table table-sm table-bordered bg-white">
+            <thead>
+              <tr><th>Bill No</th><th>PSO</th><th>Customer</th><th>Amount</th><th>Pay Type</th><th>Status</th><th>Remark</th></tr>
+            </thead>
+            <tbody>
+              @forelse($reportData['bills'] as $b)
+                <tr>
+                  <td>{{ $b->bill_no }}</td>
+                  <td>{{ $b->pso_code }}</td>
+                  <td>{{ $b->customer_name }}</td>
+                  <td>₹{{ number_format($b->amount) }}</td>
+                  <td>{{ $b->payment_type }}</td>
+                  <td><span class="badge bg-danger">{{ $b->status }}</span></td>
+                  <td>{{ $b->remark }}</td>
+                </tr>
+              @empty
+                <tr><td colspan="7" class="text-center text-muted p-3">No missing or discrepant bills.</td></tr>
+              @endforelse
+            </tbody>
+          </table>
+        @elseif($reportType === 'corrections_log')
+          <div class="p-2 border-bottom mb-2 fw-bold">CASH DISCOUNTS, GOODS RETURNS & SPOT ADJUSTMENTS REGISTER</div>
+          <table class="table table-sm table-bordered bg-white">
+            <thead>
+              <tr><th>Code</th><th>Bill No</th><th>Original</th><th>Type</th><th>CD</th><th>Return</th><th>Refund</th><th>Net Adj</th><th>Approved By</th></tr>
+            </thead>
+            <tbody>
+              @forelse($reportData['corrections'] as $c)
+                <tr>
+                  <td>{{ $c->corr_code }}</td>
+                  <td>{{ $c->bill_no }}</td>
+                  <td>₹{{ number_format($c->original_amount) }}</td>
+                  <td>{{ $c->correction_type }}</td>
+                  <td>₹{{ number_format($c->cd_amount) }}</td>
+                  <td>₹{{ number_format($c->goods_return_amount) }}</td>
+                  <td>₹{{ number_format($c->refund_amount) }}</td>
+                  <td>₹{{ number_format($c->net_adjustment) }}</td>
+                  <td>{{ $c->approved_by }}</td>
+                </tr>
+              @empty
+                <tr><td colspan="9" class="text-center text-muted p-3">No corrections recorded.</td></tr>
+              @endforelse
+            </tbody>
+          </table>
+        @elseif($reportType === 'audit_history')
           <div class="p-2 border-bottom mb-2 fw-bold">STATUTORY REPORT PREVIEW ({{ $reportType }})</div>
           <p>Generated for Business Date: {{ $businessDate }} | Status: Active</p>
           <div class="p-3 bg-white border rounded">

@@ -335,6 +335,99 @@ class HisabKitapDeepModuleTest extends TestCase
         $this->assertStringContainsString('text/csv', $response->headers->get('Content-Type'));
     }
 
+    public function test_reports_export_missing_bills_export_bills_not_audit_log(): void
+    {
+        $this->makePso();
+        $this->makeBill(['status' => 'Missing', 'bill_no' => 'CB 01']);
+
+        $response = $this->get('/admin/reports/export?type=missing_bills');
+        $response->assertStatus(200);
+        $content = $response->streamedContent();
+        // Must contain the missing bill, not merely audit-log columns
+        $this->assertStringContainsString('CB 01', $content);
+        $this->assertStringContainsString('Bill No', $content);
+    }
+
+    public function test_reports_export_corrections_log_export_corrections(): void
+    {
+        $this->makePso();
+        $bill = $this->makeBill();
+        Correction::create([
+            'corr_code' => 'CORR-01',
+            'bill_id' => $bill->id,
+            'bill_no' => 'CB 01',
+            'original_amount' => 10000,
+            'correction_type' => 'Cash Discount',
+            'cd_amount' => 500,
+            'goods_return_amount' => 0,
+            'refund_amount' => 0,
+            'net_adjustment' => -500,
+            'reason' => 'Volume discount',
+            'approved_by' => 'Pooja Verma',
+        ]);
+
+        $response = $this->get('/admin/reports/export?type=corrections_log');
+        $response->assertStatus(200);
+        $content = $response->streamedContent();
+        $this->assertStringContainsString('CORR-01', $content);
+        $this->assertStringContainsString('Volume discount', $content);
+    }
+
+    public function test_reports_index_renders_missing_bills_and_corrections_preview(): void
+    {
+        $this->makePso();
+        $bill = $this->makeBill(['status' => 'Missing']);
+        Correction::create([
+            'corr_code' => 'CORR-01',
+            'bill_id' => $bill->id,
+            'bill_no' => 'CB 01',
+            'original_amount' => 10000,
+            'correction_type' => 'Refund',
+            'cd_amount' => 0,
+            'goods_return_amount' => 0,
+            'refund_amount' => 250,
+            'net_adjustment' => -250,
+            'reason' => 'Customer return',
+            'approved_by' => 'Pooja Verma',
+        ]);
+
+        $missing = $this->get('/admin/reports?type=missing_bills');
+        $missing->assertStatus(200);
+        $missing->assertSee('Bill No');
+
+        $corr = $this->get('/admin/reports?type=corrections_log');
+        $corr->assertStatus(200);
+        $corr->assertSee('CORR-01');
+        $corr->assertSee('Pooja Verma');
+    }
+
+    public function test_reconciliation_metrics_include_dynamic_pso_codes(): void
+    {
+        // Create a PSO beyond the hardcoded PSO-1/2/3 set and confirm it is still counted
+        $this->makePso('PSO-4', 'IB');
+        Bill::create([
+            'bill_no' => 'IB 01',
+            'pso_code' => 'PSO-4',
+            'business_date' => date('Y-m-d'),
+            'customer_name' => 'Dynamic PSO Customer',
+            'amount' => 25000,
+            'payment_type' => 'Cash',
+            'cd_amount' => 0,
+            'refund_amount' => 0,
+            'net_amount' => 25000,
+            'status' => 'Matched',
+            'is_post_cutoff' => false,
+        ]);
+
+        $service = app(ReconciliationService::class);
+        $metrics = $service->getMetrics();
+
+        // Dynamic PSO collection must include PSO-4 even though pso1/2/3 totals are 0
+        $this->assertEquals(25000, $metrics['psoCollection']);
+        $this->assertEquals(0, $metrics['pso1Total']);
+        $this->assertTrue($metrics['isReconciled']);
+    }
+
     public function test_settings_page_loads_and_admin_update(): void
     {
         $response = $this->get('/admin/settings');
@@ -348,6 +441,30 @@ class HisabKitapDeepModuleTest extends TestCase
         $this->assertEquals('18:30', SystemSetting::getVal('cutoff_time'));
         $this->assertEquals('1', SystemSetting::getVal('cutoff_rollover_active'));
         $this->assertDatabaseHas('audit_logs', ['action' => 'SETTINGS_UPDATE']);
+    }
+
+    public function test_settings_allows_super_admin_role_update(): void
+    {
+        // A user with role_code SUPER_ADMIN must also be able to update settings
+        $this->post('/admin/logout');
+        User::create([
+            'code' => 'usr_sa',
+            'name' => 'Second Super Admin',
+            'email' => 'super2@hisabkitap.in',
+            'password' => Hash::make('password'),
+            'role_name' => 'Super Administrator',
+            'role_code' => 'SUPER_ADMIN',
+            'can_edit_cutoff' => true,
+            'is_active' => true,
+            'is_read_only' => false,
+            'allowed_modules' => ['All Modules'],
+        ]);
+        $this->post('/admin/login', ['email' => 'super2@hisabkitap.in', 'password' => 'password']);
+
+        $res = $this->post('/admin/settings/update', ['cutoff_time' => '17:45']);
+        $res->assertStatus(302);
+        $res->assertSessionHas('success');
+        $this->assertEquals('17:45', SystemSetting::getVal('cutoff_time'));
     }
 
     public function test_settings_denies_non_admin_update(): void
@@ -398,13 +515,79 @@ class HisabKitapDeepModuleTest extends TestCase
         $response->assertSee('HisabKitap ERP');
     }
 
-    public function test_profile_page_guards_without_auth(): void
+    public function test_admin_routes_redirect_guests_to_login(): void
     {
         $this->post('/admin/logout');
-        // Profile view falls back to the first user in DB instead of crashing
         $res = $this->get('/admin/profile');
+        $res->assertStatus(302);
+        $res->assertRedirect('/login');
+    }
+
+    public function test_inactive_user_cannot_log_in(): void
+    {
+        $this->post('/admin/logout');
+        User::create([
+            'code' => 'usr_inactive',
+            'name' => 'Inactive User',
+            'email' => 'inactive@hisabkitap.in',
+            'password' => Hash::make('secret123'),
+            'role_name' => 'PSO Operator',
+            'role_code' => 'OPERATOR',
+            'is_active' => false,
+            'is_read_only' => false,
+            'allowed_modules' => ['Dashboard'],
+        ]);
+
+        $res = $this->post('/admin/login', ['email' => 'inactive@hisabkitap.in', 'password' => 'secret123']);
+        $res->assertStatus(302);
+        $res->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
+
+    public function test_read_only_user_cannot_perform_write_actions(): void
+    {
+        $this->post('/admin/logout');
+        User::create([
+            'code' => 'usr_ro',
+            'name' => 'Read Only Auditor',
+            'email' => 'auditor@hisabkitap.in',
+            'password' => Hash::make('secret123'),
+            'role_name' => 'Accounts Approver',
+            'role_code' => 'APPROVER',
+            'is_active' => true,
+            'is_read_only' => true,
+            'can_approve_sealing' => true,
+            'allowed_modules' => ['Approval & Sealing'],
+        ]);
+        $this->post('/admin/login', ['email' => 'auditor@hisabkitap.in', 'password' => 'secret123']);
+
+        $this->makePso();
+        $this->makeBill(['status' => 'Missing']);
+
+        // Attempt a write action - should be blocked and no state change
+        $res = $this->post('/admin/verification/auto-verify');
+        $res->assertSessionHas('error');
+        $this->assertEquals('Missing', Bill::first()->status);
+    }
+
+    public function test_read_only_user_can_still_view_pages(): void
+    {
+        $this->post('/admin/logout');
+        User::create([
+            'code' => 'usr_ro2',
+            'name' => 'Read Only Viewer',
+            'email' => 'viewer@hisabkitap.in',
+            'password' => Hash::make('secret123'),
+            'role_name' => 'Accounts Approver',
+            'role_code' => 'APPROVER',
+            'is_active' => true,
+            'is_read_only' => true,
+            'allowed_modules' => ['Dashboard'],
+        ]);
+        $this->post('/admin/login', ['email' => 'viewer@hisabkitap.in', 'password' => 'secret123']);
+
+        $res = $this->get('/admin/dashboard');
         $res->assertStatus(200);
-        $res->assertSee('My Account Profile', false);
     }
 
     public function test_pso_toggle_status_and_validation(): void
@@ -440,6 +623,63 @@ class HisabKitapDeepModuleTest extends TestCase
         $pso->refresh();
         $this->assertFalse((bool) $pso->is_active);
         $this->assertDatabaseHas('audit_logs', ['action' => 'PSO_STATUS_TOGGLE']);
+    }
+
+    public function test_pso_code_generation_avoids_duplicates_after_deletion(): void
+    {
+        // Simulate PSO-1, PSO-2, PSO-3 existing, then PSO-2 deleted (no delete route, so direct DB)
+        $p1 = $this->makePso('PSO-1', 'CB');
+        $p2 = $this->makePso('PSO-2', 'CB');
+        $this->makePso('PSO-3', 'CB');
+        $p2->delete();
+
+        // Next created code must not collide with existing PSO-1/PSO-3
+        $res = $this->post('/admin/pso/store', [
+            'name' => 'After Deletion Counter',
+            'prefix' => 'AB',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'Kavita',
+        ]);
+        $res->assertStatus(302);
+
+        $codes = PsoConfig::pluck('code');
+        $this->assertCount($codes->unique()->count(), $codes, 'PSO codes must be unique');
+        $this->assertTrue($codes->contains('PSO-4'));
+        $this->assertSame(PsoConfig::count(), PsoConfig::distinct('code')->count());
+    }
+
+    public function test_correction_code_generation_avoids_duplicates(): void
+    {
+        $this->makePso();
+        $bill = $this->makeBill();
+
+        Correction::create([
+            'corr_code' => 'CORR-01',
+            'bill_id' => $bill->id,
+            'bill_no' => 'CB 01',
+            'original_amount' => 10000,
+            'correction_type' => 'Refund',
+            'cd_amount' => 0,
+            'goods_return_amount' => 0,
+            'refund_amount' => 100,
+            'net_adjustment' => -100,
+            'reason' => 'First refund',
+            'approved_by' => 'Pooja Verma',
+        ]);
+
+        // Second correction code must be CORR-02 (derived from max id, not count)
+        $res = $this->post('/admin/corrections/store', [
+            'bill_no' => 'CB 01',
+            'correction_type' => 'Refund',
+            'refund_amount' => 50,
+            'reason' => 'Second refund',
+        ]);
+        $res->assertStatus(302);
+
+        $codes = Correction::pluck('corr_code');
+        $this->assertCount($codes->unique()->count(), $codes, 'Correction codes must be unique');
+        $this->assertTrue($codes->contains('CORR-02'));
     }
 
     public function test_user_cannot_toggle_or_delete_self(): void

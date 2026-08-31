@@ -45,8 +45,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // 3. ADMIN & ERP DASHBOARD & MODULES
 // URLs: http://127.0.0.1:8000/admin/dashboard
 // ==========================================
-Route::prefix('admin')->group(function () {
-    
+Route::prefix('admin')->middleware('auth')->group(function () {
+
     // Dashboard (supporting both /dashboard and typo alias /dashoard)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/dashoard', [DashboardController::class, 'index'])->name('admin.dashoard');
@@ -54,18 +54,18 @@ Route::prefix('admin')->group(function () {
 
     // 1. PSO Series Management
     Route::get('/pso', [PsoManagementController::class, 'index'])->name('admin.pso.index');
-    Route::post('/pso/store', [PsoManagementController::class, 'store'])->name('admin.pso.store');
-    Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->name('admin.pso.toggle');
+    Route::post('/pso/store', [PsoManagementController::class, 'store'])->middleware('read.only')->name('admin.pso.store');
+    Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware('read.only')->name('admin.pso.toggle');
 
     // 2. Tally Excel Import
     Route::get('/import', [ExcelImportController::class, 'index'])->name('admin.import.index');
-    Route::post('/import', [ExcelImportController::class, 'import'])->name('admin.import.process');
+    Route::post('/import', [ExcelImportController::class, 'import'])->middleware('read.only')->name('admin.import.process');
     Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('admin.import.sample');
 
     // 3. Bill Verification
     Route::get('/verification', [BillVerificationController::class, 'index'])->name('admin.verification.index');
-    Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->name('admin.verification.resolve');
-    Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->name('admin.verification.auto_verify');
+    Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware('read.only')->name('admin.verification.resolve');
+    Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->middleware('read.only')->name('admin.verification.auto_verify');
     Route::get('/verification/export', [BillVerificationController::class, 'exportCsv'])->name('admin.verification.export');
 
     // 4. Payment Classification
@@ -73,11 +73,11 @@ Route::prefix('admin')->group(function () {
 
     // 5. Corrections & Returns
     Route::get('/corrections', [CorrectionsController::class, 'index'])->name('admin.corrections.index');
-    Route::post('/corrections/store', [CorrectionsController::class, 'store'])->name('admin.corrections.store');
+    Route::post('/corrections/store', [CorrectionsController::class, 'store'])->middleware('read.only')->name('admin.corrections.store');
 
     // 6. Credit Collection
     Route::get('/credit-collection', [CreditCollectionController::class, 'index'])->name('admin.credit.index');
-    Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->name('admin.credit.update');
+    Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware('read.only')->name('admin.credit.update');
     Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('admin.credit.export');
 
     // 7. PSO Summary Matrix
@@ -85,12 +85,12 @@ Route::prefix('admin')->group(function () {
 
     // 8. Master Reconciliation Engine
     Route::get('/reconciliation', [MasterReconciliationController::class, 'index'])->name('admin.reconciliation.index');
-    Route::post('/reconciliation/quick-resolve', [MasterReconciliationController::class, 'quickResolveDiscrepancy'])->name('admin.reconciliation.resolve');
+    Route::post('/reconciliation/quick-resolve', [MasterReconciliationController::class, 'quickResolveDiscrepancy'])->middleware('read.only')->name('admin.reconciliation.resolve');
 
     // 9. Approval & Sealing
     Route::get('/approval-sealing', [ApprovalSealingController::class, 'index'])->name('admin.approval.index');
-    Route::post('/approval-sealing/seal', [ApprovalSealingController::class, 'sealDay'])->name('admin.approval.seal');
-    Route::post('/approval-sealing/unseal', [ApprovalSealingController::class, 'unsealDay'])->name('admin.approval.unseal');
+    Route::post('/approval-sealing/seal', [ApprovalSealingController::class, 'sealDay'])->middleware('read.only')->name('admin.approval.seal');
+    Route::post('/approval-sealing/unseal', [ApprovalSealingController::class, 'unsealDay'])->middleware('read.only')->name('admin.approval.unseal');
 
     // 10. 7-Day Retention Radar
     Route::get('/retention', [RetentionController::class, 'index'])->name('admin.retention.index');
@@ -101,51 +101,53 @@ Route::prefix('admin')->group(function () {
 
     // 12. Cutoff & Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
-    Route::post('/settings/update', [SettingsController::class, 'update'])->name('admin.settings.update');
+    Route::post('/settings/update', [SettingsController::class, 'update'])->middleware('read.only')->name('admin.settings.update');
 
     // 13. User Profile & Change Password
     Route::get('/profile', [ProfileController::class, 'index'])->name('admin.profile');
-    Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('admin.profile.update');
-    Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->name('admin.profile.password');
+    Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->middleware('read.only')->name('admin.profile.update');
+    Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->middleware('read.only')->name('admin.profile.password');
 
     // 14. User & Role Management
     Route::get('/users', [UserController::class, 'index'])->name('admin.users.index');
-    Route::post('/users/store', [UserController::class, 'store'])->name('admin.users.store');
-    Route::post('/users/{id}/update', [UserController::class, 'update'])->name('admin.users.update');
-    Route::post('/users/{id}/change-password', [UserController::class, 'changePassword'])->name('admin.users.password');
-    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('admin.users.toggle');
-    Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('admin.users.delete');
+    Route::post('/users/store', [UserController::class, 'store'])->middleware('read.only')->name('admin.users.store');
+    Route::post('/users/{id}/update', [UserController::class, 'update'])->middleware('read.only')->name('admin.users.update');
+    Route::post('/users/{id}/change-password', [UserController::class, 'changePassword'])->middleware('read.only')->name('admin.users.password');
+    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->middleware('read.only')->name('admin.users.toggle');
+    Route::delete('/users/{id}', [UserController::class, 'destroy'])->middleware('read.only')->name('admin.users.delete');
 });
 
 // Non-admin root routes for backward compatibility
-Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
-Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('profile.update');
-Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->name('profile.password');
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-Route::get('/pso', [PsoManagementController::class, 'index'])->name('pso.index');
-Route::post('/pso/store', [PsoManagementController::class, 'store'])->name('pso.store');
-Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->name('pso.toggle');
-Route::get('/import', [ExcelImportController::class, 'index'])->name('import.index');
-Route::post('/import', [ExcelImportController::class, 'import'])->name('import.process');
-Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('import.sample');
-Route::get('/verification', [BillVerificationController::class, 'index'])->name('verification.index');
-Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->name('verification.resolve');
-Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->name('verification.auto_verify');
-Route::get('/verification/export', [BillVerificationController::class, 'exportCsv'])->name('verification.export');
-Route::get('/payment-classification', [PaymentClassificationController::class, 'index'])->name('payment.index');
-Route::get('/corrections', [CorrectionsController::class, 'index'])->name('corrections.index');
-Route::post('/corrections/store', [CorrectionsController::class, 'store'])->name('corrections.store');
-Route::get('/credit-collection', [CreditCollectionController::class, 'index'])->name('credit.index');
-Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->name('credit.update');
-Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('credit.export');
-Route::get('/pso-summary', [PsoSummaryController::class, 'index'])->name('summary.index');
-Route::get('/reconciliation', [MasterReconciliationController::class, 'index'])->name('reconciliation.index');
-Route::post('/reconciliation/quick-resolve', [MasterReconciliationController::class, 'quickResolveDiscrepancy'])->name('reconciliation.resolve');
-Route::get('/approval-sealing', [ApprovalSealingController::class, 'index'])->name('approval.index');
-Route::post('/approval-sealing/seal', [ApprovalSealingController::class, 'sealDay'])->name('approval.seal');
-Route::post('/approval-sealing/unseal', [ApprovalSealingController::class, 'unsealDay'])->name('approval.unseal');
-Route::get('/retention', [RetentionController::class, 'index'])->name('retention.index');
-Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
-Route::get('/reports/export', [ReportsController::class, 'exportExcel'])->name('reports.export');
-Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
-Route::post('/settings/update', [SettingsController::class, 'update'])->name('settings.update');
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+    Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->middleware('read.only')->name('profile.update');
+    Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->middleware('read.only')->name('profile.password');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/pso', [PsoManagementController::class, 'index'])->name('pso.index');
+    Route::post('/pso/store', [PsoManagementController::class, 'store'])->middleware('read.only')->name('pso.store');
+    Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware('read.only')->name('pso.toggle');
+    Route::get('/import', [ExcelImportController::class, 'index'])->name('import.index');
+    Route::post('/import', [ExcelImportController::class, 'import'])->middleware('read.only')->name('import.process');
+    Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('import.sample');
+    Route::get('/verification', [BillVerificationController::class, 'index'])->name('verification.index');
+    Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware('read.only')->name('verification.resolve');
+    Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->middleware('read.only')->name('verification.auto_verify');
+    Route::get('/verification/export', [BillVerificationController::class, 'exportCsv'])->name('verification.export');
+    Route::get('/payment-classification', [PaymentClassificationController::class, 'index'])->name('payment.index');
+    Route::get('/corrections', [CorrectionsController::class, 'index'])->name('corrections.index');
+    Route::post('/corrections/store', [CorrectionsController::class, 'store'])->middleware('read.only')->name('corrections.store');
+    Route::get('/credit-collection', [CreditCollectionController::class, 'index'])->name('credit.index');
+    Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware('read.only')->name('credit.update');
+    Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('credit.export');
+    Route::get('/pso-summary', [PsoSummaryController::class, 'index'])->name('summary.index');
+    Route::get('/reconciliation', [MasterReconciliationController::class, 'index'])->name('reconciliation.index');
+    Route::post('/reconciliation/quick-resolve', [MasterReconciliationController::class, 'quickResolveDiscrepancy'])->middleware('read.only')->name('reconciliation.resolve');
+    Route::get('/approval-sealing', [ApprovalSealingController::class, 'index'])->name('approval.index');
+    Route::post('/approval-sealing/seal', [ApprovalSealingController::class, 'sealDay'])->middleware('read.only')->name('approval.seal');
+    Route::post('/approval-sealing/unseal', [ApprovalSealingController::class, 'unsealDay'])->middleware('read.only')->name('approval.unseal');
+    Route::get('/retention', [RetentionController::class, 'index'])->name('retention.index');
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export', [ReportsController::class, 'exportExcel'])->name('reports.export');
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings/update', [SettingsController::class, 'update'])->middleware('read.only')->name('settings.update');
+});

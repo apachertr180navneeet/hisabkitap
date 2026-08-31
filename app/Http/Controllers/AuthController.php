@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\AuditLog;
 
 class AuthController extends Controller
 {
@@ -33,8 +33,20 @@ class AuthController extends Controller
         $remember = $request->boolean('remember');
 
         if (Auth::attempt($credentials, $remember)) {
-            $request->session()->regenerate();
             $user = Auth::user();
+
+            // Reject deactivated accounts
+            if (! (bool) $user->is_active) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => 'Your account has been deactivated. Please contact the system administrator.',
+                ])->onlyInput('email');
+            }
+
+            $request->session()->regenerate();
             session(['active_user' => $user->toArray()]);
 
             AuditLog::log('USER_LOGIN', "User {$user->name} ({$user->role_name}) logged in successfully.");

@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\PsoConfig;
 use App\Models\AuditLog;
+use App\Models\PsoConfig;
+use Illuminate\Http\Request;
 
 class PsoManagementController extends Controller
 {
     public function index()
     {
         $psoList = PsoConfig::all();
+
         return view('pso.index', compact('psoList'));
     }
 
@@ -26,11 +27,11 @@ class PsoManagementController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $nextNum = PsoConfig::count() + 1;
-        $code = 'PSO-' . $nextNum;
+        $nextNum = (PsoConfig::max('id') ?? 0) + 1;
+        $code = 'PSO-'.$nextNum;
 
         $specialsArr = [];
-        if (!empty($validated['specials'])) {
+        if (! empty($validated['specials'])) {
             $specialsArr = array_filter(array_map('trim', explode(',', $validated['specials'])));
         }
 
@@ -42,7 +43,7 @@ class PsoManagementController extends Controller
             'end_no' => $validated['end_no'],
             'specials' => $specialsArr,
             'operator_name' => $validated['operator_name'],
-            'description' => $validated['description'] ?? ("Counter Bills " . strtoupper($validated['prefix']) . " {$validated['start_no']} to {$validated['end_no']}"),
+            'description' => $validated['description'] ?? ('Counter Bills '.strtoupper($validated['prefix'])." {$validated['start_no']} to {$validated['end_no']}"),
             'is_active' => true,
         ]);
 
@@ -54,10 +55,10 @@ class PsoManagementController extends Controller
     public function toggleStatus($id)
     {
         $pso = PsoConfig::findOrFail($id);
-        $pso->is_active = !$pso->is_active;
+        $pso->is_active = ! $pso->is_active;
         $pso->save();
 
-        AuditLog::log('PSO_STATUS_TOGGLE', "Toggled active status of {$pso->code} to " . ($pso->is_active ? 'Active' : 'Inactive'));
+        AuditLog::log('PSO_STATUS_TOGGLE', "Toggled active status of {$pso->code} to ".($pso->is_active ? 'Active' : 'Inactive'));
 
         return redirect()->back()->with('success', "PSO {$pso->code} status updated.");
     }
