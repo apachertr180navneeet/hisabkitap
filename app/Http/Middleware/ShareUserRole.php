@@ -17,8 +17,10 @@ class ShareUserRole
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // If active user is not in session, set default to Operator (usr_01)
-        if (!session()->has('active_user')) {
+        // If Auth is logged in, synchronize active_user
+        if (auth()->check()) {
+            session(['active_user' => auth()->user()->toArray()]);
+        } elseif (!session()->has('active_user')) {
             $defaultUser = User::where('code', 'usr_01')->first() ?: User::first();
             if ($defaultUser) {
                 session(['active_user' => $defaultUser->toArray()]);

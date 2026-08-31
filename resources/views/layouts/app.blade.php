@@ -262,6 +262,12 @@
                   </a>
                 </li>
               @endforeach
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item text-danger" href="{{ route('logout.get') }}">
+                  <i class="bi bi-box-arrow-right me-2"></i>Sign Out / Lock Session
+                </a>
+              </li>
             </ul>
           </div>
         </div>

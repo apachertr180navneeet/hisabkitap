@@ -77,14 +77,36 @@ class HisabKitapErpTest extends TestCase
         $appResponse->assertSee('PSO SEALED & LOCKED', false);
     }
 
-    public function test_payment_classification_and_credit_collection(): void
+    public function test_login_page_loads_and_shows_personas(): void
     {
-        $payResponse = $this->get('/payment-classification');
-        $payResponse->assertStatus(200);
-        $payResponse->assertSee('Payment Classification', false);
+        $response = $this->get('/login');
+        $response->assertStatus(200);
+        $response->assertSee('Sign In to Dashboard', false);
+        $response->assertSee('Ramesh Sharma');
+        $response->assertSee('Pooja Verma');
+        $response->assertSee('Suresh Gupta');
+        $response->assertSee('Vikram Mehta');
+    }
 
-        $creditResponse = $this->get('/credit-collection');
-        $creditResponse->assertStatus(200);
-        $creditResponse->assertSee('Credit Collection Management', false);
+    public function test_credential_login_and_logout_flow(): void
+    {
+        $response = $this->post('/login', [
+            'email' => 'admin@hisabkitap.in',
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect('/');
+        $this->assertAuthenticated();
+
+        $logoutResponse = $this->get('/logout');
+        $logoutResponse->assertRedirect('/login');
+        $this->assertGuest();
+    }
+
+    public function test_quick_persona_login(): void
+    {
+        $response = $this->get('/login/quick?role_code=usr_02');
+        $response->assertRedirect('/');
+        $this->assertAuthenticated();
     }
 }

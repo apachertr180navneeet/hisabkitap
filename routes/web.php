@@ -17,6 +17,15 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\RoleSwitchController;
 
+use App\Http\Controllers\AuthController;
+
+// Authentication Routes
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::get('/login/quick', [AuthController::class, 'quickLogin'])->name('login.quick');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/logout', [AuthController::class, 'logout'])->name('logout.get');
+
 // 1. Dashboard
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
