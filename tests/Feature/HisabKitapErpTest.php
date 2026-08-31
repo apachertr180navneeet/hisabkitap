@@ -16,14 +16,27 @@ class HisabKitapErpTest extends TestCase
         $this->seed(HisabKitapDatabaseSeeder::class);
     }
 
-    public function test_dashboard_page_loads_with_kpis(): void
+    public function test_public_landing_page_loads(): void
     {
         $response = $this->get('/');
+        $response->assertStatus(200);
+        $response->assertSee('HisabKitap ERP');
+        $response->assertSee('Zero Discrepancy', false);
+        $response->assertSee('Admin Login');
+    }
+
+    public function test_admin_dashboard_page_loads_with_kpis(): void
+    {
+        $response = $this->get('/admin/dashboard');
         $response->assertStatus(200);
         $response->assertSee('HisabKitap ERP');
         $response->assertSee('700,000');
         $response->assertSee('674,500');
         $response->assertSee('17,500');
+
+        // Verify typo alias /admin/dashoard
+        $aliasResponse = $this->get('/admin/dashoard');
+        $aliasResponse->assertStatus(200);
     }
 
     public function test_pso_management_page_loads(): void
@@ -90,23 +103,23 @@ class HisabKitapErpTest extends TestCase
 
     public function test_credential_login_and_logout_flow(): void
     {
-        $response = $this->post('/login', [
+        $response = $this->post('/admin/login', [
             'email' => 'admin@hisabkitap.in',
             'password' => 'password',
         ]);
 
-        $response->assertRedirect('/');
+        $response->assertRedirect('/admin/dashboard');
         $this->assertAuthenticated();
 
-        $logoutResponse = $this->get('/logout');
-        $logoutResponse->assertRedirect('/login');
+        $logoutResponse = $this->get('/admin/logout');
+        $logoutResponse->assertRedirect('/admin/login');
         $this->assertGuest();
     }
 
     public function test_quick_persona_login(): void
     {
-        $response = $this->get('/login/quick?role_code=usr_02');
-        $response->assertRedirect('/');
+        $response = $this->get('/admin/login/quick?role_code=usr_02');
+        $response->assertRedirect('/admin/dashboard');
         $this->assertAuthenticated();
     }
 }

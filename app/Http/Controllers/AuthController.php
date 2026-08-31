@@ -41,7 +41,7 @@ class AuthController extends Controller
 
             AuditLog::log('USER_LOGIN', "User {$user->name} ({$user->role_name}) logged in successfully.");
 
-            return redirect()->intended(route('dashboard'))->with('success', "Welcome back, {$user->name}!");
+            return redirect()->intended(route('admin.dashboard'))->with('success', "Welcome back, {$user->name}!");
         }
 
         return back()->withErrors([
@@ -64,10 +64,10 @@ class AuthController extends Controller
 
             AuditLog::log('USER_LOGIN_QUICK', "Quick Persona Login: {$user->name} ({$user->role_name})");
 
-            return redirect()->route('dashboard')->with('success', "Logged in as {$user->name} ({$user->role_name}).");
+            return redirect()->route('admin.dashboard')->with('success', "Logged in as {$user->name} ({$user->role_name}).");
         }
 
-        return redirect()->route('login')->with('error', 'Selected persona not found.');
+        return redirect()->route('admin.login')->with('error', 'Selected persona not found.');
     }
 
     /**
@@ -84,6 +84,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login')->with('success', 'You have been logged out of the ERP system.');
+        return redirect()->route('admin.login')->with('success', 'You have been logged out of the ERP system.');
     }
 }

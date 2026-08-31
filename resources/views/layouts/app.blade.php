@@ -28,13 +28,15 @@
     <!-- LEFT SIDEBAR -->
     <aside id="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-brand-icon">
-          <i class="bi bi-shield-check"></i>
-        </div>
-        <div class="d-flex flex-column">
-          <span class="fw-bold text-white fs-6 lh-1">HisabKitap ERP</span>
-          <span class="text-secondary" style="font-size: 0.72rem;">Fuel & PSO Recon Core</span>
-        </div>
+        <a href="{{ route('admin.dashboard') }}" class="text-decoration-none d-flex align-items-center gap-2">
+          <div class="sidebar-brand-icon">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <div class="d-flex flex-column text-start">
+            <span class="fw-bold text-white fs-6 lh-1">HisabKitap ERP</span>
+            <span class="text-secondary" style="font-size: 0.72rem;">Fuel & PSO Recon Core</span>
+          </div>
+        </a>
       </div>
 
       <ul class="sidebar-menu">
@@ -137,12 +139,17 @@
       </ul>
 
       <div class="sidebar-footer">
-        <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center justify-content-between mb-1">
           <div class="d-flex align-items-center gap-2">
             <span class="badge bg-success rounded-circle p-1">&nbsp;</span>
             <span class="text-white-50" style="font-size: 0.75rem;">MySQL Online</span>
           </div>
           <span class="text-secondary font-mono" style="font-size: 0.7rem;">v2.4-LARAVEL</span>
+        </div>
+        <div class="pt-1 border-top border-secondary text-center">
+          <a href="{{ route('home') }}" class="text-white-50 text-decoration-none small" style="font-size: 0.72rem;">
+            <i class="bi bi-house-door me-1"></i> Visit Public Landing Page
+          </a>
         </div>
       </div>
     </aside>
