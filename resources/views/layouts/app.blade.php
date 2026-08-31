@@ -42,59 +42,59 @@
       <ul class="sidebar-menu">
         <li class="menu-category">Core Operations</li>
         <li>
-          <a href="{{ route('dashboard') }}" class="nav-item-custom {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+          <a href="{{ route('admin.dashboard') }}" class="nav-item-custom {{ request()->routeIs('*.dashboard') || request()->routeIs('dashboard') ? 'active' : '' }}">
             <i class="bi bi-grid-1x2-fill"></i>
             <span>Dashboard</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('pso.index') }}" class="nav-item-custom {{ request()->routeIs('pso.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.pso.index') }}" class="nav-item-custom {{ request()->routeIs('*.pso.*') || request()->routeIs('pso.*') ? 'active' : '' }}">
             <i class="bi bi-diagram-3-fill"></i>
             <span>PSO Management</span>
-            <span class="badge bg-primary">3</span>
+            <span class="badge bg-primary">{{ $globalMetrics['activePsoCount'] ?? 0 }}</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('import.index') }}" class="nav-item-custom {{ request()->routeIs('import.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.import.index') }}" class="nav-item-custom {{ request()->routeIs('*.import.*') || request()->routeIs('import.*') ? 'active' : '' }}">
             <i class="bi bi-file-earmark-spreadsheet-fill"></i>
             <span>Tally Excel Import</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('verification.index') }}" class="nav-item-custom {{ request()->routeIs('verification.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.verification.index') }}" class="nav-item-custom {{ request()->routeIs('*.verification.*') || request()->routeIs('verification.*') ? 'active' : '' }}">
             <i class="bi bi-receipt-cutoff"></i>
             <span>Bill Verification</span>
-            @if($globalMetrics['missingCount'] > 0)
+            @if(($globalMetrics['missingCount'] ?? 0) > 0)
               <span class="badge bg-danger">{{ $globalMetrics['missingCount'] }}</span>
             @else
-              <span class="badge bg-success">0</span>
+              <span class="badge bg-success">{{ $globalMetrics['totalBillsCount'] ?? 0 }}</span>
             @endif
           </a>
         </li>
 
         <li class="menu-category">Financial Workflow</li>
         <li>
-          <a href="{{ route('payment.index') }}" class="nav-item-custom {{ request()->routeIs('payment.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.payment.index') }}" class="nav-item-custom {{ request()->routeIs('*.payment.*') || request()->routeIs('payment.*') ? 'active' : '' }}">
             <i class="bi bi-wallet2"></i>
             <span>Payment Classification</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('corrections.index') }}" class="nav-item-custom {{ request()->routeIs('corrections.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.corrections.index') }}" class="nav-item-custom {{ request()->routeIs('*.corrections.*') || request()->routeIs('corrections.*') ? 'active' : '' }}">
             <i class="bi bi-arrow-left-right"></i>
             <span>Corrections / Returns</span>
-            <span class="badge bg-secondary">3</span>
+            <span class="badge bg-secondary">{{ $globalMetrics['correctionsCount'] ?? 0 }}</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('credit.index') }}" class="nav-item-custom {{ request()->routeIs('credit.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.credit.index') }}" class="nav-item-custom {{ request()->routeIs('*.credit.*') || request()->routeIs('credit.*') ? 'active' : '' }}">
             <i class="bi bi-cash-coin"></i>
             <span>Credit Collection</span>
-            <span class="badge bg-warning text-dark">5</span>
+            <span class="badge bg-warning text-dark">{{ $globalMetrics['creditRecordsCount'] ?? 0 }}</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('summary.index') }}" class="nav-item-custom {{ request()->routeIs('summary.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.summary.index') }}" class="nav-item-custom {{ request()->routeIs('*.summary.*') || request()->routeIs('summary.*') ? 'active' : '' }}">
             <i class="bi bi-table"></i>
             <span>PSO Summary</span>
           </a>
@@ -102,10 +102,14 @@
 
         <li class="menu-category">Recon & Compliance</li>
         <li>
-          <a href="{{ route('reconciliation.index') }}" class="nav-item-custom {{ request()->routeIs('reconciliation.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.reconciliation.index') }}" class="nav-item-custom {{ request()->routeIs('*.reconciliation.*') || request()->routeIs('reconciliation.*') ? 'active' : '' }}">
             <i class="bi bi-check2-all"></i>
             <span>Master Reconciliation</span>
-            @if($globalMetrics['isReconciled'])
+            @if($isSealed)
+              <span class="badge bg-success">SEALED</span>
+            @elseif(!($globalMetrics['hasBills'] ?? false))
+              <span class="badge bg-secondary">NO BILLS</span>
+            @elseif($globalMetrics['isReconciled'])
               <span class="badge bg-success">PASS</span>
             @else
               <span class="badge bg-danger">FAIL</span>
@@ -113,25 +117,25 @@
           </a>
         </li>
         <li>
-          <a href="{{ route('approval.index') }}" class="nav-item-custom {{ request()->routeIs('approval.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.approval.index') }}" class="nav-item-custom {{ request()->routeIs('*.approval.*') || request()->routeIs('approval.*') ? 'active' : '' }}">
             <i class="bi bi-lock-fill"></i>
             <span>Approval & Sealing</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('retention.index') }}" class="nav-item-custom {{ request()->routeIs('retention.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.retention.index') }}" class="nav-item-custom {{ request()->routeIs('*.retention.*') || request()->routeIs('retention.*') ? 'active' : '' }}">
             <i class="bi bi-clock-history"></i>
             <span>7-Day Retention</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('reports.index') }}" class="nav-item-custom {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.reports.index') }}" class="nav-item-custom {{ request()->routeIs('*.reports.*') || request()->routeIs('reports.*') ? 'active' : '' }}">
             <i class="bi bi-file-earmark-bar-graph-fill"></i>
             <span>Reports & Exports</span>
           </a>
         </li>
         <li>
-          <a href="{{ route('settings.index') }}" class="nav-item-custom {{ request()->routeIs('settings.*') ? 'active' : '' }}">
+          <a href="{{ route('admin.settings.index') }}" class="nav-item-custom {{ request()->routeIs('*.settings.*') || request()->routeIs('settings.*') ? 'active' : '' }}">
             <i class="bi bi-gear-fill"></i>
             <span>Cutoff & Settings</span>
           </a>
@@ -201,6 +205,11 @@
             <div class="badge bg-success d-flex align-items-center gap-1.5 py-2 px-2.5">
               <i class="bi bi-shield-lock-fill"></i>
               <span>DIGITALLY SEALED (APPROVED)</span>
+            </div>
+          @elseif(!($globalMetrics['hasBills'] ?? false))
+            <div class="badge bg-secondary d-flex align-items-center gap-1.5 py-2 px-2.5">
+              <i class="bi bi-inbox-fill"></i>
+              <span>AWAITING TALLY IMPORT</span>
             </div>
           @elseif($globalMetrics['isReconciled'])
             <div class="badge bg-success d-flex align-items-center gap-1.5 py-2 px-2.5">
@@ -320,21 +329,16 @@
         </div>
 
         <div class="d-flex align-items-center gap-2 flex-wrap">
-          <div class="d-flex align-items-center gap-1">
-            <span class="text-muted small me-1 d-none d-sm-inline" style="font-size: 0.74rem;">Switch Role:</span>
-            <a href="{{ route('role.switch', ['role_code' => 'usr_01']) }}" class="role-quick-btn {{ ($currentUser['code'] ?? '') === 'usr_01' ? 'active role-operator-btn' : '' }}" title="Accountant / PSO Operator">
-              <i class="bi bi-person-badge"></i> Operator
-            </a>
-            <a href="{{ route('role.switch', ['role_code' => 'usr_02']) }}" class="role-quick-btn {{ ($currentUser['code'] ?? '') === 'usr_02' ? 'active role-approver-btn' : '' }}" title="Accounts Officer (Approver)">
-              <i class="bi bi-check-circle-fill text-success"></i> Approver
-            </a>
-            <a href="{{ route('role.switch', ['role_code' => 'usr_03']) }}" class="role-quick-btn {{ ($currentUser['code'] ?? '') === 'usr_03' ? 'active role-admin-btn' : '' }}" title="System Administrator">
-              <i class="bi bi-shield-lock-fill text-danger"></i> Admin
-            </a>
-            <a href="{{ route('role.switch', ['role_code' => 'usr_04']) }}" class="role-quick-btn {{ ($currentUser['code'] ?? '') === 'usr_04' ? 'active role-auditor-btn' : '' }}" title="Internal Auditor">
-              <i class="bi bi-eye-fill text-warning"></i> Auditor
-            </a>
-          </div>
+          @if($allUsers->count() > 1)
+            <div class="d-flex align-items-center gap-1">
+              <span class="text-muted small me-1 d-none d-sm-inline" style="font-size: 0.74rem;">Switch Role:</span>
+              @foreach($allUsers as $u)
+                <a href="{{ route('admin.role.switch', ['role_code' => $u->code]) }}" class="role-quick-btn {{ ($currentUser['code'] ?? '') === $u->code ? 'active' : '' }}">
+                  <i class="bi {{ $u->icon }} text-{{ $u->badge_color }}"></i> {{ $u->role_name }}
+                </a>
+              @endforeach
+            </div>
+          @endif
 
           <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5 py-1 px-2.5" data-bs-toggle="modal" data-bs-target="#modal-role-matrix" style="font-size: 0.76rem;">
             <i class="bi bi-diagram-3"></i>

@@ -93,11 +93,18 @@ class ReconciliationService
         $psoCollection = $pso1Total + $pso2Total + $pso3Total;
         $expectedCollection = $tallyTotal - ($totCd + $totRefund + $totCancelled);
         $difference = $expectedCollection - $psoCollection;
-        $isReconciled = ($difference == 0 && $missingCount === 0);
+        $hasBills = ($totalBillsCount > 0);
+        $isReconciled = ($hasBills && $difference == 0 && $missingCount === 0);
 
         // Check daily seal state
         $seal = PsoDailySeal::whereDate('business_date', $date)->first();
         $isSealed = $seal ? (bool) $seal->is_sealed : false;
+
+        // Dynamic database counts
+        $activePsoCount = PsoConfig::where('is_active', true)->count();
+        $totalPsoCount = PsoConfig::count();
+        $correctionsCount = Correction::count();
+        $creditRecordsCount = CreditCollection::where('outstanding_amount', '>', 0)->count();
 
         // Pending credit calculation
         $creditPending = CreditCollection::whereDate('bill_date', $date)
@@ -113,6 +120,7 @@ class ReconciliationService
             'psoCollection' => $psoCollection,
             'difference' => $difference,
             'isReconciled' => $isReconciled,
+            'hasBills' => $hasBills,
             'isSealed' => $isSealed,
             'seal' => $seal,
             'totCash' => $totCash,
@@ -126,6 +134,10 @@ class ReconciliationService
             'missingCount' => $missingCount,
             'cancelledCount' => $cancelledCount,
             'totalBillsCount' => $totalBillsCount,
+            'activePsoCount' => $activePsoCount,
+            'totalPsoCount' => $totalPsoCount,
+            'correctionsCount' => $correctionsCount,
+            'creditRecordsCount' => $creditRecordsCount,
             'creditPending' => (float) $creditPending,
         ];
     }

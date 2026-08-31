@@ -5,18 +5,18 @@
 @section('content')
 <!-- Workflow Progress Stepper -->
 <div class="workflow-stepper mb-4">
-  <div class="step-item completed">
-    <div class="step-circle"><i class="bi bi-check-lg"></i></div>
+  <div class="step-item {{ ($metrics['activePsoCount'] ?? 0) > 0 ? 'completed' : 'active' }}">
+    <div class="step-circle">{!! ($metrics['activePsoCount'] ?? 0) > 0 ? '<i class="bi bi-check-lg"></i>' : '1' !!}</div>
     <div class="step-label">1. Configure PSO</div>
   </div>
-  <div class="step-divider filled"></div>
-  <div class="step-item completed">
-    <div class="step-circle"><i class="bi bi-check-lg"></i></div>
+  <div class="step-divider {{ ($metrics['activePsoCount'] ?? 0) > 0 ? 'filled' : '' }}"></div>
+  <div class="step-item {{ ($metrics['totalBillsCount'] ?? 0) > 0 ? 'completed' : (($metrics['activePsoCount'] ?? 0) > 0 ? 'active' : '') }}">
+    <div class="step-circle">{!! ($metrics['totalBillsCount'] ?? 0) > 0 ? '<i class="bi bi-check-lg"></i>' : '2' !!}</div>
     <div class="step-label">2. Tally Import</div>
   </div>
-  <div class="step-divider filled"></div>
-  <div class="step-item {{ $metrics['matchedCount'] === $metrics['totalBillsCount'] ? 'completed' : 'active' }}">
-    <div class="step-circle">{!! $metrics['matchedCount'] === $metrics['totalBillsCount'] ? '<i class="bi bi-check-lg"></i>' : '3' !!}</div>
+  <div class="step-divider {{ ($metrics['totalBillsCount'] ?? 0) > 0 ? 'filled' : '' }}"></div>
+  <div class="step-item {{ ($metrics['hasBills'] && $metrics['matchedCount'] === $metrics['totalBillsCount']) ? 'completed' : (($metrics['totalBillsCount'] ?? 0) > 0 ? 'active' : '') }}">
+    <div class="step-circle">{!! ($metrics['hasBills'] && $metrics['matchedCount'] === $metrics['totalBillsCount']) ? '<i class="bi bi-check-lg"></i>' : '3' !!}</div>
     <div class="step-label">3. Bill Verify</div>
   </div>
   <div class="step-divider {{ $metrics['isReconciled'] ? 'filled' : '' }}"></div>
@@ -32,7 +32,21 @@
 </div>
 
 <!-- Alert Notification Bar -->
-@if(!$metrics['isReconciled'])
+@if(!$metrics['hasBills'])
+  <div class="alert alert-secondary d-flex align-items-center justify-content-between mb-4 shadow-sm" role="alert">
+    <div class="d-flex align-items-center gap-2.5">
+      <i class="bi bi-inbox-fill fs-4 text-primary"></i>
+      <div>
+        <strong>Ready for Daily Reconciliation</strong>
+        <div style="font-size: 0.82rem;">No bills recorded yet for date <strong>{{ $businessDate }}</strong>. Configure your counter PSO series and import Tally DayBook to start.</div>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ route('admin.pso.index') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle me-1"></i>Configure PSO</a>
+      <a href="{{ route('admin.import.index') }}" class="btn btn-sm btn-primary"><i class="bi bi-cloud-arrow-up me-1"></i>Import Tally DayBook</a>
+    </div>
+  </div>
+@elseif(!$metrics['isReconciled'])
   <div class="alert alert-danger d-flex align-items-center justify-content-between mb-4 shadow-sm" role="alert">
     <div class="d-flex align-items-center gap-2.5">
       <i class="bi bi-exclamation-octagon-fill fs-4"></i>
@@ -42,8 +56,8 @@
       </div>
     </div>
     <div class="d-flex gap-2">
-      <a href="{{ route('verification.index') }}" class="btn btn-sm btn-danger">Investigate Missing Bill</a>
-      <a href="{{ route('reconciliation.index') }}" class="btn btn-sm btn-outline-dark">Recon Screen</a>
+      <a href="{{ route('admin.verification.index') }}" class="btn btn-sm btn-danger">Investigate Missing Bill</a>
+      <a href="{{ route('admin.reconciliation.index') }}" class="btn btn-sm btn-outline-dark">Recon Screen</a>
     </div>
   </div>
 @else
@@ -55,7 +69,7 @@
         <div style="font-size: 0.82rem;">Tally and PSO physical bundles match 100% at <strong>₹{{ number_format($metrics['tallyTotal'], 2) }}</strong>. Ready for cryptographic signing and seal.</div>
       </div>
     </div>
-    <a href="{{ route('approval.index') }}" class="btn btn-sm btn-success">Proceed to Sealing <i class="bi bi-arrow-right ms-1"></i></a>
+    <a href="{{ route('admin.approval.index') }}" class="btn btn-sm btn-success">Proceed to Sealing <i class="bi bi-arrow-right ms-1"></i></a>
   </div>
 @endif
 
@@ -66,8 +80,8 @@
       <div class="d-flex justify-content-between align-items-start">
         <div>
           <div class="kpi-title">Today's PSOs</div>
-          <div class="kpi-value font-mono">3 Active</div>
-          <div class="kpi-subtext">PSO 1, PSO 2 (+ITC), PSO 3</div>
+          <div class="kpi-value font-mono">{{ $metrics['activePsoCount'] ?? 0 }} Active</div>
+          <div class="kpi-subtext">{{ ($metrics['totalPsoCount'] ?? 0) > 0 ? ($metrics['totalPsoCount'] . ' total series configured') : 'No active PSO series' }}</div>
         </div>
         <div class="kpi-icon bg-primary-subtle text-primary"><i class="bi bi-collection-fill"></i></div>
       </div>
@@ -93,7 +107,7 @@
         <div>
           <div class="kpi-title">Total PSO Collection</div>
           <div class="kpi-value font-mono text-success">₹{{ number_format($metrics['psoCollection'], 2) }}</div>
-          <div class="kpi-subtext">Sum of PSO 1 + PSO 2 + PSO 3</div>
+          <div class="kpi-subtext">Sum of active PSO counters</div>
         </div>
         <div class="kpi-icon bg-success-subtle text-success"><i class="bi bi-cash-stack"></i></div>
       </div>
@@ -153,20 +167,22 @@
   </div>
 
   <div class="col-xl-3 col-md-6">
-    <div class="kpi-card {{ $metrics['isSealed'] ? 'kpi-success' : ($metrics['isReconciled'] ? 'kpi-info' : 'kpi-danger') }}">
+    <div class="kpi-card {{ $metrics['isSealed'] ? 'kpi-success' : ($metrics['isReconciled'] ? 'kpi-info' : (!$metrics['hasBills'] ? 'kpi-info' : 'kpi-danger')) }}">
       <div class="d-flex justify-content-between align-items-start">
         <div>
           <div class="kpi-title">Approval Status</div>
           <div class="kpi-value font-mono">
             @if($metrics['isSealed'])
               <span class="badge badge-sealed">SEALED</span>
+            @elseif(!$metrics['hasBills'])
+              <span class="badge bg-secondary text-white">NO BILLS</span>
             @elseif($metrics['isReconciled'])
               <span class="badge bg-info text-white">READY</span>
             @else
               <span class="badge badge-blocked">BLOCKED</span>
             @endif
           </div>
-          <div class="kpi-subtext">{{ $metrics['isSealed'] ? 'Read-only immutable lock' : ($metrics['isReconciled'] ? 'Awaiting Approver signoff' : 'Reconciliation required') }}</div>
+          <div class="kpi-subtext">{{ $metrics['isSealed'] ? 'Read-only immutable lock' : (!$metrics['hasBills'] ? 'Awaiting DayBook import' : ($metrics['isReconciled'] ? 'Awaiting Approver signoff' : 'Reconciliation required')) }}</div>
         </div>
         <div class="kpi-icon bg-secondary-subtle text-dark"><i class="bi bi-shield-lock"></i></div>
       </div>

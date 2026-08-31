@@ -14,7 +14,26 @@
 </div>
 
 <!-- Master Status Banner -->
-@if(!$metrics['isReconciled'])
+@if(!$metrics['hasBills'])
+  <div class="recon-banner" style="background: #f8fafc; border-left: 5px solid #64748b; border: 1px solid #e2e8f0;">
+    <div class="d-flex align-items-center gap-3">
+      <div class="rounded-circle p-3 bg-white shadow-sm text-secondary">
+        <i class="bi bi-inbox fs-1"></i>
+      </div>
+      <div>
+        <h4 class="fw-bold mb-1 text-dark">AWAITING TALLY DAYBOOK IMPORT</h4>
+        <p class="mb-0 text-muted">
+          No bill records found for business date <strong>{{ $metrics['businessDate'] }}</strong>. Please configure PSO counter series and import your DayBook Excel file to begin reconciliation.
+        </p>
+      </div>
+    </div>
+    <div>
+      <a href="{{ route('admin.import.index') }}" class="btn btn-primary">
+        <i class="bi bi-cloud-arrow-up me-1"></i> Import Tally DayBook
+      </a>
+    </div>
+  </div>
+@elseif(!$metrics['isReconciled'])
   <div class="recon-banner failed">
     <div class="d-flex align-items-center gap-3">
       <div class="rounded-circle p-3 bg-white shadow-sm text-danger">
@@ -29,7 +48,7 @@
       </div>
     </div>
     <div>
-      <form action="{{ route('reconciliation.resolve') }}" method="POST">
+      <form action="{{ route('admin.reconciliation.resolve') }}" method="POST">
         @csrf
         <button type="submit" class="btn btn-danger">
           <i class="bi bi-tools me-1"></i> Resolve Discrepancy (Match Missing)
@@ -52,7 +71,7 @@
       </div>
     </div>
     <div>
-      <a href="{{ route('approval.index') }}" class="btn btn-success">
+      <a href="{{ route('admin.approval.index') }}" class="btn btn-success">
         <i class="bi bi-lock-fill me-1"></i> Proceed to Sealing & Sign-Off
       </a>
     </div>
