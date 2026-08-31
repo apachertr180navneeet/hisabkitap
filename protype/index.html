@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSO & Bill Reconciliation Management System | HisabKitap ERP</title>
+  
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <!-- Custom ERP Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div id="app-container">
+    
+    <!-- LEFT SIDEBAR -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand-icon">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <div class="d-flex flex-column">
+          <span class="fw-bold text-white fs-6 lh-1">HisabKitap ERP</span>
+          <span class="text-secondary" style="font-size: 0.72rem;">PSO & Bill Recon System</span>
+        </div>
+      </div>
+
+      <ul class="sidebar-menu">
+        <li class="menu-category">Core Operations</li>
+        <li>
+          <a class="nav-item-custom active" data-view="view-dashboard">
+            <i class="bi bi-grid-1x2-fill"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-pso-mgmt">
+            <i class="bi bi-diagram-3-fill"></i>
+            <span>PSO Management</span>
+            <span class="badge bg-primary" id="badge-pso-count">3</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-excel-import">
+            <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+            <span>Tally Excel Import</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-bill-verification">
+            <i class="bi bi-receipt-cutoff"></i>
+            <span>Bill Verification</span>
+            <span class="badge bg-danger" id="badge-missing-count">1</span>
+          </a>
+        </li>
+
+        <li class="menu-category">Financial Workflow</li>
+        <li>
+          <a class="nav-item-custom" data-view="view-payment-class">
+            <i class="bi bi-wallet2"></i>
+            <span>Payment Classification</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-corrections">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Corrections / Returns</span>
+            <span class="badge bg-secondary" id="badge-corr-count">3</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-credit-collection">
+            <i class="bi bi-cash-coin"></i>
+            <span>Credit Collection</span>
+            <span class="badge bg-warning text-dark" id="badge-credit-count">5</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-pso-summary">
+            <i class="bi bi-table"></i>
+            <span>PSO Summary</span>
+          </a>
+        </li>
+
+        <li class="menu-category">Recon & Compliance</li>
+        <li>
+          <a class="nav-item-custom" data-view="view-master-recon">
+            <i class="bi bi-check2-all"></i>
+            <span>Master Reconciliation</span>
+            <span class="badge bg-danger" id="badge-recon-status">FAIL</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-approval-sealing">
+            <i class="bi bi-lock-fill"></i>
+            <span>Approval & Sealing</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-retention">
+            <i class="bi bi-clock-history"></i>
+            <span>7-Day Retention</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-reports">
+            <i class="bi bi-file-earmark-bar-graph-fill"></i>
+            <span>Reports & Exports</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item-custom" data-view="view-settings">
+            <i class="bi bi-gear-fill"></i>
+            <span>Cutoff & Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success rounded-circle p-1">&nbsp;</span>
+            <span class="text-white-50" style="font-size: 0.75rem;">System Online</span>
+          </div>
+          <span class="text-secondary font-mono" style="font-size: 0.7rem;">v2.4-IND</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div id="main-wrapper">
+      
+      <!-- TOP HEADER -->
+      <header id="top-header">
+        <div class="d-flex align-items-center gap-3">
+          <!-- Mobile Toggle -->
+          <button class="btn btn-sm btn-outline-secondary d-lg-none" id="btn-toggle-sidebar">
+            <i class="bi bi-list fs-5"></i>
+          </button>
+          
+          <!-- Business Date Badge -->
+          <div class="d-flex align-items-center gap-2 bg-light border px-2.5 py-1 rounded">
+            <i class="bi bi-calendar3 text-primary"></i>
+            <span class="text-muted" style="font-size: 0.8rem;">Date:</span>
+            <input type="date" id="header-business-date" class="form-control form-control-sm border-0 bg-transparent p-0 fw-semibold" style="width: 125px; font-size: 0.82rem;" value="2026-08-14">
+          </div>
+
+          <!-- Cutoff Rule Indicator -->
+          <div class="d-none d-md-flex align-items-center gap-1.5 bg-light border px-2.5 py-1 rounded text-muted" style="font-size: 0.8rem;">
+            <i class="bi bi-alarm text-warning"></i>
+            <span>Daily Cutoff:</span>
+            <span class="fw-bold text-dark font-mono" id="header-cutoff-display">07:00 PM</span>
+          </div>
+
+          <!-- Quick Scenario Trigger -->
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="bi bi-play-circle-fill me-1"></i> Demo Scenarios
+            </button>
+            <ul class="dropdown-menu shadow">
+              <li><h6 class="dropdown-header">Preset Business States</h6></li>
+              <li><a class="dropdown-item scenario-btn" data-scenario="discrepancy"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Prompt Default (Diff: ₹17,500 / Blocked)</a></li>
+              <li><a class="dropdown-item scenario-btn" data-scenario="balanced"><i class="bi bi-check-circle text-success me-2"></i>Reconciled Day (Diff: ₹0 / Ready to Seal)</a></li>
+              <li><a class="dropdown-item scenario-btn" data-scenario="missing_multiple"><i class="bi bi-search text-warning me-2"></i>Multiple Missing Bills</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Right User & Status Area -->
+        <div class="d-flex align-items-center gap-3">
+          
+          <!-- Reconciliation Status Pill -->
+          <div id="header-recon-badge" class="badge bg-danger d-flex align-items-center gap-1.5 py-2 px-2.5">
+            <i class="bi bi-shield-x"></i>
+            <span id="header-recon-text">RECONCILIATION FAILED (BLOCKED)</span>
+          </div>
+
+          <!-- Notification Dropdown -->
+          <div class="dropdown">
+            <button class="btn btn-light position-relative rounded-circle p-2" data-bs-toggle="dropdown">
+              <i class="bi bi-bell text-secondary"></i>
+              <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end shadow p-3" style="width: 320px;">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0 fw-bold">Notifications</h6>
+                <span class="badge bg-primary">3 New</span>
+              </div>
+              <hr class="my-2">
+              <div class="d-flex flex-column gap-2" style="font-size: 0.8rem;">
+                <div class="p-2 bg-light rounded border-start border-3 border-danger">
+                  <div class="fw-semibold text-danger">Missing Bill CB 02</div>
+                  <div class="text-muted">₹17,500 pending physical verification bundle.</div>
+                </div>
+                <div class="p-2 bg-light rounded border-start border-3 border-warning">
+                  <div class="fw-semibold text-warning">Post-Cutoff Bills</div>
+                  <div class="text-muted">2 bills recorded after 7:00 PM diverted to next day.</div>
+                </div>
+                <div class="p-2 bg-light rounded border-start border-3 border-info">
+                  <div class="fw-semibold text-info">Credit Due Alert</div>
+                  <div class="text-muted">Rajesh Kumar has 3 customer credit bills due.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Profile & Role Switcher -->
+          <div class="dropdown">
+            <button class="btn btn-light d-flex align-items-center gap-2 border py-1.5 px-2.5 rounded-pill" data-bs-toggle="dropdown">
+              <div class="bg-primary text-white rounded-circle fw-bold d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.75rem;" id="header-avatar">RS</div>
+              <div class="text-start d-none d-sm-block">
+                <div class="fw-semibold lh-1" style="font-size: 0.82rem;" id="header-user-name">Ramesh Sharma</div>
+                <div class="text-muted" style="font-size: 0.7rem;" id="header-user-role">PSO Operator</div>
+              </div>
+              <i class="bi bi-chevron-down text-muted" style="font-size: 0.75rem;"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><h6 class="dropdown-header">Switch Active Role</h6></li>
+              <li><a class="dropdown-item role-switch-btn" data-role-id="usr_01"><i class="bi bi-person-badge text-primary me-2"></i>Accountant / PSO Operator</a></li>
+              <li><a class="dropdown-item role-switch-btn" data-role-id="usr_02"><i class="bi bi-check-circle-fill text-success me-2"></i>Accounts Officer (Approver)</a></li>
+              <li><a class="dropdown-item role-switch-btn" data-role-id="usr_03"><i class="bi bi-shield-lock-fill text-danger me-2"></i>System Administrator</a></li>
+              <li><a class="dropdown-item role-switch-btn" data-role-id="usr_04"><i class="bi bi-eye-fill text-info me-2"></i>Internal Auditor</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" id="btn-logout"><i class="bi bi-box-arrow-right me-2"></i>Logout / Reset Demo</a></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+
+      <!-- DYNAMIC ROLE CONTEXT BAR & QUICK SWITCHER -->
+      <div id="role-context-bar" class="role-context-banner role-operator">
+        <div class="d-flex align-items-center gap-2.5 flex-wrap">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary px-2 py-1 d-flex align-items-center gap-1.5" id="role-bar-badge">
+              <i class="bi bi-person-badge-fill" id="role-bar-icon"></i>
+              <span id="role-bar-role-name">Accountant (PSO Operator)</span>
+            </span>
+            <span class="fw-semibold text-dark" style="font-size: 0.84rem;" id="role-bar-user-name">Ramesh Sharma</span>
+          </div>
+          <span class="text-muted d-none d-lg-inline" style="font-size: 0.78rem;">|</span>
+          <span class="text-secondary" style="font-size: 0.78rem;" id="role-bar-summary">
+            Allowed: Tally Import, Physical Bill Check, Cash Discounts/Returns, Credit Log. <span class="text-danger fw-semibold">Final Sealing requires Approver.</span>
+          </span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="d-flex align-items-center gap-1" id="role-quick-switch-container">
+            <span class="text-muted small me-1 d-none d-sm-inline" style="font-size: 0.74rem;">Switch Role:</span>
+            <button class="role-quick-btn active role-operator-btn" data-role-id="usr_01" title="Accountant / PSO Operator">
+              <i class="bi bi-person-badge"></i> Operator
+            </button>
+            <button class="role-quick-btn role-approver-btn" data-role-id="usr_02" title="Accounts Officer (Approver)">
+              <i class="bi bi-check-circle-fill text-success"></i> Approver
+            </button>
+            <button class="role-quick-btn role-admin-btn" data-role-id="usr_03" title="System Administrator">
+              <i class="bi bi-shield-lock-fill text-danger"></i> Admin
+            </button>
+            <button class="role-quick-btn role-auditor-btn" data-role-id="usr_04" title="Internal Auditor">
+              <i class="bi bi-eye-fill text-warning"></i> Auditor
+            </button>
+          </div>
+
+          <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5 py-1 px-2.5" data-bs-toggle="modal" data-bs-target="#modal-role-matrix" style="font-size: 0.76rem;">
+            <i class="bi bi-diagram-3"></i>
+            <span>Role Matrix & Guide</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- AUDITOR READ-ONLY INSPECTION NOTICE (Visible only when in Auditor role) -->
+      <div id="auditor-banner" class="alert alert-warning border-warning mx-4 mt-3 mb-0 d-none d-flex align-items-center justify-content-between py-2 px-3 shadow-sm">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-shield-exclamation text-warning fs-4"></i>
+          <div>
+            <strong class="text-dark">Auditor Inspection Mode Active (Vikram Mehta)</strong>
+            <div style="font-size: 0.78rem;" class="text-muted">You have Read-Only statutory oversight. All modifications, imports, and day seal actions are disabled to ensure compliance.</div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#modal-role-matrix">
+          <i class="bi bi-info-circle me-1"></i> View Permissions
+        </button>
+      </div>
+
+      <!-- SEALED WATERMARK BANNER (Appears when day is locked/sealed) -->
+      <div class="sealed-watermark mx-4 mt-3" id="sealed-banner">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-lock-fill fs-4"></i>
+          <div>
+            <div class="fw-bold">PSO SEALED & LOCKED FOR BUSINESS DATE <span id="sealed-banner-date">2026-08-14</span></div>
+            <div style="font-size: 0.78rem;">All records are read-only. Sealed by <span id="sealed-banner-user">Pooja Verma (Accounts Officer)</span> with Digital Hash Token <span class="font-mono" id="sealed-banner-hash">#HK-8891-SEAL</span></div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-light" id="btn-view-seal-cert"><i class="bi bi-file-earmark-check me-1"></i> View Certificate</button>
+      </div>
+
+      <!-- MAIN ROUTED VIEWS -->
+
+      <!-- 1. DASHBOARD VIEW -->
+      <main id="view-dashboard" class="content-view active">
+        
+        <!-- Workflow Progress Stepper -->
+        <div class="workflow-stepper mb-4">
+          <div class="step-item completed" id="step-draft">
+            <div class="step-circle"><i class="bi bi-check-lg"></i></div>
+            <div class="step-label">1. Configure PSO</div>
+          </div>
+          <div class="step-divider filled"></div>
+          <div class="step-item completed" id="step-imported">
+            <div class="step-circle"><i class="bi bi-check-lg"></i></div>
+            <div class="step-label">2. Tally Import</div>
+          </div>
+          <div class="step-divider filled"></div>
+          <div class="step-item active" id="step-verified">
+            <div class="step-circle">3</div>
+            <div class="step-label">3. Bill Verify</div>
+          </div>
+          <div class="step-divider"></div>
+          <div class="step-item" id="step-reconciled">
+            <div class="step-circle">4</div>
+            <div class="step-label">4. Reconcile</div>
+          </div>
+          <div class="step-divider"></div>
+          <div class="step-item" id="step-approved">
+            <div class="step-circle">5</div>
+            <div class="step-label">5. Approval & Seal</div>
+          </div>
+        </div>
+
+        <!-- Alert Notification Bar -->
+        <div id="dash-alert-container">
+          <div class="alert alert-danger d-flex align-items-center justify-content-between mb-4 shadow-sm" role="alert" id="dash-recon-alert">
+            <div class="d-flex align-items-center gap-2.5">
+              <i class="bi bi-exclamation-octagon-fill fs-4"></i>
+              <div>
+                <strong>Reconciliation Discrepancy Detected!</strong>
+                <div style="font-size: 0.82rem;">Tally Total is <strong>₹7,00,000</strong> while verified PSO Collection is <strong>₹6,82,500</strong> (Difference: <span class="text-danger fw-bold">₹17,500</span>). Approval is currently <strong>BLOCKED</strong>.</div>
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-danger nav-direct-btn" data-target="view-bill-verification">Investigate Missing Bill</button>
+              <button class="btn btn-sm btn-outline-dark nav-direct-btn" data-target="view-master-recon">Recon Screen</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8 KPI Cards -->
+        <div class="row g-3 mb-4">
+          <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-primary">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="kpi-title">Today's PSOs</div>
+                  <div class="kpi-value font-mono" id="kpi-pso-count">3 Active</div>
+                  <div class="kpi-subtext">PSO 1, PSO 2 (+ITC), PSO 3</div>
+                </div>
+                <div class="kpi-icon bg-primary-subtle text-primary"><i class="bi bi-collection-fill"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-info">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="kpi-title">Total Tally Amount</div>
+                  <div class="kpi-value font-mono text-primary" id="kpi-tally-amount">₹7,00,000</div>
+                  <div class="kpi-subtext">32 Bills Imported from DayBook</div>
+                </div>
+                <div class="kpi-icon bg-info-subtle text-info"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-success">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="kpi-title">Total PSO Collection</div>
+                  <div class="kpi-value font-mono text-success" id="kpi-pso-collection">₹6,82,500</div>
+                  <div class="kpi-subtext">Sum of PSO 1 + PSO 2 + PSO 3</div>
+                </div>
+                <div class="kpi-icon bg-success-subtle text-success"><i class="bi bi-cash-stack"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-danger">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="kpi-title">Difference Amount</div>
+                  <div class="kpi-value font-mono text-danger" id="kpi-diff-amount">₹17,500</div>
+                  <div class="kpi-subtext" id="kpi-diff-status">Discrepancy Unresolved</div>
+                </div>
+                <div class="kpi-icon bg-danger-subtle text-danger"><i class="bi bi-calculator"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-success">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="kpi-title">Matched Bills</div>
+                  <div class="kpi-value font-mono text-success" id="kpi-matched-bills">30 / 32</div>
+                  <div class="kpi-subtext">Physical slips verified</div>
+                </div>
+                <div class="kpi-icon bg-success-subtle text-success"><i class="bi bi-check2-circle"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-danger">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="kpi-title">Missing Bills</div>
+                  <div class="kpi-value font-mono text-danger" id="kpi-missing-bills">1 Bill</div>
+                  <div class="kpi-subtext">CB 02 (₹17,500) Unaccounted</div>
+                </div>
+                <div class="kpi-icon bg-danger-subtle text-danger"><i class="bi bi-exclamation-triangle"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-warning">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="kpi-title">Credit Pending</div>
+                  <div class="kpi-value font-mono text-warning" id="kpi-credit-pending">₹88,000</div>
+                  <div class="kpi-subtext">5 Salesman collection bills</div>
+                </div>
+                <div class="kpi-icon bg-warning-subtle text-warning"><i class="bi bi-person-lines-fill"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-danger" id="kpi-card-approval">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="kpi-title">Approval Status</div>
+                  <div class="kpi-value font-mono" id="kpi-approval-status"><span class="badge badge-blocked">BLOCKED</span></div>
+                  <div class="kpi-subtext">Reconciliation required to unlock</div>
+                </div>
+                <div class="kpi-icon bg-secondary-subtle text-dark"><i class="bi bi-shield-lock"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle Row: Daily PSO Summary & Payment Breakdown -->
+        <div class="row g-4 mb-4">
+          
+          <!-- Daily PSO Summary Table -->
+          <div class="col-lg-8">
+            <div class="erp-table-container h-100">
+              <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="mb-0 fw-bold">Daily PSO Summary Table</h6>
+                  <span class="text-muted" style="font-size: 0.75rem;">Breakdown across configured counters for 14-Aug-2026</span>
+                </div>
+                <button class="btn btn-sm btn-outline-primary nav-direct-btn" data-target="view-pso-summary">Full Details <i class="bi bi-arrow-right"></i></button>
+              </div>
+              <div class="table-responsive">
+                <table class="table erp-table align-middle">
+                  <thead>
+                    <tr>
+                      <th>PSO Code</th>
+                      <th>Series Range</th>
+                      <th>Bills</th>
+                      <th>Gross Sales</th>
+                      <th>Net Collection</th>
+                      <th>Operator</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-pso-summary-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="2">TOTAL PSO AGGREGATE</td>
+                      <td id="dash-pso-tot-bills">32</td>
+                      <td class="font-mono" id="dash-pso-tot-gross">₹7,00,000</td>
+                      <td class="font-mono text-success" id="dash-pso-tot-net">₹6,82,500</td>
+                      <td>-</td>
+                      <td><span class="badge bg-warning text-dark">Verification In Progress</span></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Breakdown Summary -->
+          <div class="col-lg-4">
+            <div class="erp-table-container h-100 p-3">
+              <h6 class="fw-bold mb-3">Payment-Type Summary</h6>
+              <div class="d-flex flex-column gap-2.5">
+                <div class="d-flex justify-content-between align-items-center p-2.5 bg-light rounded border-start border-3 border-success">
+                  <div>
+                    <div class="fw-semibold text-dark"><i class="bi bi-cash me-1 text-success"></i> Cash Received</div>
+                    <small class="text-muted">Direct counter physical cash</small>
+                  </div>
+                  <span class="fw-bold font-mono text-success" id="dash-pay-cash">₹1,78,000</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center p-2.5 bg-light rounded border-start border-3 border-info">
+                  <div>
+                    <div class="fw-semibold text-dark"><i class="bi bi-qr-code me-1 text-info"></i> Paytm / UPI</div>
+                    <small class="text-muted">Digital soundbox & QR settled</small>
+                  </div>
+                  <span class="fw-bold font-mono text-info" id="dash-pay-paytm">₹1,50,000</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center p-2.5 bg-light rounded border-start border-3 border-primary">
+                  <div>
+                    <div class="fw-semibold text-dark"><i class="bi bi-bank me-1 text-primary"></i> Cheque / Bank</div>
+                    <small class="text-muted">Bank deposit slip pending</small>
+                  </div>
+                  <span class="fw-bold font-mono text-primary" id="dash-pay-check">₹2,01,000</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center p-2.5 bg-light rounded border-start border-3 border-warning">
+                  <div>
+                    <div class="fw-semibold text-dark"><i class="bi bi-person-badge me-1 text-warning"></i> Credit (Salesman)</div>
+                    <small class="text-muted">Pending salesman field recovery</small>
+                  </div>
+                  <span class="fw-bold font-mono text-warning" id="dash-pay-credit">₹1,38,500</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center p-2.5 bg-light rounded border-start border-3 border-secondary">
+                  <div>
+                    <div class="fw-semibold text-dark"><i class="bi bi-x-circle me-1 text-secondary"></i> Cancelled Bills</div>
+                    <small class="text-muted">Void transactions / no collection</small>
+                  </div>
+                  <span class="fw-bold font-mono text-muted" id="dash-pay-cancelled">₹15,000</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Recent Imported Files & Pending Approvals -->
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="erp-table-container p-3">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">Recent Imported Tally Files</h6>
+                <button class="btn btn-sm btn-outline-secondary nav-direct-btn" data-target="view-excel-import">Upload New</button>
+              </div>
+              <div class="table-responsive">
+                <table class="table erp-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>Filename</th>
+                      <th>Import Time</th>
+                      <th>Records</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-recent-imports-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="erp-table-container p-3">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">Pending Approvals & 7-Day Retention</h6>
+                <button class="btn btn-sm btn-outline-secondary nav-direct-btn" data-target="view-retention">View All</button>
+              </div>
+              <div class="table-responsive">
+                <table class="table erp-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>PSO</th>
+                      <th>Date</th>
+                      <th>Retention Window</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-retention-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- 2. PSO MANAGEMENT VIEW -->
+      <main id="view-pso-mgmt" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">PSO Series Management</h4>
+            <p class="text-muted mb-0">Define counter PSO prefixes, starting/ending serial ranges, and special company bill series.</p>
+          </div>
+          <button class="btn btn-primary" id="btn-configure-pso" data-bs-toggle="modal" data-bs-target="#modal-add-pso">
+            <i class="bi bi-plus-circle me-1"></i> Configure New PSO
+          </button>
+        </div>
+
+        <div id="pso-mgmt-alert-container"></div>
+
+        <div class="erp-table-container mb-4">
+          <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+            <span class="fw-semibold text-dark">Active PSO Series Rules (Default Configuration)</span>
+            <span class="badge bg-success">3 Standard Configs Active</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table erp-table align-middle">
+              <thead>
+                <tr>
+                  <th>PSO Identifier</th>
+                  <th>PSO Name</th>
+                  <th>Prefix</th>
+                  <th>Range Start</th>
+                  <th>Range End</th>
+                  <th>Special Bills Series</th>
+                  <th>Assigned Operator</th>
+                  <th>Status</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="pso-mgmt-table-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Series Reference Card -->
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <div class="fw-bold text-primary mb-1">PSO 1 Series Logic</div>
+              <div class="text-muted" style="font-size: 0.82rem;">Handles standard counter sequence <code>CB 01</code> to <code>CB 10</code>. Verifies 10 bills sequentially.</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <div class="fw-bold text-primary mb-1">PSO 2 Series Logic</div>
+              <div class="text-muted" style="font-size: 0.82rem;">Handles sequence <code>CB 11</code> to <code>CB 20</code> plus Special Company bills <code>ITC 01</code> and <code>ITC 03</code>.</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <div class="fw-bold text-primary mb-1">PSO 3 Series Logic</div>
+              <div class="text-muted" style="font-size: 0.82rem;">Handles Retail counter sequence <code>RB 01</code> to <code>RB 10</code> for walk-in instant counter receipts.</div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 3. TALLY EXCEL IMPORT VIEW -->
+      <main id="view-excel-import" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">Tally Excel Import & Ingestion</h4>
+            <p class="text-muted mb-0">Import daily bill registers exported from Tally ERP/Prime into the reconciliation pipeline.</p>
+          </div>
+          <button class="btn btn-outline-secondary" id="btn-download-sample-excel">
+            <i class="bi bi-download me-1"></i> Download Sample Excel Template
+          </button>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="card border p-4 bg-white shadow-sm h-100">
+              <h5 class="fw-bold mb-3">Import Configuration</h5>
+              <form id="form-excel-import">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Business Date <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control" id="import-date" value="2026-08-14" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Target PSO Assignment</label>
+                  <select class="form-select" id="import-pso-select">
+                    <option value="ALL" selected>All PSOs (Auto-map by Series Prefix)</option>
+                    <option value="PSO-1">PSO 1 (CB 01 - CB 10)</option>
+                    <option value="PSO-2">PSO 2 (CB 11 - CB 20 + ITC)</option>
+                    <option value="PSO-3">PSO 3 (RB 01 - RB 10)</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Cutoff Time Applied</label>
+                  <input type="text" class="form-control bg-light" id="import-cutoff-view" value="07:00 PM (19:00 IST)" readonly>
+                  <small class="text-muted">Bills stamped after 7:00 PM are automatically scheduled for next day's PSO.</small>
+                </div>
+                
+                <!-- Upload Dropzone -->
+                <div class="upload-dropzone mb-3" id="excel-dropzone">
+                  <i class="bi bi-cloud-arrow-up text-primary fs-1 mb-2"></i>
+                  <h6 class="fw-bold mb-1">Drag & Drop Tally DayBook Excel File Here</h6>
+                  <p class="text-muted small mb-2">Supports .XLSX, .XLS, .CSV files exported from Tally ERP / Prime</p>
+                  <input type="file" id="excel-file-input" class="d-none" accept=".xlsx, .xls, .csv">
+                  <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('excel-file-input').click()">Browse Computer</button>
+                  <div id="selected-file-label" class="mt-2 fw-semibold text-success small d-none">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i> <span id="selected-file-name">Tally_DayBook_14Aug2026.xlsx</span>
+                  </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-info text-white flex-grow-1" id="btn-validate-excel">
+                    <i class="bi bi-search me-1"></i> Validate File
+                  </button>
+                  <button type="submit" class="btn btn-success flex-grow-1" id="btn-execute-import">
+                    <i class="bi bi-arrow-repeat me-1"></i> Ingest & Process
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" id="btn-reset-import">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="card border p-4 bg-white shadow-sm h-100">
+              <h5 class="fw-bold mb-3">Validation & Audit Diagnostics</h5>
+              
+              <div id="import-scan-result">
+                <div class="alert alert-info d-flex align-items-center gap-2 mb-3">
+                  <i class="bi bi-info-circle fs-4"></i>
+                  <div>
+                    <strong>Ready for Ingestion</strong>
+                    <div style="font-size: 0.8rem;">Last scan for 14-Aug-2026: 32 records found across 3 PSO ranges.</div>
+                  </div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <div class="p-2.5 border rounded bg-light">
+                      <small class="text-muted d-block">Total Records</small>
+                      <span class="fs-5 fw-bold font-mono text-dark" id="import-stat-records">32 Bills</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2.5 border rounded bg-light">
+                      <small class="text-muted d-block">Total Tally Amount</small>
+                      <span class="fs-5 fw-bold font-mono text-primary" id="import-stat-amount">₹7,00,000</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2.5 border rounded bg-light">
+                      <small class="text-muted d-block">First Bill Number</small>
+                      <span class="fw-bold font-mono" id="import-stat-first">CB 01</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2.5 border rounded bg-light">
+                      <small class="text-muted d-block">Last Bill Number</small>
+                      <span class="fw-bold font-mono" id="import-stat-last">RB 10</span>
+                    </div>
+                  </div>
+                </div>
+
+                <h6 class="fw-bold small text-uppercase text-muted mb-2">Automated Checks:</h6>
+                <ul class="list-group list-group-flush small mb-3 border rounded">
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-files text-secondary me-2"></i> Duplicate Bills Detected</span>
+                    <span class="badge bg-success" id="import-stat-duplicates">0 Duplicates</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-exclamation-circle text-danger me-2"></i> Missing Sequence Gaps</span>
+                    <span class="badge bg-danger" id="import-stat-missing">1 Gap (CB 02)</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clock text-warning me-2"></i> Post-Cutoff Bills (> 7:00 PM)</span>
+                    <span class="badge bg-warning text-dark" id="import-stat-postcutoff">2 Diverted to Next Day</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-credit-card text-info me-2"></i> Invalid Payment Types</span>
+                    <span class="badge bg-success" id="import-stat-invalidpay">0 Invalid</span>
+                  </li>
+                </ul>
+
+                <button class="btn btn-primary w-100 nav-direct-btn" data-target="view-bill-verification">
+                  Proceed to Bill Sequence Verification <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 4. BILL SEQUENCE VERIFICATION VIEW -->
+      <main id="view-bill-verification" class="content-view">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <div>
+            <h4 class="fw-bold mb-1">Bill Sequence Verification</h4>
+            <p class="text-muted mb-0">Cross-match physical bills against Tally DayBook. Identify missing, mismatched, and counter sale issues.</p>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" id="btn-export-verification-csv">
+              <i class="bi bi-file-earmark-arrow-down me-1"></i> Export Verification
+            </button>
+            <button class="btn btn-primary btn-sm" id="btn-auto-verify-matched">
+              <i class="bi bi-check2-all me-1"></i> Auto-Verify Slips
+            </button>
+          </div>
+        </div>
+
+        <!-- Filters Bar -->
+        <div class="card border p-3 mb-3 bg-white">
+          <div class="row g-2 align-items-center">
+            <div class="col-md-3">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" id="filter-bill-search" class="form-control" placeholder="Search Bill / Customer...">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <select id="filter-bill-pso" class="form-select form-select-sm">
+                <option value="ALL">All PSOs</option>
+                <option value="PSO-1">PSO 1 (CB 01 - CB 10)</option>
+                <option value="PSO-2">PSO 2 (CB 11 - CB 20 + ITC)</option>
+                <option value="PSO-3">PSO 3 (RB 01 - RB 10)</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select id="filter-bill-status" class="form-select form-select-sm">
+                <option value="ALL">All Statuses</option>
+                <option value="Matched">Matched</option>
+                <option value="Missing">Missing</option>
+                <option value="Mismatch">Mismatch</option>
+                <option value="Duplicate">Duplicate</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Counter Sale Check">Counter Sale Check</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select id="filter-bill-paytype" class="form-select form-select-sm">
+                <option value="ALL">All Payment Types</option>
+                <option value="Cash">Cash</option>
+                <option value="Paytm">Paytm</option>
+                <option value="Check">Check</option>
+                <option value="Credit">Credit</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Verification Table -->
+        <div class="erp-table-container mb-4">
+          <div class="table-responsive" style="max-height: 600px;">
+            <table class="table erp-table align-middle">
+              <thead class="sticky-top">
+                <tr>
+                  <th>Bill No.</th>
+                  <th>PSO</th>
+                  <th>Expected</th>
+                  <th>Tally Found</th>
+                  <th>Bill Date / Time</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Payment Type</th>
+                  <th>CD</th>
+                  <th>Refund</th>
+                  <th>Net Amount</th>
+                  <th>Status</th>
+                  <th>Remark</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody id="bill-verification-table-body">
+                <!-- Populated by JS -->
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="6">TOTAL VERIFIED COUNT</td>
+                  <td class="font-mono" id="verif-tot-gross">₹7,00,000</td>
+                  <td>-</td>
+                  <td class="font-mono text-danger" id="verif-tot-cd">-₹2,500</td>
+                  <td class="font-mono text-danger" id="verif-tot-refund">-₹1,000</td>
+                  <td class="font-mono text-success" id="verif-tot-net">₹6,82,500</td>
+                  <td colspan="3" class="text-end text-muted small">Active PSO records only</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      <!-- 5. PAYMENT CLASSIFICATION VIEW -->
+      <main id="view-payment-class" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">Payment Classification & Ledger Routing</h4>
+            <p class="text-muted mb-0">Classification of gross collections into distinct clearing buckets based on accounting treatment.</p>
+          </div>
+        </div>
+
+        <!-- 5 Category Cards -->
+        <div class="row g-3 mb-4">
+          <div class="col-lg">
+            <div class="card border p-3 bg-white h-100 border-start border-4 border-success">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-success">Received</span>
+                <i class="bi bi-cash-stack fs-4 text-success"></i>
+              </div>
+              <h6 class="text-muted mb-1">Cash</h6>
+              <div class="fs-4 fw-bold font-mono text-success" id="class-cash-amount">₹1,78,000</div>
+              <small class="text-muted">Physically counted in cashier register</small>
+            </div>
+          </div>
+
+          <div class="col-lg">
+            <div class="card border p-3 bg-white h-100 border-start border-4 border-info">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-info">Received</span>
+                <i class="bi bi-qr-code-scan fs-4 text-info"></i>
+              </div>
+              <h6 class="text-muted mb-1">Paytm / UPI</h6>
+              <div class="fs-4 fw-bold font-mono text-info" id="class-paytm-amount">₹1,50,000</div>
+              <small class="text-muted">Direct digital settlement to nodal A/C</small>
+            </div>
+          </div>
+
+          <div class="col-lg">
+            <div class="card border p-3 bg-white h-100 border-start border-4 border-primary">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-primary">Bank Deposit Pending</span>
+                <i class="bi bi-bank fs-4 text-primary"></i>
+              </div>
+              <h6 class="text-muted mb-1">Cheque / DD</h6>
+              <div class="fs-4 fw-bold font-mono text-primary" id="class-check-amount">₹2,01,000</div>
+              <small class="text-muted">Physical cheques for morning clearing</small>
+            </div>
+          </div>
+
+          <div class="col-lg">
+            <div class="card border p-3 bg-white h-100 border-start border-4 border-warning">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-warning text-dark">Salesman Pending</span>
+                <i class="bi bi-person-fill-exclamation fs-4 text-warning"></i>
+              </div>
+              <h6 class="text-muted mb-1">Credit</h6>
+              <div class="fs-4 fw-bold font-mono text-warning" id="class-credit-amount">₹1,38,500</div>
+              <small class="text-muted">Routed to salesman collection register</small>
+            </div>
+          </div>
+
+          <div class="col-lg">
+            <div class="card border p-3 bg-white h-100 border-start border-4 border-secondary">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-secondary">No Collection</span>
+                <i class="bi bi-x-octagon fs-4 text-secondary"></i>
+              </div>
+              <h6 class="text-muted mb-1">Cancelled</h6>
+              <div class="fs-4 fw-bold font-mono text-secondary" id="class-cancelled-amount">₹15,000</div>
+              <small class="text-muted">Void transactions / zero settlement</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Filter Table -->
+        <div class="erp-table-container">
+          <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-dark paytype-tab-btn active" data-paytype="ALL">All Classified Bills (32)</button>
+              <button class="btn btn-sm btn-outline-success paytype-tab-btn" data-paytype="Cash">Cash (9)</button>
+              <button class="btn btn-sm btn-outline-info paytype-tab-btn" data-paytype="Paytm">Paytm (7)</button>
+              <button class="btn btn-sm btn-outline-primary paytype-tab-btn" data-paytype="Check">Cheque (7)</button>
+              <button class="btn btn-sm btn-outline-warning paytype-tab-btn" data-paytype="Credit">Credit (8)</button>
+              <button class="btn btn-sm btn-outline-secondary paytype-tab-btn" data-paytype="Cancelled">Cancelled (1)</button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table erp-table align-middle">
+              <thead>
+                <tr>
+                  <th>Bill No.</th>
+                  <th>Customer</th>
+                  <th>Payment Type</th>
+                  <th>Gross Amount</th>
+                  <th>CD / Adjustments</th>
+                  <th>Net Receivable</th>
+                  <th>Accounting Rule</th>
+                  <th>Settlement Flag</th>
+                </tr>
+              </thead>
+              <tbody id="payment-class-table-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      <!-- 6. CORRECTIONS / RETURNS VIEW -->
+      <main id="view-corrections" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">Corrections, Cash Discounts & Goods Returns</h4>
+            <p class="text-muted mb-0">Record and audit post-billing corrections, volume cash discounts (CD), and damaged returns.</p>
+          </div>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-add-correction">
+            <i class="bi bi-plus-circle me-1"></i> Record New Correction / Return
+          </button>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <small class="text-muted">Total Cash Discount (CD)</small>
+              <div class="fs-4 fw-bold font-mono text-danger" id="corr-tot-cd">₹2,500</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <small class="text-muted">Total Goods Return</small>
+              <div class="fs-4 fw-bold font-mono text-danger" id="corr-tot-return">₹1,000</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <small class="text-muted">Total Net Deductions</small>
+              <div class="fs-4 fw-bold font-mono text-danger" id="corr-tot-net">-₹3,500</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="erp-table-container">
+          <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+            <span class="fw-semibold text-dark">Approved Corrections Register & Audit Trail</span>
+            <span class="badge bg-primary" id="corr-table-count">3 Entries</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table erp-table align-middle">
+              <thead>
+                <tr>
+                  <th>Corr ID</th>
+                  <th>Bill No.</th>
+                  <th>Original Bill Amount</th>
+                  <th>Correction Type</th>
+                  <th>CD Amount</th>
+                  <th>Goods Return</th>
+                  <th>Refund Amount</th>
+                  <th>Net Adjustment</th>
+                  <th>Reason / Remarks</th>
+                  <th>Approved By</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="corrections-table-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      <!-- 7. CREDIT COLLECTION VIEW -->
+      <main id="view-credit-collection" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">Credit Collection Management</h4>
+            <p class="text-muted mb-0">Dedicated ledger for bills sold on Credit. Assign to salesmen and export physical collection sheets.</p>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" id="btn-print-credit-sheet">
+              <i class="bi bi-printer me-1"></i> Print Sheet
+            </button>
+            <button class="btn btn-success" id="btn-export-credit-sheet">
+              <i class="bi bi-file-earmark-excel me-1"></i> Export Credit Collection Sheet
+            </button>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <small class="text-muted">Total Credit Sales</small>
+              <div class="fs-4 fw-bold font-mono text-warning" id="credit-tot-sales">₹1,21,000</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <small class="text-muted">Total Recovered</small>
+              <div class="fs-4 fw-bold font-mono text-success" id="credit-tot-recovered">₹33,000</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <small class="text-muted">Outstanding Field Recovery</small>
+              <div class="fs-4 fw-bold font-mono text-danger" id="credit-tot-outstanding">₹88,000</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="erp-table-container">
+          <div class="table-responsive">
+            <table class="table erp-table align-middle">
+              <thead>
+                <tr>
+                  <th>Bill No.</th>
+                  <th>Customer</th>
+                  <th>Assigned Salesman</th>
+                  <th>Bill Date</th>
+                  <th>Bill Amount</th>
+                  <th>Paid Amount</th>
+                  <th>Outstanding</th>
+                  <th>Collection Status</th>
+                  <th>Due Date</th>
+                  <th>Remark</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody id="credit-collection-table-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      <!-- 8. PSO SUMMARY VIEW -->
+      <main id="view-pso-summary" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">PSO Summary Matrix</h4>
+            <p class="text-muted mb-0">Granular aggregate collection metrics for PSO 1, PSO 2 (+ITC), and PSO 3.</p>
+          </div>
+          <button class="btn btn-outline-primary" id="btn-print-pso-summary">
+            <i class="bi bi-printer me-1"></i> Print Summary
+          </button>
+        </div>
+
+        <div class="erp-table-container mb-4">
+          <div class="table-responsive">
+            <table class="table erp-table align-middle text-center">
+              <thead class="text-center">
+                <tr>
+                  <th class="text-start">PSO Code & Details</th>
+                  <th>No. of Bills</th>
+                  <th>Gross Sales</th>
+                  <th>Cash</th>
+                  <th>Paytm</th>
+                  <th>Cheque</th>
+                  <th>Credit</th>
+                  <th>Cancelled</th>
+                  <th>CD</th>
+                  <th>Refund</th>
+                  <th class="text-end">Net Collection</th>
+                </tr>
+              </thead>
+              <tbody id="pso-summary-matrix-body">
+                <!-- Populated by JS -->
+              </tbody>
+              <tfoot>
+                <tr class="fw-bold">
+                  <td class="text-start">MASTER TOTAL</td>
+                  <td id="matrix-tot-bills">32</td>
+                  <td class="font-mono" id="matrix-tot-gross">₹7,00,000</td>
+                  <td class="font-mono" id="matrix-tot-cash">₹1,78,000</td>
+                  <td class="font-mono" id="matrix-tot-paytm">₹1,50,000</td>
+                  <td class="font-mono" id="matrix-tot-check">₹2,01,000</td>
+                  <td class="font-mono" id="matrix-tot-credit">₹1,38,500</td>
+                  <td class="font-mono" id="matrix-tot-cancelled">₹15,000</td>
+                  <td class="font-mono text-danger" id="matrix-tot-cd">-₹2,500</td>
+                  <td class="font-mono text-danger" id="matrix-tot-refund">-₹1,000</td>
+                  <td class="text-end font-mono text-success fs-6" id="matrix-tot-net">₹6,82,500</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3 Highlight Cards matching Prompt -->
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <h6 class="fw-bold text-primary">PSO 1 (CB 01–CB 10)</h6>
+              <div class="fs-4 fw-bold font-mono text-dark" id="card-pso1-total">Total = ₹2,25,000</div>
+              <small class="text-muted">10 Bills | Counter Wholesale</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <h6 class="fw-bold text-primary">PSO 2 (CB 11–CB 20 + ITC)</h6>
+              <div class="fs-4 fw-bold font-mono text-dark" id="card-pso2-total">Total = ₹2,80,000</div>
+              <small class="text-muted">12 Bills (incl. ITC 01, ITC 03)</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border p-3 bg-white">
+              <h6 class="fw-bold text-primary">PSO 3 (RB 01–RB 10)</h6>
+              <div class="fs-4 fw-bold font-mono text-dark" id="card-pso3-total">Total = ₹1,77,500</div>
+              <small class="text-muted">10 Bills | Retail Walk-in Counter</small>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 9. MASTER RECONCILIATION VIEW -->
+      <main id="view-master-recon" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">Master Reconciliation Engine</h4>
+            <p class="text-muted mb-0">Final mathematical comparison between Tally Total and Total Verified PSO Collection.</p>
+          </div>
+          <button class="btn btn-outline-primary" id="btn-recompute-recon">
+            <i class="bi bi-arrow-clockwise me-1"></i> Re-Calculate
+          </button>
+        </div>
+
+        <!-- Master Status Banner -->
+        <div class="recon-banner failed" id="recon-master-banner">
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle p-3 bg-white shadow-sm text-danger" id="recon-banner-icon">
+              <i class="bi bi-shield-x fs-1"></i>
+            </div>
+            <div>
+              <h4 class="fw-bold mb-1" id="recon-banner-title">RECONCILIATION FAILED</h4>
+              <p class="mb-0 text-muted" id="recon-banner-desc">
+                Tally Total (₹7,00,000) does not match Total PSO Collection (₹6,82,500). Difference: <span class="fw-bold text-danger">₹17,500</span>.
+                Approval and sealing are strictly blocked until discrepancy is cleared.
+              </p>
+            </div>
+          </div>
+          <div class="d-flex gap-2" id="recon-banner-actions">
+            <button class="btn btn-danger" id="btn-resolve-recon-diff">
+              <i class="bi bi-tools me-1"></i> Resolve Discrepancy
+            </button>
+          </div>
+        </div>
+
+        <!-- Comparison Matrix -->
+        <div class="row g-4 mb-4">
+          <div class="col-lg-5">
+            <div class="card border p-4 bg-white shadow-sm h-100">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Tally DayBook Total</h5>
+                <span class="badge bg-primary">Source of Truth</span>
+              </div>
+              <div class="display-6 fw-bold font-mono text-primary mb-3" id="recon-tally-total">₹7,00,000</div>
+              <ul class="list-group list-group-flush small">
+                <li class="list-group-item d-flex justify-content-between px-0">
+                  <span>Imported Records</span>
+                  <span class="fw-bold font-mono">32 Bills</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                  <span>DayBook File</span>
+                  <span class="fw-bold font-mono">Tally_DayBook_14Aug2026.xlsx</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                  <span>Gross Debit/Credit Check</span>
+                  <span class="text-success fw-bold">Balanced</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-lg-2 d-flex align-items-center justify-content-center">
+            <div class="text-center">
+              <div class="fs-1 fw-bold text-muted font-mono">VS</div>
+              <span class="badge bg-secondary">Comparison</span>
+            </div>
+          </div>
+
+          <div class="col-lg-5">
+            <div class="card border p-4 bg-white shadow-sm h-100">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">PSO Aggregates Sum</h5>
+                <span class="badge bg-info text-white">Physical Verification</span>
+              </div>
+              <div class="display-6 fw-bold font-mono text-success mb-3" id="recon-pso-total">₹6,82,500</div>
+              <ul class="list-group list-group-flush small">
+                <li class="list-group-item d-flex justify-content-between px-0">
+                  <span>PSO 1 (CB 01 - CB 10)</span>
+                  <span class="fw-bold font-mono" id="recon-sub-pso1">₹2,25,000</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                  <span>PSO 2 (CB 11 - CB 20 + ITC)</span>
+                  <span class="fw-bold font-mono" id="recon-sub-pso2">₹2,80,000</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                  <span>PSO 3 (RB 01 - RB 10)</span>
+                  <span class="fw-bold font-mono" id="recon-sub-pso3">₹1,77,500</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Difference Breakdown Card -->
+        <div class="card border p-4 bg-white shadow-sm">
+          <h5 class="fw-bold mb-3">Discrepancy Breakdown & Resolution Checklist</h5>
+          <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+              <div class="p-3 rounded bg-danger-subtle text-danger border border-danger">
+                <small class="d-block fw-semibold text-uppercase">Net Variance</small>
+                <span class="fs-3 fw-bold font-mono" id="recon-diff-display">₹17,500</span>
+                <small class="d-block mt-1">Variance > ₹0 (Non-reconciled)</small>
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="d-flex flex-column gap-2" style="font-size: 0.84rem;">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-x-circle-fill text-danger"></i>
+                  <span><strong>Missing Bill CB 02:</strong> Amount ₹17,500 physical slip not verified.</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-check-circle-fill text-success"></i>
+                  <span><strong>Cash Discounts (CD):</strong> 3 records total ₹2,500 properly deducted & authorized.</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-check-circle-fill text-success"></i>
+                  <span><strong>Goods Returns & Refunds:</strong> 1 record ₹1,000 adjusted with customer slip.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 10. APPROVAL & SEALING VIEW -->
+      <main id="view-approval-sealing" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">Approval Workflow & Final File Sealing</h4>
+            <p class="text-muted mb-0">Multi-stage compliance gate. After final approval, daily PSOs are sealed and permanently locked into read-only mode.</p>
+          </div>
+        </div>
+
+        <!-- Approval Gate Checklist -->
+        <div class="card border p-4 bg-white shadow-sm mb-4">
+          <h5 class="fw-bold mb-3">Approval Prerequisite Checks</h5>
+          <div class="row g-3">
+            <div class="col-md-3">
+              <div class="p-3 border rounded" id="gate-check-verif">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-semibold">1. Bill Verification</span>
+                  <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                </div>
+                <small class="text-muted">32/32 physical bill serials accounted</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="p-3 border rounded" id="gate-check-missing">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-semibold">2. Missing Bills</span>
+                  <i class="bi bi-x-circle-fill text-danger fs-5" id="gate-icon-missing"></i>
+                </div>
+                <small class="text-muted" id="gate-desc-missing">1 missing bill unresolved</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="p-3 border rounded" id="gate-check-recon">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-semibold">3. Master Recon</span>
+                  <i class="bi bi-x-circle-fill text-danger fs-5" id="gate-icon-recon"></i>
+                </div>
+                <small class="text-muted" id="gate-desc-recon">Difference must be ₹0</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="p-3 border rounded" id="gate-check-corr">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-semibold">4. Corrections</span>
+                  <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                </div>
+                <small class="text-muted">All 3 adjustments authorized</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sealing Action Card -->
+        <div class="card border p-4 bg-white shadow-sm text-center">
+          <div class="mx-auto mb-3" style="max-width: 550px;">
+            <div class="seal-stamp mb-3">
+              <span>OFFICIAL</span>
+              <span>HISABKITAP</span>
+              <span>SEAL</span>
+            </div>
+            <h4 class="fw-bold mb-2">Official PSO Seal & Final Sign-Off</h4>
+            <p class="text-muted small">
+              Sealing binds the business date's collections, freezes all bill entries, creates immutable audit hashes, and allows export of audited Master Summary.
+            </p>
+          </div>
+
+          <div class="d-flex justify-content-center gap-3">
+            <button class="btn btn-lg btn-success px-4" id="btn-trigger-seal" disabled>
+              <i class="bi bi-lock-fill me-1"></i> Approve & Seal Daily Records
+            </button>
+            <button class="btn btn-lg btn-outline-secondary" id="btn-unseal-demo" style="display: none;">
+              <i class="bi bi-unlock-fill me-1"></i> Unseal (Demo Reset)
+            </button>
+          </div>
+          <div class="text-danger small mt-2" id="seal-block-notice">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> Cannot seal while Reconciliation is FAILED or Difference > ₹0.
+          </div>
+        </div>
+      </main>
+
+      <!-- 11. 7-DAY RETENTION VIEW -->
+      <main id="view-retention" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">7-Day PSO Retention Window Radar</h4>
+            <p class="text-muted mb-0">Unapproved and pending PSOs remain active and editable for 7 days before compliance auto-archiving.</p>
+          </div>
+        </div>
+
+        <div class="erp-table-container mb-4">
+          <div class="table-responsive">
+            <table class="table erp-table align-middle">
+              <thead>
+                <tr>
+                  <th>PSO Code</th>
+                  <th>Business Date</th>
+                  <th>Created Date</th>
+                  <th>7-Day Retention Remaining</th>
+                  <th>Total Amount</th>
+                  <th>Approval Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="retention-table-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      <!-- 12. REPORTS VIEW -->
+      <main id="view-reports" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">Reports & Statutory Exports</h4>
+            <p class="text-muted mb-0">Generate, print, and export comprehensive daily reconciliation sheets and audit ledgers.</p>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <!-- Report Selector -->
+          <div class="col-lg-4">
+            <div class="card border p-3 bg-white shadow-sm">
+              <h6 class="fw-bold mb-3">Report Catalog</h6>
+              <div class="list-group list-group-flush" id="report-catalog-list">
+                <button class="list-group-item list-group-item-action active report-select-btn" data-report="daily_pso">
+                  <div class="fw-bold">1. Daily PSO Report</div>
+                  <small>Full summary of all 3 PSO counters & payments</small>
+                </button>
+                <button class="list-group-item list-group-item-action report-select-btn" data-report="recon_sheet">
+                  <div class="fw-bold">2. Tally vs PSO Reconciliation</div>
+                  <small>Detailed variance comparator with difference notes</small>
+                </button>
+                <button class="list-group-item list-group-item-action report-select-btn" data-report="credit_sheet">
+                  <div class="fw-bold">3. Credit Collection Register</div>
+                  <small>Salesman-wise credit recovery list</small>
+                </button>
+                <button class="list-group-item list-group-item-action report-select-btn" data-report="missing_bills">
+                  <div class="fw-bold">4. Missing Bills & Investigations</div>
+                  <small>Log of missing serials and remarks</small>
+                </button>
+                <button class="list-group-item list-group-item-action report-select-btn" data-report="corrections_log">
+                  <div class="fw-bold">5. Cash Discounts & Goods Returns</div>
+                  <small>Audit trail of all spot adjustments</small>
+                </button>
+                <button class="list-group-item list-group-item-action report-select-btn" data-report="audit_history">
+                  <div class="fw-bold">6. System Audit History</div>
+                  <small>Timestamped operator actions</small>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Report Preview Pane -->
+          <div class="col-lg-8">
+            <div class="card border p-4 bg-white shadow-sm">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0" id="report-preview-title">Daily PSO Report Preview</h5>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i> Print
+                  </button>
+                  <button class="btn btn-sm btn-success" id="btn-export-report-excel">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Export Excel
+                  </button>
+                </div>
+              </div>
+              <hr class="my-2">
+              <div id="report-preview-content" class="p-3 bg-light rounded font-mono" style="min-height: 400px; font-size: 0.85rem; overflow-x: auto;">
+                <!-- Dynamically Rendered Report HTML -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 13. SETTINGS & CUTOFF VIEW -->
+      <main id="view-settings" class="content-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 class="fw-bold mb-1">Daily Cutoff & System Settings</h4>
+            <p class="text-muted mb-0">Configure daily PSO cutoff timings and automatic rollover business rules.</p>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="card border p-4 bg-white shadow-sm">
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <h5 class="fw-bold mb-0">Daily PSO Cutoff Time Configuration</h5>
+                <span class="badge bg-danger" id="setting-admin-badge"><i class="bi bi-shield-lock-fill me-1"></i>Super Admin Only</span>
+              </div>
+
+              <!-- Dynamic Role Alert for Cutoff -->
+              <div id="cutoff-role-alert-container"></div>
+
+              <form id="form-cutoff-settings">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Cutoff Time (24h Format)</label>
+                  <input type="time" class="form-control font-mono" id="setting-cutoff-time" value="19:00" required>
+                  <small class="text-muted">Default: 7:00 PM (19:00 IST)</small>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="setting-cutoff-toggle" checked>
+                  <label class="form-check-label fw-semibold" for="setting-cutoff-toggle">Enable Automatic Next-Day PSO Rollover</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="btn-save-cutoff-settings">Save Cutoff Settings</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="cutoff-card h-100">
+              <h5 class="fw-bold mb-2"><i class="bi bi-lightbulb-fill text-warning me-2"></i>Daily Cutoff Business Rule</h5>
+              <p class="text-white-50" style="font-size: 0.85rem;">
+                The ERP enforces strict daily timing integrity:
+              </p>
+              <div class="p-3 bg-white bg-opacity-10 rounded mb-2 border border-white border-opacity-25">
+                <div class="fw-bold text-white mb-1"><i class="bi bi-check2 text-success me-1"></i> Bill entered &le; Cutoff Time (7:00 PM):</div>
+                <div class="text-white-50 small">&rarr; Assigned to <strong>Today's PSO</strong> and counted in today's reconciliation.</div>
+              </div>
+              <div class="p-3 bg-white bg-opacity-10 rounded border border-white border-opacity-25">
+                <div class="fw-bold text-white mb-1"><i class="bi bi-clock-history text-warning me-1"></i> Bill entered &gt; Cutoff Time (7:00 PM):</div>
+                <div class="text-white-50 small">&rarr; Automatically assigned to <strong>Next Day's PSO</strong> (15-Aug).</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ALL INTERACTIVE MODALS -->
+
+  <!-- Modal 1: Add/Edit PSO Series -->
+  <div class="modal fade" id="modal-add-pso" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Configure New PSO Series</h5>
+          <button type="button" class="btn-close" data-bs-toggle="modal"></button>
+        </div>
+        <form id="form-create-pso">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">PSO Code / Name</label>
+              <input type="text" class="form-control" id="new-pso-name" placeholder="e.g. PSO 4 - Institutional Delivery" required>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-4">
+                <label class="form-label fw-semibold">Prefix</label>
+                <input type="text" class="form-control text-uppercase" id="new-pso-prefix" placeholder="e.g. IB" required>
+              </div>
+              <div class="col-4">
+                <label class="form-label fw-semibold">Start No.</label>
+                <input type="number" class="form-control" id="new-pso-start" value="1" required>
+              </div>
+              <div class="col-4">
+                <label class="form-label fw-semibold">End No.</label>
+                <input type="number" class="form-control" id="new-pso-end" value="10" required>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Special Bills (Comma separated)</label>
+              <input type="text" class="form-control" id="new-pso-specials" placeholder="e.g. ITC 05, SPL 01">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Assigned Operator</label>
+              <input type="text" class="form-control" id="new-pso-operator" value="Ramesh Sharma" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save PSO Configuration</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Missing Bill Investigation -->
+  <div class="modal fade" id="modal-investigate-bill" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger-subtle">
+          <h5 class="modal-title fw-bold text-danger"><i class="bi bi-search me-1"></i> Missing Bill Investigation: <span id="investigate-bill-no">CB 02</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="form-investigate-bill">
+          <div class="modal-body">
+            <input type="hidden" id="investigate-bill-hidden-no">
+            <div class="p-3 bg-light rounded border mb-3">
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Customer:</span>
+                <strong id="investigate-customer">Kailash Supermarket</strong>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Amount in Tally:</span>
+                <strong class="font-mono text-danger" id="investigate-amount">₹17,500</strong>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Expected Range:</span>
+                <span>PSO 1 (CB 01 to CB 10)</span>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Resolution Reason <span class="text-danger">*</span></label>
+              <select class="form-select" id="investigate-reason" required>
+                <option value="Physical Slip Found & Verified" selected>Physical Slip Found & Verified in Counter Bundle</option>
+                <option value="Counter Sale">Counter Sale Check Completed</option>
+                <option value="Cancelled Bill">Cancelled Bill (Mark Void)</option>
+                <option value="Wrong Series">Wrong Series (Move to PSO 2/3)</option>
+                <option value="Duplicate">Duplicate Bill Detected</option>
+                <option value="Manual Correction">Manual Authorized Correction</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Investigation Remark / Slip ID</label>
+              <textarea class="form-control" id="investigate-remark" rows="2" placeholder="Enter auditor remarks or physical slip serial...">Slip recovered from Cashier bundle #1, signed by Operator.</textarea>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Attach Supporting Scan / Document (Optional)</label>
+              <input type="file" class="form-control" id="investigate-file">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check2-circle me-1"></i> Resolve & Mark Matched</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Record Correction / Return -->
+  <div class="modal fade" id="modal-add-correction" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Record Correction / Goods Return</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="form-new-correction">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Select Bill No. <span class="text-danger">*</span></label>
+              <select class="form-select font-mono" id="corr-input-billno" required>
+                <option value="CB 01">CB 01 - Gupta Traders (₹35,000)</option>
+                <option value="CB 03">CB 03 - Modern Departmental (₹22,500)</option>
+                <option value="CB 06">CB 06 - Vikas General Store (₹15,000)</option>
+                <option value="CB 11">CB 11 - Ahuja Wholesalers (₹30,000)</option>
+                <option value="CB 19">CB 19 - Universal Traders (₹27,000)</option>
+                <option value="RB 01">RB 01 - Direct Walk-in 101 (₹12,500)</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Correction Type <span class="text-danger">*</span></label>
+              <select class="form-select" id="corr-input-type" required>
+                <option value="Cash Discount">Cash Discount (CD)</option>
+                <option value="Goods Return">Goods Return</option>
+                <option value="Refund">Refund</option>
+                <option value="Bill Correction">Bill Correction</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-4">
+                <label class="form-label fw-semibold">CD (₹)</label>
+                <input type="number" class="form-control" id="corr-input-cd" value="0">
+              </div>
+              <div class="col-4">
+                <label class="form-label fw-semibold">Return (₹)</label>
+                <input type="number" class="form-control" id="corr-input-return" value="0">
+              </div>
+              <div class="col-4">
+                <label class="form-label fw-semibold">Refund (₹)</label>
+                <input type="number" class="form-control" id="corr-input-refund" value="0">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Reason for Adjustment <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="corr-input-reason" placeholder="e.g. Approved promo discount / Damaged box" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save & Apply Adjustment</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Credit Collection Payment Recorder -->
+  <div class="modal fade" id="modal-update-credit" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-warning-subtle">
+          <h5 class="modal-title fw-bold text-dark"><i class="bi bi-cash-coin me-1"></i> Update Credit Collection: <span id="credit-modal-billno">CB 05</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="form-update-credit">
+          <div class="modal-body">
+            <input type="hidden" id="credit-modal-hidden-no">
+            <div class="p-3 bg-light rounded border mb-3">
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Customer:</span>
+                <strong id="credit-modal-customer">Balaji Enterprises</strong>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Assigned Salesman:</span>
+                <strong id="credit-modal-salesman">Rajesh Kumar</strong>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Total Bill Amount:</span>
+                <strong class="font-mono text-dark" id="credit-modal-total">₹28,000</strong>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Currently Outstanding:</span>
+                <strong class="font-mono text-danger" id="credit-modal-out">₹28,000</strong>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Amount Received Today (₹) <span class="text-danger">*</span></label>
+              <input type="number" class="form-control font-mono" id="credit-modal-paid-input" min="0" max="1000000" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Collection Mode</label>
+              <select class="form-select" id="credit-modal-mode">
+                <option value="Cash">Cash Collected by Salesman</option>
+                <option value="Paytm / UPI">Direct UPI / QR Transfer</option>
+                <option value="Cheque">Customer Cheque</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Collection Remarks</label>
+              <input type="text" class="form-control" id="credit-modal-remark" placeholder="e.g. Receipt #902 issued">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success">Update Payment Record</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Digital Seal Certificate Viewer -->
+  <div class="modal fade" id="modal-seal-cert" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i> Official PSO Sealing Certificate</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="seal-certificate text-center">
+            <div class="seal-stamp mb-3">
+              <span>SEALED</span>
+              <span>14-AUG-2026</span>
+              <span>HISABKITAP</span>
+            </div>
+            <h4 class="fw-bold text-success mb-1">CERTIFICATE OF DAILY PSO RECONCILIATION</h4>
+            <p class="text-muted small mb-4">Issued by HisabKitap Statutory ERP Verification Core</p>
+
+            <div class="row g-3 text-start border p-3 rounded bg-light mb-4">
+              <div class="col-6">
+                <small class="text-muted d-block">Business Date</small>
+                <strong class="font-mono">14-August-2026</strong>
+              </div>
+              <div class="col-6">
+                <small class="text-muted d-block">Total Tally Amount Reconciled</small>
+                <strong class="font-mono text-primary">₹7,00,000.00</strong>
+              </div>
+              <div class="col-6">
+                <small class="text-muted d-block">Total Net PSO Collection</small>
+                <strong class="font-mono text-success">₹7,00,000.00</strong>
+              </div>
+              <div class="col-6">
+                <small class="text-muted d-block">Final Variance</small>
+                <strong class="font-mono text-success">₹0.00 (Zero Discrepancy)</strong>
+              </div>
+              <div class="col-6">
+                <small class="text-muted d-block">Authorized Signatory</small>
+                <strong>Pooja Verma (Accounts Officer)</strong>
+              </div>
+              <div class="col-6">
+                <small class="text-muted d-block">Audit Hash Token</small>
+                <strong class="font-mono text-dark">SHA256: 7e9b41a80c2f82e1</strong>
+              </div>
+            </div>
+
+            <div class="alert alert-success d-flex align-items-center justify-content-center gap-2 mb-0" style="font-size: 0.85rem;">
+              <i class="bi bi-lock-fill"></i>
+              <span>All records for this date are locked into Read-Only state. Modifications require Administrator override.</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-success" onclick="window.print()"><i class="bi bi-printer me-1"></i> Print Certificate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Role Capabilities Matrix & System Guide -->
+  <div class="modal fade" id="modal-role-matrix" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content">
+        <div class="modal-header bg-dark text-white">
+          <div>
+            <h5 class="modal-title fw-bold"><i class="bi bi-diagram-3-fill text-primary me-2"></i> Role-Based Access Control (RBAC) & Capability Guide</h5>
+            <small class="text-white-50">Discover which role uses which feature and switch persona on-the-fly to test workflows</small>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4 bg-light">
+          
+          <!-- Nav Tabs: Cards vs Table Matrix -->
+          <ul class="nav nav-pills mb-3" id="role-matrix-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="tab-role-cards-btn" data-bs-toggle="pill" data-bs-target="#tab-role-cards" type="button" role="tab">
+                <i class="bi bi-person-badge-fill me-1.5"></i> Role Personas & Responsibilities
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-role-matrix-btn" data-bs-toggle="pill" data-bs-target="#tab-role-matrix" type="button" role="tab">
+                <i class="bi bi-table me-1.5"></i> Feature Permission Matrix Table
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            
+            <!-- Tab 1: 4 Role Cards Grid -->
+            <div class="tab-pane fade show active" id="tab-role-cards" role="tabpanel">
+              <div class="row g-3" id="role-matrix-cards-container">
+                <!-- Dynamically generated or static template rendered by JS -->
+                
+                <!-- 1. Operator -->
+                <div class="col-md-6 col-xl-3">
+                  <div class="role-matrix-card p-3 shadow-sm" id="role-card-usr_01">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <span class="badge bg-primary px-2.5 py-1">Operator</span>
+                      <span class="badge bg-light text-muted border active-indicator d-none">Active</span>
+                    </div>
+                    <div class="text-center py-2">
+                      <div class="bg-primary text-white rounded-circle fw-bold mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; font-size: 1.1rem;">RS</div>
+                      <h6 class="fw-bold mb-0">Ramesh Sharma</h6>
+                      <small class="text-muted d-block">Accountant (PSO Operator)</small>
+                    </div>
+                    <div class="small bg-light p-2 rounded mb-3 text-secondary" style="font-size: 0.75rem;">
+                      Primary author for PSO series setup, daily counter billing, Tally sales import, and cash discounts.
+                    </div>
+                    <div class="mb-3 flex-grow-1">
+                      <div class="fw-bold text-dark small mb-1"><i class="bi bi-check-circle text-success me-1"></i> What It Uses:</div>
+                      <ul class="list-unstyled small mb-2 text-muted ps-2" style="font-size: 0.74rem;">
+                        <li>• <strong>Configure & Create PSO Series</strong></li>
+                        <li>• Import Tally Excel/CSV files</li>
+                        <li>• Verify physical counter bills</li>
+                        <li>• Record Cash Discounts & Returns</li>
+                        <li>• Log salesman credit collections</li>
+                        <li>• Generate draft PSO summary</li>
+                      </ul>
+                      <div class="fw-bold text-danger small mb-1"><i class="bi bi-x-circle text-danger me-1"></i> Restrictions:</div>
+                      <ul class="list-unstyled small text-muted ps-2" style="font-size: 0.74rem;">
+                        <li>• Cannot approve or digitally seal day</li>
+                        <li>• Cannot edit Cutoff Time policy (Admin only)</li>
+                      </ul>
+                    </div>
+                    <button class="btn btn-sm btn-primary w-100 role-switch-btn mt-auto" data-role-id="usr_01">
+                      <i class="bi bi-box-arrow-in-right me-1"></i> Login / Switch
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 2. Approver -->
+                <div class="col-md-6 col-xl-3">
+                  <div class="role-matrix-card p-3 shadow-sm" id="role-card-usr_02">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <span class="badge bg-success px-2.5 py-1">Approver</span>
+                      <span class="badge bg-light text-muted border active-indicator d-none">Active</span>
+                    </div>
+                    <div class="text-center py-2">
+                      <div class="bg-success text-white rounded-circle fw-bold mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; font-size: 1.1rem;">PV</div>
+                      <h6 class="fw-bold mb-0">Pooja Verma</h6>
+                      <small class="text-muted d-block">Accounts Officer (Approver)</small>
+                    </div>
+                    <div class="small bg-light p-2 rounded mb-3 text-secondary" style="font-size: 0.75rem;">
+                      Final supervisory authority. Authorizes variances, signs off PSO, and applies digital seal.
+                    </div>
+                    <div class="mb-3 flex-grow-1">
+                      <div class="fw-bold text-dark small mb-1"><i class="bi bi-check-circle text-success me-1"></i> What It Uses:</div>
+                      <ul class="list-unstyled small mb-2 text-muted ps-2" style="font-size: 0.74rem;">
+                        <li>• Master Reconciliation review</li>
+                        <li>• Authorize discrepancy waivers</li>
+                        <li>• <strong>Digital Cryptographic Sealing</strong></li>
+                        <li>• Emergency unseal authorization</li>
+                        <li>• Sign statutory compliance</li>
+                      </ul>
+                      <div class="fw-bold text-secondary small mb-1"><i class="bi bi-info-circle text-info me-1"></i> Scope:</div>
+                      <ul class="list-unstyled small text-muted ps-2" style="font-size: 0.74rem;">
+                        <li>• Full operational + approval rights</li>
+                      </ul>
+                    </div>
+                    <button class="btn btn-sm btn-success w-100 role-switch-btn mt-auto" data-role-id="usr_02">
+                      <i class="bi bi-box-arrow-in-right me-1"></i> Login / Switch
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 3. Admin -->
+                <div class="col-md-6 col-xl-3">
+                  <div class="role-matrix-card p-3 shadow-sm" id="role-card-usr_03">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <span class="badge bg-danger px-2.5 py-1">System Admin</span>
+                      <span class="badge bg-light text-muted border active-indicator d-none">Active</span>
+                    </div>
+                    <div class="text-center py-2">
+                      <div class="bg-danger text-white rounded-circle fw-bold mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; font-size: 1.1rem;">SG</div>
+                      <h6 class="fw-bold mb-0">Suresh Gupta</h6>
+                      <small class="text-muted d-block">System Administrator</small>
+                    </div>
+                    <div class="small bg-light p-2 rounded mb-3 text-secondary" style="font-size: 0.75rem;">
+                      System architect. Configures PSO series, start/end bill numbers, and 7:00 PM cutoff rules.
+                    </div>
+                    <div class="mb-3 flex-grow-1">
+                      <div class="fw-bold text-dark small mb-1"><i class="bi bi-check-circle text-success me-1"></i> What It Uses:</div>
+                      <ul class="list-unstyled small mb-2 text-muted ps-2" style="font-size: 0.74rem;">
+                        <li>• PSO Counter Series Configuration</li>
+                        <li>• Cutoff Time Policy & Rollover</li>
+                        <li>• User Role & Permissions Admin</li>
+                        <li>• Emergency rollback & system locks</li>
+                        <li>• Full system master control</li>
+                      </ul>
+                      <div class="fw-bold text-secondary small mb-1"><i class="bi bi-shield-check text-danger me-1"></i> Authority:</div>
+                      <ul class="list-unstyled small text-muted ps-2" style="font-size: 0.74rem;">
+                        <li>• Unrestricted master access</li>
+                      </ul>
+                    </div>
+                    <button class="btn btn-sm btn-danger w-100 role-switch-btn mt-auto" data-role-id="usr_03">
+                      <i class="bi bi-box-arrow-in-right me-1"></i> Login / Switch
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 4. Auditor -->
+                <div class="col-md-6 col-xl-3">
+                  <div class="role-matrix-card p-3 shadow-sm" id="role-card-usr_04">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <span class="badge bg-warning text-dark px-2.5 py-1">Auditor</span>
+                      <span class="badge bg-light text-muted border active-indicator d-none">Active</span>
+                    </div>
+                    <div class="text-center py-2">
+                      <div class="bg-warning text-dark rounded-circle fw-bold mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; font-size: 1.1rem;">VM</div>
+                      <h6 class="fw-bold mb-0">Vikram Mehta</h6>
+                      <small class="text-muted d-block">Internal Auditor</small>
+                    </div>
+                    <div class="small bg-light p-2 rounded mb-3 text-secondary" style="font-size: 0.75rem;">
+                      Independent oversight & inspection. Strictly Read-Only audit reviews and compliance export.
+                    </div>
+                    <div class="mb-3 flex-grow-1">
+                      <div class="fw-bold text-dark small mb-1"><i class="bi bi-check-circle text-success me-1"></i> What It Uses:</div>
+                      <ul class="list-unstyled small mb-2 text-muted ps-2" style="font-size: 0.74rem;">
+                        <li>• 7-Day Retention compliance log</li>
+                        <li>• Audit Trail timestamp inspection</li>
+                        <li>• Missing bill discrepancy review</li>
+                        <li>• Export Certified Audit Reports</li>
+                        <li>• Inspect Digital Seal Hash Tokens</li>
+                      </ul>
+                      <div class="fw-bold text-danger small mb-1"><i class="bi bi-lock-fill text-warning me-1"></i> Restrictions:</div>
+                      <ul class="list-unstyled small text-muted ps-2" style="font-size: 0.74rem;">
+                        <li>• STRICTLY READ-ONLY (No edits)</li>
+                        <li>• Cannot import or seal records</li>
+                      </ul>
+                    </div>
+                    <button class="btn btn-sm btn-warning w-100 role-switch-btn mt-auto" data-role-id="usr_04">
+                      <i class="bi bi-box-arrow-in-right me-1"></i> Login / Switch
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Tab 2: Permissions Comparison Matrix Table -->
+            <div class="tab-pane fade" id="tab-role-matrix" role="tabpanel">
+              <div class="table-responsive bg-white rounded border shadow-sm">
+                <table class="table table-hover table-bordered mb-0 role-matrix-table">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 28%;">Module / ERP Feature</th>
+                      <th class="text-center" style="width: 18%;">
+                        <span class="badge bg-primary">Operator</span>
+                        <div class="text-muted" style="font-size: 0.68rem; font-weight: normal;">Ramesh Sharma</div>
+                      </th>
+                      <th class="text-center" style="width: 18%;">
+                        <span class="badge bg-success">Approver</span>
+                        <div class="text-muted" style="font-size: 0.68rem; font-weight: normal;">Pooja Verma</div>
+                      </th>
+                      <th class="text-center" style="width: 18%;">
+                        <span class="badge bg-danger">System Admin</span>
+                        <div class="text-muted" style="font-size: 0.68rem; font-weight: normal;">Suresh Gupta</div>
+                      </th>
+                      <th class="text-center" style="width: 18%;">
+                        <span class="badge bg-warning text-dark">Auditor</span>
+                        <div class="text-muted" style="font-size: 0.68rem; font-weight: normal;">Vikram Mehta</div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-file-earmark-spreadsheet text-primary me-2"></i>Tally Excel Import</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-secondary"><i class="bi bi-lock"></i> Read Only</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Physical Bill Verification</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Verification</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Verification</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-secondary"><i class="bi bi-eye"></i> Audit Spot-check</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-arrow-left-right text-primary me-2"></i>Cash Discounts & Returns</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Record Entries</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Authorize & Sign</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-secondary"><i class="bi bi-lock"></i> Read Only</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-cash-coin text-primary me-2"></i>Credit Collection Register</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Log Recoveries</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-secondary"><i class="bi bi-lock"></i> Read Only</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-check2-all text-success me-2"></i>Master Reconciliation Signoff</td>
+                      <td class="text-center text-warning"><i class="bi bi-eye"></i> Draft & Submit</td>
+                      <td class="text-center text-success fw-bold"><i class="bi bi-shield-check"></i> Sign Variance</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-secondary"><i class="bi bi-eye"></i> Compliance Review</td>
+                    </tr>
+                    <tr class="table-success-subtle">
+                      <td class="fw-bold"><i class="bi bi-lock-fill text-success me-2"></i>Daily PSO Sealing (Hash Lock)</td>
+                      <td class="text-center text-danger"><i class="bi bi-x-circle-fill"></i> Blocked (No Auth)</td>
+                      <td class="text-center text-success fw-bold"><i class="bi bi-shield-lock-fill"></i> Exclusive Authority</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Authorized</td>
+                      <td class="text-center text-danger"><i class="bi bi-x-circle-fill"></i> Blocked</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-unlock-fill text-danger me-2"></i>Emergency Unseal / Unlock</td>
+                      <td class="text-center text-danger"><i class="bi bi-x-circle-fill"></i> Not Allowed</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> With Audit Remark</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Master Override</td>
+                      <td class="text-center text-danger"><i class="bi bi-x-circle-fill"></i> Not Allowed</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-diagram-3-fill text-primary me-2"></i>PSO Counter Series Configuration</td>
+                      <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Create & Author</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-success fw-bold"><i class="bi bi-gear-fill"></i> Master Control</td>
+                      <td class="text-center text-secondary"><i class="bi bi-lock"></i> Read Only</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-alarm-fill text-danger me-2"></i>Cutoff Time (7 PM) & Rollover Policy</td>
+                      <td class="text-center text-danger"><i class="bi bi-x-circle-fill"></i> Blocked (Admin Only)</td>
+                      <td class="text-center text-danger"><i class="bi bi-x-circle-fill"></i> Blocked (Admin Only)</td>
+                      <td class="text-center text-success fw-bold"><i class="bi bi-gear-fill"></i> Super Admin Only</td>
+                      <td class="text-center text-danger"><i class="bi bi-x-circle-fill"></i> Blocked</td>
+                    </tr>
+                    <tr>
+                      <td class="fw-semibold"><i class="bi bi-clock-history text-warning me-2"></i>7-Day Retention & Audit Trail Export</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> View</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> View & Export</td>
+                      <td class="text-center text-success"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                      <td class="text-center text-warning fw-bold"><i class="bi bi-shield-check"></i> Primary Audit Target</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+        <div class="modal-footer d-flex justify-content-between">
+          <div class="text-muted small">
+            <i class="bi bi-info-circle me-1"></i> You can change roles anytime using the top bar buttons to see real-time UI adaptation.
+          </div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close Guide</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <div id="erp-toast" class="toast align-items-center text-white bg-primary border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body d-flex align-items-center gap-2" id="erp-toast-body">
+          <i class="bi bi-info-circle-fill"></i>
+          <span>Action executed successfully.</span>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Mock Data -->
+  <script src="data.js"></script>
+  <!-- Application Controller -->
+  <script src="app.js"></script>
+</body>
+</html>
