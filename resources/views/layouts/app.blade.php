@@ -182,19 +182,6 @@
             <span>Daily Cutoff:</span>
             <span class="fw-bold text-dark font-mono">{{ $cutoffTime }} IST</span>
           </div>
-
-          <!-- Quick Scenario Trigger -->
-          <div class="dropdown">
-            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-              <i class="bi bi-play-circle-fill me-1"></i> Demo Scenarios
-            </button>
-            <ul class="dropdown-menu shadow">
-              <li><h6 class="dropdown-header">Preset Business States</h6></li>
-              <li><a class="dropdown-item" href="{{ route('scenario.set', ['scenario' => 'discrepancy']) }}"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Default (Diff: ₹17,500 / Blocked)</a></li>
-              <li><a class="dropdown-item" href="{{ route('scenario.set', ['scenario' => 'balanced']) }}"><i class="bi bi-check-circle text-success me-2"></i>Reconciled (Diff: ₹0 / Ready to Seal)</a></li>
-              <li><a class="dropdown-item" href="{{ route('scenario.set', ['scenario' => 'missing_multiple']) }}"><i class="bi bi-search text-warning me-2"></i>Multiple Missing Bills</a></li>
-            </ul>
-          </div>
         </div>
 
         <!-- Right User & Status Area -->
@@ -312,54 +299,16 @@
         </div>
       </header>
 
-      <!-- DYNAMIC ROLE CONTEXT BAR & QUICK SWITCHER -->
-      <div id="role-context-bar" class="role-context-banner role-{{ strtolower($currentUser['role_code'] ?? 'operator') }}">
-        <div class="d-flex align-items-center gap-2.5 flex-wrap">
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-{{ $currentUser['badge_color'] ?? 'primary' }} px-2 py-1 d-flex align-items-center gap-1.5">
-              <i class="bi {{ $currentUser['icon'] ?? 'bi-person-badge-fill' }}"></i>
-              <span>{{ $currentUser['role_name'] ?? 'Accountant (PSO Operator)' }}</span>
-            </span>
-            <span class="fw-semibold text-dark" style="font-size: 0.84rem;">{{ $currentUser['name'] ?? 'Ramesh Sharma' }}</span>
-          </div>
-          <span class="text-muted d-none d-lg-inline" style="font-size: 0.78rem;">|</span>
-          <span class="text-secondary" style="font-size: 0.78rem;">
-            {{ $currentUser['tagline'] ?? '' }}
-          </span>
-        </div>
-
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          @if($allUsers->count() > 1)
-            <div class="d-flex align-items-center gap-1">
-              <span class="text-muted small me-1 d-none d-sm-inline" style="font-size: 0.74rem;">Switch Role:</span>
-              @foreach($allUsers as $u)
-                <a href="{{ route('admin.role.switch', ['role_code' => $u->code]) }}" class="role-quick-btn {{ ($currentUser['code'] ?? '') === $u->code ? 'active' : '' }}">
-                  <i class="bi {{ $u->icon }} text-{{ $u->badge_color }}"></i> {{ $u->role_name }}
-                </a>
-              @endforeach
-            </div>
-          @endif
-
-          <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5 py-1 px-2.5" data-bs-toggle="modal" data-bs-target="#modal-role-matrix" style="font-size: 0.76rem;">
-            <i class="bi bi-diagram-3"></i>
-            <span>Role Matrix & Guide</span>
-          </button>
-        </div>
-      </div>
-
       <!-- AUDITOR READ-ONLY INSPECTION NOTICE (Visible only when in Auditor role) -->
       @if(($currentUser['role_code'] ?? '') === 'AUDITOR')
         <div class="alert alert-warning border-warning mx-4 mt-3 mb-0 d-flex align-items-center justify-content-between py-2 px-3 shadow-sm">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-shield-exclamation text-warning fs-4"></i>
             <div>
-              <strong class="text-dark">Auditor Inspection Mode Active ({{ $currentUser['name'] }})</strong>
+              <strong class="text-dark">Auditor Inspection Mode Active ({{ $currentUser['name'] ?? 'Auditor' }})</strong>
               <div style="font-size: 0.78rem;" class="text-muted">You have Read-Only statutory oversight. All modifications, imports, and day seal actions are disabled to ensure compliance.</div>
             </div>
           </div>
-          <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#modal-role-matrix">
-            <i class="bi bi-info-circle me-1"></i> View Permissions
-          </button>
         </div>
       @endif
 

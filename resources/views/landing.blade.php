@@ -271,7 +271,7 @@
             Enterprise fuel station accounting system. Ingest Tally DayBook registers, cross-verify sequential counter bundles, track credit recoveries, and lock daily books with SHA-256 digital seals.
           </p>
           <div class="d-flex flex-wrap gap-3">
-            <a href="{{ route('login') }}" class="btn-hero-primary">
+            <a href="{{ route('admin.login') }}" class="btn-hero-primary">
               <i class="bi bi-speedometer2"></i> Open ERP Admin Portal
             </a>
             <a href="#features" class="btn-hero-secondary">
@@ -329,7 +329,7 @@
               </div>
             </div>
 
-            <a href="{{ route('login') }}" class="btn btn-sm btn-outline-light w-100 py-2">
+            <a href="{{ route('admin.login') }}" class="btn btn-sm btn-outline-light w-100 py-2">
               <i class="bi bi-box-arrow-in-right me-1"></i> Sign In to Access Dashboard &rarr;
             </a>
           </div>
@@ -487,33 +487,73 @@
     </div>
   </section>
 
-  <!-- ROLE-BASED ACCESS CONTROL (RBAC) -->
+  <!-- ENTERPRISE SECURITY & AUDIT GOVERNANCE -->
   <section id="roles" class="py-5 bg-white border-top">
     <div class="container py-5">
       <div class="text-center max-w-700 mx-auto mb-5">
         <h6 class="text-primary text-uppercase fw-bold letter-spacing-1">Governance & Compliance</h6>
-        <h2 class="fw-bold text-dark">Pre-Configured Enterprise RBAC Personas</h2>
-        <p class="text-muted">Test any role instantly using one-click persona switching.</p>
+        <h2 class="fw-bold text-dark">Enterprise Role-Based Access Control</h2>
+        <p class="text-muted">Strict separation of duties between Cashiers, Accountants, Accounts Officers, and Internal Auditors.</p>
       </div>
 
       <div class="row g-4">
-        @foreach($users as $u)
-          <div class="col-md-6 col-lg-3">
-            <div class="card border p-4 text-center h-100 bg-light">
-              <div class="bg-{{ $u->badge_color }} text-white rounded-circle fw-bold d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 50px; height: 50px; font-size: 1.1rem;">
-                {{ $u->avatar }}
-              </div>
-              <h5 class="fw-bold text-dark mb-1">{{ $u->name }}</h5>
-              <span class="badge bg-{{ $u->badge_color }}-subtle text-{{ $u->badge_color }} mb-3">{{ $u->role_name }}</span>
-              <p class="text-muted small mb-4">
-                {{ $u->responsibilities[0] ?? 'Daily counter operations and verification.' }}
-              </p>
-              <a href="{{ route('login.quick', ['role_code' => $u->code]) }}" class="btn btn-sm btn-outline-primary mt-auto">
-                <i class="bi bi-box-arrow-in-right me-1"></i> Sign In as {{ $u->role_code }}
-              </a>
+        <div class="col-md-6 col-lg-3">
+          <div class="card border p-4 text-center h-100 bg-light">
+            <div class="bg-primary text-white rounded-circle fw-bold d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 50px; height: 50px; font-size: 1.1rem;">
+              OP
             </div>
+            <h5 class="fw-bold text-dark mb-1">PSO Operator</h5>
+            <span class="badge bg-primary-subtle text-primary mb-3">Counter Accountant</span>
+            <p class="text-muted small mb-0">
+              Responsible for daily PSO series setup, Tally DayBook Excel imports, bill sequence checking, and credit collection logs.
+            </p>
           </div>
-        @endforeach
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+          <div class="card border p-4 text-center h-100 bg-light">
+            <div class="bg-success text-white rounded-circle fw-bold d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 50px; height: 50px; font-size: 1.1rem;">
+              AP
+            </div>
+            <h5 class="fw-bold text-dark mb-1">Approver</h5>
+            <span class="badge bg-success-subtle text-success mb-3">Accounts Officer</span>
+            <p class="text-muted small mb-0">
+              Authority to sign off on reconciliation variances, approve cash discount deductions, and execute daily digital sealing.
+            </p>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+          <div class="card border p-4 text-center h-100 bg-light">
+            <div class="bg-danger text-white rounded-circle fw-bold d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 50px; height: 50px; font-size: 1.1rem;">
+              AD
+            </div>
+            <h5 class="fw-bold text-dark mb-1">Super Admin</h5>
+            <span class="badge bg-danger-subtle text-danger mb-3">System Administrator</span>
+            <p class="text-muted small mb-0">
+              Master control over daily 19:00 IST cutoff policies, rollover rules, user credential security, and emergency compliance overrides.
+            </p>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+          <div class="card border p-4 text-center h-100 bg-light">
+            <div class="bg-warning text-dark rounded-circle fw-bold d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 50px; height: 50px; font-size: 1.1rem;">
+              AU
+            </div>
+            <h5 class="fw-bold text-dark mb-1">Internal Auditor</h5>
+            <span class="badge bg-warning-subtle text-dark mb-3">Statutory Oversight</span>
+            <p class="text-muted small mb-0">
+              Read-only oversight of all historical balances, immutable cryptographic SHA-256 seal certificates, and statutory audit registers.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-5">
+        <a href="{{ route('admin.login') }}" class="btn btn-hero-primary px-4 py-2">
+          <i class="bi bi-shield-lock-fill me-1"></i> Access Admin Portal
+        </a>
       </div>
     </div>
   </section>
@@ -530,8 +570,8 @@
           <span class="text-white-50 small ms-2">&copy; {{ date('Y') }} Fuel Station Reconciliation Systems.</span>
         </div>
         <div class="d-flex gap-3 small text-white-50">
-          <a href="{{ route('login') }}" class="text-white text-decoration-none">Admin Login</a>
-          <a href="{{ route('dashboard') }}" class="text-white text-decoration-none">Dashboard</a>
+          <a href="{{ route('admin.login') }}" class="text-white text-decoration-none">Admin Login</a>
+          <a href="{{ route('admin.dashboard') }}" class="text-white text-decoration-none">Dashboard</a>
           <span>Statutory Compliance v2.4</span>
         </div>
       </div>

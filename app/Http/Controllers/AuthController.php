@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
 use App\Models\AuditLog;
 
 class AuthController extends Controller
@@ -15,11 +14,10 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect()->route('dashboard');
+            return redirect()->route('admin.dashboard');
         }
 
-        $personas = User::all();
-        return view('auth.login', compact('personas'));
+        return view('auth.login');
     }
 
     /**
@@ -47,27 +45,6 @@ class AuthController extends Controller
         return back()->withErrors([
             'email' => 'The provided credentials do not match our ERP records.',
         ])->onlyInput('email');
-    }
-
-    /**
-     * Quick One-Click Persona Login (for instant testing/switching)
-     */
-    public function quickLogin(Request $request)
-    {
-        $code = $request->get('role_code', 'usr_01');
-        $user = User::where('code', $code)->first();
-
-        if ($user) {
-            Auth::login($user);
-            $request->session()->regenerate();
-            session(['active_user' => $user->toArray()]);
-
-            AuditLog::log('USER_LOGIN_QUICK', "Quick Persona Login: {$user->name} ({$user->role_name})");
-
-            return redirect()->route('admin.dashboard')->with('success', "Logged in as {$user->name} ({$user->role_name}).");
-        }
-
-        return redirect()->route('admin.login')->with('error', 'Selected persona not found.');
     }
 
     /**

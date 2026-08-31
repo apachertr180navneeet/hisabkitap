@@ -18,7 +18,6 @@ use App\Http\Controllers\ApprovalSealingController;
 use App\Http\Controllers\RetentionController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\RoleSwitchController;
 
 // ==========================================
 // 1. PUBLIC HOME LANDING PAGE
@@ -32,14 +31,12 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 // ==========================================
 Route::get('/admin/login', [AuthController::class, 'showLogin'])->name('admin.login');
 Route::post('/admin/login', [AuthController::class, 'login'])->name('admin.login.post');
-Route::get('/admin/login/quick', [AuthController::class, 'quickLogin'])->name('admin.login.quick');
 Route::get('/admin/logout', [AuthController::class, 'logout'])->name('admin.logout.get');
 Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.logout');
 
 // Aliases for convenience
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-Route::get('/login/quick', [AuthController::class, 'quickLogin'])->name('login.quick');
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout.get');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
@@ -105,11 +102,7 @@ Route::prefix('admin')->group(function () {
     Route::get('/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::post('/settings/update', [SettingsController::class, 'update'])->name('admin.settings.update');
 
-    // 13. Role & Scenario Switchers
-    Route::get('/switch-role', [RoleSwitchController::class, 'switchRole'])->name('admin.role.switch');
-    Route::get('/set-scenario', [RoleSwitchController::class, 'setScenario'])->name('admin.scenario.set');
-
-    // 14. User Profile & Change Password
+    // 13. User Profile & Change Password
     Route::get('/profile', [ProfileController::class, 'index'])->name('admin.profile');
     Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('admin.profile.update');
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->name('admin.profile.password');
@@ -147,5 +140,3 @@ Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index
 Route::get('/reports/export', [ReportsController::class, 'exportExcel'])->name('reports.export');
 Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
 Route::post('/settings/update', [SettingsController::class, 'update'])->name('settings.update');
-Route::get('/switch-role', [RoleSwitchController::class, 'switchRole'])->name('role.switch');
-Route::get('/set-scenario', [RoleSwitchController::class, 'setScenario'])->name('scenario.set');
