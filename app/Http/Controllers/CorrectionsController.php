@@ -21,7 +21,7 @@ class CorrectionsController extends Controller
     {
         $businessDate = $this->reconService->getBusinessDate();
         $corrections = Correction::orderBy('id', 'desc')->get();
-        $bills = Bill::where('business_date', $businessDate)->where('is_post_cutoff', false)->get();
+        $bills = Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false)->get();
 
         $totCd = Correction::sum('cd_amount');
         $totReturn = Correction::sum('goods_return_amount');
@@ -43,7 +43,7 @@ class CorrectionsController extends Controller
         ]);
 
         $businessDate = $this->reconService->getBusinessDate();
-        $bill = Bill::where('bill_no', $request->bill_no)->where('business_date', $businessDate)->firstOrFail();
+        $bill = Bill::where('bill_no', $request->bill_no)->whereDate('business_date', $businessDate)->firstOrFail();
 
         $cd = (float) ($request->cd_amount ?? 0);
         $returnAmt = (float) ($request->goods_return_amount ?? 0);

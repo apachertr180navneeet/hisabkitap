@@ -24,7 +24,7 @@ class BillVerificationController extends Controller
         $businessDate = $this->reconService->getBusinessDate();
         $psoList = PsoConfig::where('is_active', true)->get();
 
-        $query = Bill::where('business_date', $businessDate)
+        $query = Bill::whereDate('business_date', $businessDate)
             ->where('is_post_cutoff', false);
 
         if ($request->filled('pso') && $request->pso !== 'ALL') {
@@ -75,7 +75,7 @@ class BillVerificationController extends Controller
 
         // Update reconciliation state
         $metrics = $this->reconService->getMetrics($businessDate);
-        $seal = PsoDailySeal::where('business_date', $businessDate)->first();
+        $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
         if ($seal) {
             $seal->tally_total = $metrics['tallyTotal'];
             $seal->pso_total = $metrics['psoCollection'];
@@ -96,7 +96,7 @@ class BillVerificationController extends Controller
     public function autoVerifyAll()
     {
         $businessDate = $this->reconService->getBusinessDate();
-        $bills = Bill::where('business_date', $businessDate)
+        $bills = Bill::whereDate('business_date', $businessDate)
             ->where('is_post_cutoff', false)
             ->where('status', '!=', 'Cancelled')
             ->get();
@@ -109,7 +109,7 @@ class BillVerificationController extends Controller
         }
 
         $metrics = $this->reconService->getMetrics($businessDate);
-        $seal = PsoDailySeal::where('business_date', $businessDate)->first();
+        $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
         if ($seal) {
             $seal->tally_total = $metrics['tallyTotal'];
             $seal->pso_total = $metrics['psoCollection'];
@@ -126,7 +126,7 @@ class BillVerificationController extends Controller
     public function exportCsv(): StreamedResponse
     {
         $businessDate = $this->reconService->getBusinessDate();
-        $bills = Bill::where('business_date', $businessDate)->where('is_post_cutoff', false)->get();
+        $bills = Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false)->get();
 
         $headers = [
             'Content-Type' => 'text/csv',

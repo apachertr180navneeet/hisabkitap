@@ -21,7 +21,7 @@ class MasterReconciliationController extends Controller
     {
         $businessDate = $this->reconService->getBusinessDate();
         $metrics = $this->reconService->getMetrics($businessDate);
-        $missingBills = Bill::where('business_date', $businessDate)
+        $missingBills = Bill::whereDate('business_date', $businessDate)
             ->where('is_post_cutoff', false)
             ->where('status', 'Missing')
             ->get();
@@ -32,7 +32,7 @@ class MasterReconciliationController extends Controller
     public function quickResolveDiscrepancy()
     {
         $businessDate = $this->reconService->getBusinessDate();
-        $missingBills = Bill::where('business_date', $businessDate)
+        $missingBills = Bill::whereDate('business_date', $businessDate)
             ->where('is_post_cutoff', false)
             ->where('status', 'Missing')
             ->get();
@@ -46,7 +46,7 @@ class MasterReconciliationController extends Controller
         }
 
         $metrics = $this->reconService->getMetrics($businessDate);
-        $seal = PsoDailySeal::where('business_date', $businessDate)->first();
+        $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
         if ($seal) {
             $seal->tally_total = $metrics['tallyTotal'];
             $seal->pso_total = $metrics['psoCollection'];

@@ -32,14 +32,14 @@ class ReportsController extends Controller
             $reportData = [
                 'title' => 'Daily PSO Summary Report',
                 'psoConfigs' => PsoConfig::all(),
-                'bills' => Bill::where('business_date', $businessDate)->where('is_post_cutoff', false)->get(),
+                'bills' => Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false)->get(),
                 'metrics' => $metrics,
             ];
         } elseif ($reportType === 'recon_sheet') {
             $reportData = [
                 'title' => 'Tally vs PSO Master Reconciliation Sheet',
                 'metrics' => $metrics,
-                'bills' => Bill::where('business_date', $businessDate)->where('is_post_cutoff', false)->get(),
+                'bills' => Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false)->get(),
             ];
         } elseif ($reportType === 'credit_sheet') {
             $reportData = [
@@ -49,7 +49,7 @@ class ReportsController extends Controller
         } elseif ($reportType === 'missing_bills') {
             $reportData = [
                 'title' => 'Missing & Discrepancy Bill Investigation Log',
-                'bills' => Bill::where('business_date', $businessDate)->where('status', '!=', 'Matched')->get(),
+                'bills' => Bill::whereDate('business_date', $businessDate)->where('status', '!=', 'Matched')->get(),
             ];
         } elseif ($reportType === 'corrections_log') {
             $reportData = [
@@ -81,7 +81,7 @@ class ReportsController extends Controller
 
             if ($reportType === 'daily_pso' || $reportType === 'recon_sheet') {
                 fputcsv($handle, ['Bill No', 'PSO', 'Customer', 'Amount', 'Payment Type', 'CD', 'Refund', 'Net Amount', 'Status']);
-                $bills = Bill::where('business_date', $businessDate)->where('is_post_cutoff', false)->get();
+                $bills = Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false)->get();
                 foreach ($bills as $b) {
                     fputcsv($handle, [$b->bill_no, $b->pso_code, $b->customer_name, $b->amount, $b->payment_type, $b->cd_amount, $b->refund_amount, $b->net_amount, $b->status]);
                 }

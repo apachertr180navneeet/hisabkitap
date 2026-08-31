@@ -171,95 +171,95 @@
       
       <!-- TOP HEADER -->
       <header id="top-header">
-        <div class="d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center gap-2">
           <!-- Mobile Toggle -->
           <button class="btn btn-sm btn-outline-secondary d-lg-none" id="btn-toggle-sidebar">
-            <i class="bi bi-list fs-5"></i>
+            <i class="bi bi-list"></i>
           </button>
           
           <!-- Business Date Badge -->
-          <div class="d-flex align-items-center gap-2 bg-light border px-2.5 py-1 rounded">
+          <div class="header-chip">
             <i class="bi bi-calendar3 text-primary"></i>
-            <span class="text-muted" style="font-size: 0.8rem;">Date:</span>
-            <span class="fw-semibold font-mono" style="font-size: 0.82rem;">{{ $businessDate }}</span>
+            <span class="text-muted">Date:</span>
+            <span class="fw-semibold font-mono text-dark">{{ $businessDate }}</span>
           </div>
 
           <!-- Cutoff Rule Indicator -->
-          <div class="d-none d-md-flex align-items-center gap-1.5 bg-light border px-2.5 py-1 rounded text-muted" style="font-size: 0.8rem;">
+          <div class="header-chip d-none d-md-inline-flex">
             <i class="bi bi-alarm text-warning"></i>
-            <span>Daily Cutoff:</span>
-            <span class="fw-bold text-dark font-mono">{{ $cutoffTime }} IST</span>
+            <span class="text-muted">Cutoff:</span>
+            <span class="fw-semibold font-mono text-dark">{{ $cutoffTime }} IST</span>
           </div>
         </div>
 
         <!-- Right User & Status Area -->
-        <div class="d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center gap-2.5">
           
           <!-- Reconciliation Status Pill -->
           @if($isSealed)
-            <div class="badge bg-success d-flex align-items-center gap-1.5 py-2 px-2.5">
-              <i class="bi bi-shield-lock-fill"></i>
-              <span>DIGITALLY SEALED (APPROVED)</span>
+            <div class="status-pill status-sealed">
+              <span class="status-dot"></span>
+              <span>Digitally Sealed (Approved)</span>
             </div>
           @elseif(!($globalMetrics['hasBills'] ?? false))
-            <div class="badge bg-secondary d-flex align-items-center gap-1.5 py-2 px-2.5">
-              <i class="bi bi-inbox-fill"></i>
-              <span>AWAITING TALLY IMPORT</span>
+            <div class="status-pill status-waiting">
+              <span class="status-dot pulse"></span>
+              <span>Awaiting Tally Import</span>
             </div>
           @elseif($globalMetrics['isReconciled'])
-            <div class="badge bg-success d-flex align-items-center gap-1.5 py-2 px-2.5">
-              <i class="bi bi-shield-check"></i>
-              <span>RECONCILIATION MATCHED (READY TO SEAL)</span>
+            <div class="status-pill status-ready">
+              <span class="status-dot"></span>
+              <span>Reconciliation Matched</span>
             </div>
           @else
-            <div class="badge bg-danger d-flex align-items-center gap-1.5 py-2 px-2.5">
-              <i class="bi bi-shield-x"></i>
-              <span>RECONCILIATION FAILED (BLOCKED)</span>
+            <div class="status-pill status-blocked">
+              <span class="status-dot pulse"></span>
+              <span>Reconciliation Failed</span>
             </div>
           @endif
 
           <!-- Notification Dropdown -->
           <div class="dropdown">
-            <button class="btn btn-light position-relative rounded-circle p-2" data-bs-toggle="dropdown">
-              <i class="bi bi-bell text-secondary"></i>
-              <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
+            <button class="btn btn-light position-relative p-1.5 rounded-circle border" data-bs-toggle="dropdown" style="width: 32px; height: 32px;">
+              <i class="bi bi-bell text-secondary" style="font-size: 0.85rem;"></i>
+              <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" style="width: 7px; height: 7px;"></span>
             </button>
-            <div class="dropdown-menu dropdown-menu-end shadow p-3" style="width: 320px;">
+            <div class="dropdown-menu dropdown-menu-end shadow p-3" style="width: 300px;">
               <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0 fw-bold">Live ERP Alerts</h6>
+                <span class="fw-semibold text-dark">ERP Live Alerts</span>
                 <span class="badge bg-primary">Active</span>
               </div>
-              <hr class="my-2">
-              <div class="d-flex flex-column gap-2" style="font-size: 0.8rem;">
+              <hr class="my-1.5">
+              <div class="d-flex flex-column gap-2" style="font-size: 0.78rem;">
                 @if($globalMetrics['missingCount'] > 0)
-                  <div class="p-2 bg-light rounded border-start border-3 border-danger">
+                  <div class="p-2 bg-light rounded border-start border-2 border-danger">
                     <div class="fw-semibold text-danger">Missing Bills Detected ({{ $globalMetrics['missingCount'] }})</div>
-                    <div class="text-muted">₹{{ number_format($globalMetrics['difference']) }} pending physical verification bundle.</div>
+                    <div class="text-muted">₹{{ number_format($globalMetrics['difference']) }} pending verification bundle.</div>
                   </div>
                 @endif
-                <div class="p-2 bg-light rounded border-start border-3 border-warning">
+                <div class="p-2 bg-light rounded border-start border-2 border-warning">
                   <div class="fw-semibold text-warning">Post-Cutoff Bills</div>
-                  <div class="text-muted">Bills recorded after {{ $cutoffTime }} automatically assigned to next day's PSO.</div>
+                  <div class="text-muted">Bills recorded after {{ $cutoffTime }} roll to next day.</div>
                 </div>
-                <div class="p-2 bg-light rounded border-start border-3 border-info">
+                <div class="p-2 bg-light rounded border-start border-2 border-info">
                   <div class="fw-semibold text-info">Credit Due Alert</div>
-                  <div class="text-muted">₹{{ number_format($globalMetrics['creditPending']) }} field credit pending recovery.</div>
+                  <div class="text-muted">₹{{ number_format($globalMetrics['creditPending']) }} field credit pending.</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- User Profile & Role Switcher -->
+          <!-- User Profile Dropdown -->
           <div class="dropdown">
-            <button class="btn btn-light d-flex align-items-center gap-2 border py-1.5 px-2.5 rounded-pill" data-bs-toggle="dropdown">
-              <div class="bg-{{ $currentUser['badge_color'] ?? 'primary' }} text-white rounded-circle fw-bold d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.75rem;">
+            <button class="btn btn-light d-flex align-items-center gap-2 border py-1 px-2.5 rounded-pill" data-bs-toggle="dropdown">
+              <div class="bg-{{ $currentUser['badge_color'] ?? 'primary' }} text-white rounded-circle fw-bold d-flex align-items-center justify-content-center" style="width: 26px; height: 26px; font-size: 0.72rem;">
                 {{ $currentUser['avatar'] ?? 'RS' }}
               </div>
               <div class="text-start d-none d-sm-block">
-                <div class="fw-semibold lh-1" style="font-size: 0.82rem;">{{ $currentUser['name'] ?? 'Ramesh Sharma' }}</div>
-                <div class="text-muted" style="font-size: 0.7rem;">{{ $currentUser['role_name'] ?? 'PSO Operator' }}</div>
+                <div class="fw-semibold lh-1" style="font-size: 0.78rem;">{{ $currentUser['name'] ?? 'Ramesh Sharma' }}</div>
+                <div class="text-muted" style="font-size: 0.68rem;">{{ $currentUser['role_name'] ?? 'PSO Operator' }}</div>
               </div>
-              <i class="bi bi-chevron-down text-muted" style="font-size: 0.75rem;"></i>
+              <i class="bi bi-chevron-down text-muted" style="font-size: 0.68rem;"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow p-2" style="min-width: 240px;">
               <!-- User Info Header -->

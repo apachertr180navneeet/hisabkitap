@@ -65,7 +65,7 @@ class ApprovalSealingController extends Controller
         $activeUser = session('active_user.name', 'Pooja Verma');
         $reason = $request->reason ?: 'Administrative correction requested';
 
-        $seal = PsoDailySeal::where('business_date', $businessDate)->first();
+        $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
         if ($seal) {
             $seal->is_sealed = false;
             $seal->unsealed_by = $activeUser;

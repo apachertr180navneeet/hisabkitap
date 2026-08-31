@@ -24,7 +24,7 @@ class PsoSummaryController extends Controller
 
         $matrixRows = [];
         foreach ($psoConfigs as $pso) {
-            $bills = Bill::where('business_date', $businessDate)
+            $bills = Bill::whereDate('business_date', $businessDate)
                 ->where('pso_code', $pso->code)
                 ->where('is_post_cutoff', false)
                 ->get();

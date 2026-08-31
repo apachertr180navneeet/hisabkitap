@@ -20,7 +20,7 @@ class PaymentClassificationController extends Controller
         $businessDate = $this->reconService->getBusinessDate();
         $metrics = $this->reconService->getMetrics($businessDate);
 
-        $query = Bill::where('business_date', $businessDate)
+        $query = Bill::whereDate('business_date', $businessDate)
             ->where('is_post_cutoff', false);
 
         if ($request->filled('paytype') && $request->paytype !== 'ALL') {
