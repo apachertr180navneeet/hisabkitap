@@ -134,6 +134,14 @@
             <span>Reports & Exports</span>
           </a>
         </li>
+        <li class="menu-category">System & Administration</li>
+        <li>
+          <a href="{{ route('admin.users.index') }}" class="nav-item-custom {{ request()->routeIs('*.users.*') || request()->routeIs('users.*') ? 'active' : '' }}">
+            <i class="bi bi-people-fill"></i>
+            <span>Users & Roles</span>
+            <span class="badge bg-danger">{{ $globalMetrics['totalUsersCount'] ?? 1 }}</span>
+          </a>
+        </li>
         <li>
           <a href="{{ route('admin.settings.index') }}" class="nav-item-custom {{ request()->routeIs('*.settings.*') || request()->routeIs('settings.*') ? 'active' : '' }}">
             <i class="bi bi-gear-fill"></i>

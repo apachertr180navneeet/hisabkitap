@@ -32,6 +32,8 @@ class HisabKitapDatabaseSeeder extends Seeder
             'can_approve_sealing' => true,
             'can_configure_pso' => true,
             'can_edit_cutoff' => true,
+            'can_manage_users' => true,
+            'is_active' => true,
             'is_read_only' => false,
             'responsibilities' => [
                 'Full Master Administrative Control',

@@ -105,6 +105,7 @@ class ReconciliationService
         $totalPsoCount = PsoConfig::count();
         $correctionsCount = Correction::count();
         $creditRecordsCount = CreditCollection::where('outstanding_amount', '>', 0)->count();
+        $totalUsersCount = \App\Models\User::count();
 
         // Pending credit calculation
         $creditPending = CreditCollection::whereDate('bill_date', $date)
@@ -138,6 +139,7 @@ class ReconciliationService
             'totalPsoCount' => $totalPsoCount,
             'correctionsCount' => $correctionsCount,
             'creditRecordsCount' => $creditRecordsCount,
+            'totalUsersCount' => $totalUsersCount,
             'creditPending' => (float) $creditPending,
         ];
     }

@@ -157,4 +157,71 @@ class HisabKitapErpTest extends TestCase
         $passRes->assertRedirect('/admin/profile');
         $passRes->assertSessionHas('success');
     }
+
+    public function test_user_and_role_management_crud_and_permissions(): void
+    {
+        $superAdmin = User::first();
+        $this->assertTrue($superAdmin->isSuperAdmin());
+        $this->assertTrue($superAdmin->hasPermission('can_manage_users'));
+        $this->assertTrue($superAdmin->hasPermission('can_approve_sealing'));
+
+        // 1. Load users page
+        $response = $this->get('/admin/users');
+        $response->assertStatus(200);
+        $response->assertSee('User & Role Management');
+        $response->assertSee('Super Administrator');
+
+        // 2. Create new Operator
+        $createRes = $this->post('/admin/users/store', [
+            'name' => 'Kailash Verma',
+            'email' => 'kailash.verma@hisabkitap.in',
+            'password' => 'operator123',
+            'role_code' => 'OPERATOR',
+            'can_configure_pso' => '1',
+            'can_import_excel' => '1',
+            'can_edit_bills' => '1',
+            'can_record_corrections' => '1',
+            'can_record_credit' => '1',
+        ]);
+        $createRes->assertRedirect('/admin/users');
+        $this->assertEquals(2, User::count());
+
+        $operator = User::where('email', 'kailash.verma@hisabkitap.in')->first();
+        $this->assertTrue($operator->isOperator());
+        $this->assertTrue($operator->hasPermission('can_import_excel'));
+        $this->assertFalse($operator->hasPermission('can_approve_sealing'));
+        $this->assertFalse($operator->hasPermission('can_manage_users'));
+
+        // 3. Update User Role to Approver
+        $updateRes = $this->post("/admin/users/{$operator->id}/update", [
+            'name' => 'Kailash Verma (Senior)',
+            'email' => 'kailash.verma@hisabkitap.in',
+            'role_code' => 'APPROVER',
+            'can_approve_sealing' => '1',
+            'can_record_corrections' => '1',
+        ]);
+        $updateRes->assertRedirect('/admin/users');
+        $operator->refresh();
+        $this->assertTrue($operator->isApprover());
+        $this->assertTrue($operator->hasPermission('can_approve_sealing'));
+        $this->assertFalse($operator->hasPermission('can_import_excel'));
+
+        // 4. Toggle Status
+        $toggleRes = $this->post("/admin/users/{$operator->id}/toggle-status");
+        $toggleRes->assertRedirect('/admin/users');
+        $operator->refresh();
+        $this->assertFalse($operator->is_active);
+
+        // 5. Reset Password
+        $pwdRes = $this->post("/admin/users/{$operator->id}/change-password", [
+            'new_password' => 'newsecret456',
+            'new_password_confirmation' => 'newsecret456',
+        ]);
+        $pwdRes->assertRedirect('/admin/users');
+
+        // 6. Delete User
+        $delRes = $this->delete("/admin/users/{$operator->id}");
+        $delRes->assertRedirect('/admin/users');
+        $this->assertEquals(1, User::count());
+    }
 }

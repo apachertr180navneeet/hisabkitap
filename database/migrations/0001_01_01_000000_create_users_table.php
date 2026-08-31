@@ -33,6 +33,8 @@ return new class extends Migration
             $table->boolean('can_approve_sealing')->default(false);
             $table->boolean('can_configure_pso')->default(true);
             $table->boolean('can_edit_cutoff')->default(false);
+            $table->boolean('can_manage_users')->default(false);
+            $table->boolean('is_active')->default(true);
             $table->boolean('is_read_only')->default(false);
             $table->json('responsibilities')->nullable();
             $table->json('restrictions')->nullable();

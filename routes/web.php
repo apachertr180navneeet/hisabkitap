@@ -18,6 +18,7 @@ use App\Http\Controllers\ApprovalSealingController;
 use App\Http\Controllers\RetentionController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\UserController;
 
 // ==========================================
 // 1. PUBLIC HOME LANDING PAGE
@@ -106,6 +107,14 @@ Route::prefix('admin')->group(function () {
     Route::get('/profile', [ProfileController::class, 'index'])->name('admin.profile');
     Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('admin.profile.update');
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->name('admin.profile.password');
+
+    // 14. User & Role Management
+    Route::get('/users', [UserController::class, 'index'])->name('admin.users.index');
+    Route::post('/users/store', [UserController::class, 'store'])->name('admin.users.store');
+    Route::post('/users/{id}/update', [UserController::class, 'update'])->name('admin.users.update');
+    Route::post('/users/{id}/change-password', [UserController::class, 'changePassword'])->name('admin.users.password');
+    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('admin.users.toggle');
+    Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('admin.users.delete');
 });
 
 // Non-admin root routes for backward compatibility
