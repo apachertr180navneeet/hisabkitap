@@ -100,7 +100,7 @@
         </tr>
       </thead>
       <tbody>
-        @foreach($bills as $bill)
+        @forelse($bills as $bill)
           <tr>
             <td><strong>{{ $bill->bill_no }}</strong></td>
             <td>{{ $bill->customer_name }}</td>
@@ -137,7 +137,14 @@
               @endif
             </td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              <i class="bi bi-wallet2 fs-3 d-block mb-1 text-primary"></i>
+              No payment transactions recorded yet.
+            </td>
+          </tr>
+        @endforelse
       </tbody>
     </table>
   </div>

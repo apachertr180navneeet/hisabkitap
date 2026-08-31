@@ -58,12 +58,12 @@
         </tr>
       </thead>
       <tbody>
-        @foreach($credits as $c)
+        @forelse($credits as $c)
           <tr>
             <td><strong>{{ $c->bill_no }}</strong></td>
             <td>{{ $c->customer_name }}</td>
             <td><i class="bi bi-person-badge text-primary me-1"></i>{{ $c->salesman_name }}</td>
-            <td>{{ $c->bill_date->format('d-M-Y') }}</td>
+            <td>{{ $c->bill_date ? $c->bill_date->format('d-M-Y') : '' }}</td>
             <td class="font-mono">₹{{ number_format($c->bill_amount, 2) }}</td>
             <td class="font-mono text-success">₹{{ number_format($c->paid_amount, 2) }}</td>
             <td class="font-mono {{ $c->outstanding_amount > 0 ? 'text-danger fw-bold' : 'text-success' }}">₹{{ number_format($c->outstanding_amount, 2) }}</td>
@@ -84,7 +84,14 @@
               @endif
             </td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="11" class="text-center text-muted py-4">
+              <i class="bi bi-cash-coin fs-3 d-block mb-1 text-primary"></i>
+              No credit transactions logged yet.
+            </td>
+          </tr>
+        @endforelse
       </tbody>
     </table>
   </div>

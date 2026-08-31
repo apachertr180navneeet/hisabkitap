@@ -34,7 +34,7 @@
         </tr>
       </thead>
       <tbody>
-        @foreach($psoList as $pso)
+        @forelse($psoList as $pso)
           <tr>
             <td><span class="badge bg-primary">{{ $pso->code }}</span></td>
             <td><strong>{{ $pso->name }}</strong></td>
@@ -66,7 +66,14 @@
               </form>
             </td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">
+              <i class="bi bi-diagram-3 fs-3 d-block mb-1 text-primary"></i>
+              No PSO Series configured. Click <strong>"+ Configure New PSO"</strong> above to add your first counter series.
+            </td>
+          </tr>
+        @endforelse
       </tbody>
     </table>
   </div>

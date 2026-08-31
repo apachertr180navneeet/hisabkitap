@@ -57,7 +57,7 @@
         </tr>
       </thead>
       <tbody>
-        @foreach($corrections as $c)
+        @forelse($corrections as $c)
           <tr>
             <td><span class="badge bg-secondary font-mono">{{ $c->corr_code }}</span></td>
             <td><strong>{{ $c->bill_no }}</strong></td>
@@ -71,7 +71,14 @@
             <td><strong>{{ $c->approved_by }}</strong></td>
             <td>{{ $c->created_at ? $c->created_at->format('Y-m-d H:i') : '2026-08-14' }}</td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="11" class="text-center text-muted py-4">
+              <i class="bi bi-arrow-left-right fs-3 d-block mb-1 text-primary"></i>
+              No corrections or returns recorded yet.
+            </td>
+          </tr>
+        @endforelse
       </tbody>
     </table>
   </div>

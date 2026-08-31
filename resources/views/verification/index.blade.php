@@ -83,13 +83,13 @@
         </tr>
       </thead>
       <tbody>
-        @foreach($bills as $bill)
+        @forelse($bills as $bill)
           <tr class="{{ $bill->status === 'Missing' ? 'table-danger' : '' }}">
             <td><strong>{{ $bill->bill_no }}</strong></td>
             <td><span class="badge bg-primary">{{ $bill->pso_code }}</span></td>
             <td><i class="bi bi-check-circle-fill text-success"></i></td>
             <td><i class="bi bi-check-circle-fill text-success"></i></td>
-            <td>{{ $bill->business_date->format('d-M') }} <small class="text-muted">{{ $bill->bill_time }}</small></td>
+            <td>{{ $bill->business_date ? $bill->business_date->format('d-M') : '' }} <small class="text-muted">{{ $bill->bill_time }}</small></td>
             <td>{{ $bill->customer_name }}</td>
             <td class="font-mono">₹{{ number_format($bill->amount, 2) }}</td>
             <td>
@@ -126,7 +126,15 @@
               @endif
             </td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="14" class="text-center text-muted py-5">
+              <i class="bi bi-receipt-cutoff fs-3 d-block mb-1 text-primary"></i>
+              No bill records found for this business date.
+              <a href="{{ route('admin.import.index') }}" class="btn btn-sm btn-primary ms-2">Import Tally DayBook</a>
+            </td>
+          </tr>
+        @endforelse
       </tbody>
       <tfoot>
         <tr>

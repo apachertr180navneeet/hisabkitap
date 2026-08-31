@@ -200,7 +200,7 @@
             </tr>
           </thead>
           <tbody>
-            @foreach($psoRows as $row)
+            @forelse($psoRows as $row)
               <tr>
                 <td><span class="badge bg-primary">{{ $row['pso']->code }}</span></td>
                 <td><strong>{{ $row['pso']->prefix }} {{ sprintf('%02d', $row['pso']->start_no) }} - {{ $row['pso']->prefix }} {{ sprintf('%02d', $row['pso']->end_no) }}</strong></td>
@@ -210,7 +210,15 @@
                 <td>{{ $row['pso']->operator_name }}</td>
                 <td><span class="{{ $row['statusClass'] }}">{{ $row['status'] }}</span></td>
               </tr>
-            @endforeach
+            @empty
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">
+                  <i class="bi bi-diagram-3 fs-3 d-block mb-1 text-primary"></i>
+                  No active PSO counter series configured.
+                  <a href="{{ route('admin.pso.index') }}" class="btn btn-sm btn-primary ms-2">Configure PSO</a>
+                </td>
+              </tr>
+            @endforelse
           </tbody>
           <tfoot>
             <tr>
@@ -296,7 +304,7 @@
             </tr>
           </thead>
           <tbody>
-            @foreach($recentImports as $imp)
+            @forelse($recentImports as $imp)
               <tr>
                 <td><i class="bi bi-file-earmark-spreadsheet text-success me-1"></i><strong>{{ $imp->filename }}</strong></td>
                 <td>{{ $imp->created_at ? $imp->created_at->format('d-M-Y H:i') : '14-Aug-2026 18:45' }}</td>
@@ -304,7 +312,13 @@
                 <td class="font-mono">₹{{ number_format($imp->total_amount, 2) }}</td>
                 <td><span class="badge bg-primary">{{ $imp->status }}</span></td>
               </tr>
-            @endforeach
+            @empty
+              <tr>
+                <td colspan="5" class="text-center text-muted py-3">
+                  No Tally files imported yet. <a href="{{ route('admin.import.index') }}">Import Tally Excel</a>
+                </td>
+              </tr>
+            @endforelse
           </tbody>
         </table>
       </div>
@@ -328,7 +342,7 @@
             </tr>
           </thead>
           <tbody>
-            @foreach($retentionList as $ret)
+            @forelse($retentionList as $ret)
               <tr>
                 <td><strong>{{ $ret->pso_code }}</strong></td>
                 <td>{{ $ret->created_date_formatted }}</td>
@@ -342,7 +356,13 @@
                 </td>
                 <td><span class="badge {{ $ret->badge_class }}">{{ $ret->status }}</span></td>
               </tr>
-            @endforeach
+            @empty
+              <tr>
+                <td colspan="4" class="text-center text-muted py-3">
+                  No pending unapproved PSOs in retention window.
+                </td>
+              </tr>
+            @endforelse
           </tbody>
         </table>
       </div>

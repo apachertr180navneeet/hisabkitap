@@ -21,7 +21,7 @@ class ShareUserRole
         if (auth()->check()) {
             session(['active_user' => auth()->user()->toArray()]);
         } elseif (!session()->has('active_user')) {
-            $defaultUser = User::where('code', 'usr_01')->first() ?: User::first();
+            $defaultUser = User::where('code', 'usr_admin')->first() ?: User::first();
             if ($defaultUser) {
                 session(['active_user' => $defaultUser->toArray()]);
             }

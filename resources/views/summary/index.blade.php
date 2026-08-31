@@ -32,7 +32,7 @@
         </tr>
       </thead>
       <tbody>
-        @foreach($matrixRows as $row)
+        @forelse($matrixRows as $row)
           <tr>
             <td class="text-start">
               <strong>{{ $row['pso']->name }}</strong>
@@ -49,7 +49,13 @@
             <td class="font-mono text-danger">{{ $row['refund'] > 0 ? ('-₹' . number_format($row['refund'], 2)) : '₹0' }}</td>
             <td class="text-end font-mono text-success fw-bold">₹{{ number_format($row['net'], 2) }}</td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="11" class="text-center text-muted py-4">
+              No PSO records configured for summary matrix.
+            </td>
+          </tr>
+        @endforelse
       </tbody>
       <tfoot>
         <tr class="fw-bold">
