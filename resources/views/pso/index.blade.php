@@ -8,9 +8,11 @@
     <h4 class="fw-bold mb-1">PSO Series Management</h4>
     <p class="text-muted mb-0">Define counter PSO prefixes, starting/ending serial ranges, and special company bill series.</p>
   </div>
+  @if($currentUser->hasPermission('can_configure_pso'))
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-add-pso">
     <i class="bi bi-plus-circle me-1"></i> Configure New PSO
   </button>
+  @endif
 </div>
 
 <div class="erp-table-container mb-4">
@@ -57,6 +59,7 @@
               </span>
             </td>
             <td class="text-end">
+              @if($currentUser->hasPermission('can_configure_pso'))
               <form action="{{ route('pso.toggle', $pso->id) }}" method="POST" class="d-inline">
                 @csrf
                 <button type="submit" class="btn btn-sm btn-outline-secondary">
@@ -64,6 +67,9 @@
                   {{ $pso->is_active ? 'Disable' : 'Enable' }}
                 </button>
               </form>
+              @else
+                <span class="text-muted small">Read Only</span>
+              @endif
             </td>
           </tr>
         @empty

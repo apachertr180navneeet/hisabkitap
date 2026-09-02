@@ -87,11 +87,17 @@
     </p>
   </div>
 
+  @if(!$currentUser->hasPermission('can_approve_sealing'))
+    <div class="alert alert-warning small mb-3 text-start">
+      <i class="bi bi-shield-exclamation me-1"></i> Sealing authorization is restricted. Your account <strong>{{ $currentUser->name }}</strong> ({{ $currentUser->role_name }}) does not have Sealing Sign-off permission.
+    </div>
+  @endif
+
   <div class="d-flex justify-content-center gap-3">
     @if(!$metrics['isSealed'])
       <form action="{{ route('admin.approval.seal') }}" method="POST">
         @csrf
-        <button type="submit" class="btn btn-lg btn-success px-4" {{ !$metrics['isReconciled'] ? 'disabled' : '' }}>
+        <button type="submit" class="btn btn-lg btn-success px-4" {{ (!$metrics['isReconciled'] || !$currentUser->hasPermission('can_approve_sealing')) ? 'disabled' : '' }}>
           <i class="bi bi-lock-fill me-1"></i> Approve & Seal Daily Records
         </button>
       </form>

@@ -47,6 +47,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // ==========================================
 Route::prefix('admin')->middleware('auth')->group(function () {
 
+    // 0. Quick Role / User Switcher
+    Route::post('/switch-user/{id}', [AuthController::class, 'switchUser'])->name('admin.switch_user');
+    Route::get('/switch-user/{id}', [AuthController::class, 'switchUser']);
+
     // Dashboard (supporting both /dashboard and typo alias /dashoard)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/dashoard', [DashboardController::class, 'index'])->name('admin.dashoard');
@@ -54,18 +58,18 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     // 1. PSO Series Management
     Route::get('/pso', [PsoManagementController::class, 'index'])->name('admin.pso.index');
-    Route::post('/pso/store', [PsoManagementController::class, 'store'])->middleware('read.only')->name('admin.pso.store');
-    Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware('read.only')->name('admin.pso.toggle');
+    Route::post('/pso/store', [PsoManagementController::class, 'store'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.store');
+    Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.toggle');
 
     // 2. Tally Excel Import
     Route::get('/import', [ExcelImportController::class, 'index'])->name('admin.import.index');
-    Route::post('/import', [ExcelImportController::class, 'import'])->middleware('read.only')->name('admin.import.process');
+    Route::post('/import', [ExcelImportController::class, 'import'])->middleware(['read.only', 'permission:can_import_excel'])->name('admin.import.process');
     Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('admin.import.sample');
 
     // 3. Bill Verification
     Route::get('/verification', [BillVerificationController::class, 'index'])->name('admin.verification.index');
-    Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware('read.only')->name('admin.verification.resolve');
-    Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->middleware('read.only')->name('admin.verification.auto_verify');
+    Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.resolve');
+    Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.auto_verify');
     Route::get('/verification/export', [BillVerificationController::class, 'exportCsv'])->name('admin.verification.export');
 
     // 4. Payment Classification
@@ -73,11 +77,11 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     // 5. Corrections & Returns
     Route::get('/corrections', [CorrectionsController::class, 'index'])->name('admin.corrections.index');
-    Route::post('/corrections/store', [CorrectionsController::class, 'store'])->middleware('read.only')->name('admin.corrections.store');
+    Route::post('/corrections/store', [CorrectionsController::class, 'store'])->middleware(['read.only', 'permission:can_record_corrections'])->name('admin.corrections.store');
 
     // 6. Credit Collection
     Route::get('/credit-collection', [CreditCollectionController::class, 'index'])->name('admin.credit.index');
-    Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware('read.only')->name('admin.credit.update');
+    Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware(['read.only', 'permission:can_record_credit'])->name('admin.credit.update');
     Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('admin.credit.export');
 
     // 7. PSO Summary Matrix
@@ -89,8 +93,8 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     // 9. Approval & Sealing
     Route::get('/approval-sealing', [ApprovalSealingController::class, 'index'])->name('admin.approval.index');
-    Route::post('/approval-sealing/seal', [ApprovalSealingController::class, 'sealDay'])->middleware('read.only')->name('admin.approval.seal');
-    Route::post('/approval-sealing/unseal', [ApprovalSealingController::class, 'unsealDay'])->middleware('read.only')->name('admin.approval.unseal');
+    Route::post('/approval-sealing/seal', [ApprovalSealingController::class, 'sealDay'])->middleware(['read.only', 'permission:can_approve_sealing'])->name('admin.approval.seal');
+    Route::post('/approval-sealing/unseal', [ApprovalSealingController::class, 'unsealDay'])->middleware(['read.only', 'permission:can_approve_sealing'])->name('admin.approval.unseal');
 
     // 10. 7-Day Retention Radar
     Route::get('/retention', [RetentionController::class, 'index'])->name('admin.retention.index');
@@ -101,7 +105,7 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     // 12. Cutoff & Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
-    Route::post('/settings/update', [SettingsController::class, 'update'])->middleware('read.only')->name('admin.settings.update');
+    Route::post('/settings/update', [SettingsController::class, 'update'])->middleware(['read.only', 'permission:can_edit_cutoff'])->name('admin.settings.update');
 
     // 13. User Profile & Change Password
     Route::get('/profile', [ProfileController::class, 'index'])->name('admin.profile');
@@ -109,12 +113,12 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->middleware('read.only')->name('admin.profile.password');
 
     // 14. User & Role Management
-    Route::get('/users', [UserController::class, 'index'])->name('admin.users.index');
-    Route::post('/users/store', [UserController::class, 'store'])->middleware('read.only')->name('admin.users.store');
-    Route::post('/users/{id}/update', [UserController::class, 'update'])->middleware('read.only')->name('admin.users.update');
-    Route::post('/users/{id}/change-password', [UserController::class, 'changePassword'])->middleware('read.only')->name('admin.users.password');
-    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->middleware('read.only')->name('admin.users.toggle');
-    Route::delete('/users/{id}', [UserController::class, 'destroy'])->middleware('read.only')->name('admin.users.delete');
+    Route::get('/users', [UserController::class, 'index'])->middleware('permission:can_manage_users')->name('admin.users.index');
+    Route::post('/users/store', [UserController::class, 'store'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.users.store');
+    Route::post('/users/{id}/update', [UserController::class, 'update'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.users.update');
+    Route::post('/users/{id}/change-password', [UserController::class, 'changePassword'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.users.password');
+    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.users.toggle');
+    Route::delete('/users/{id}', [UserController::class, 'destroy'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.users.delete');
 });
 
 // Non-admin root routes for backward compatibility

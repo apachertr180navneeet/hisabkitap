@@ -17,18 +17,16 @@ class ShareUserRole
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // If Auth is logged in, synchronize active_user
-        if (auth()->check()) {
-            session(['active_user' => auth()->user()->toArray()]);
-        } elseif (!session()->has('active_user')) {
-            $defaultUser = User::where('code', 'usr_admin')->first() ?: User::first();
-            if ($defaultUser) {
-                session(['active_user' => $defaultUser->toArray()]);
-            }
+        $activeUser = auth()->user();
+        if (!$activeUser) {
+            $activeUser = User::where('code', 'usr_admin')->first() ?: User::first();
         }
 
-        $activeUser = session('active_user');
-        $allUsers = User::all();
+        if ($activeUser) {
+            session(['active_user' => $activeUser->toArray()]);
+        }
+
+        $allUsers = User::orderBy('id', 'asc')->get();
         $businessDate = SystemSetting::getVal('business_date', '2026-08-14');
         $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
         

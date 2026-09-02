@@ -106,7 +106,7 @@ class UserController extends Controller
 
         $roles = User::getPredefinedRoles();
         $roleInfo = $roles[$validated['role_code']] ?? $roles['OPERATOR'];
-        $isSuperAdmin = ($validated['role_code'] === 'SUPER_ADMIN');
+        $isSuperAdmin = in_array($validated['role_code'], ['SUPER_ADMIN', 'ADMIN']);
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];

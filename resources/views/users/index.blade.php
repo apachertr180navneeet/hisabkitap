@@ -465,6 +465,39 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Role selector dynamic permission presets in Edit Modal
+  const editRoleSelect = document.getElementById('edit-role-select');
+  if (editRoleSelect) {
+    editRoleSelect.addEventListener('change', function () {
+      const role = this.value;
+      const cbs = document.querySelectorAll('#edit-permission-checkboxes input[type="checkbox"]');
+      
+      if (role === 'SUPER_ADMIN') {
+        cbs.forEach(cb => { cb.checked = true; cb.disabled = true; });
+      } else if (role === 'APPROVER') {
+        cbs.forEach(cb => cb.disabled = false);
+        document.getElementById('edit_perm_pso').checked = false;
+        document.getElementById('edit_perm_import').checked = false;
+        document.getElementById('edit_perm_bills').checked = false;
+        document.getElementById('edit_perm_corrections').checked = true;
+        document.getElementById('edit_perm_credit').checked = false;
+        document.getElementById('edit_perm_seal').checked = true;
+        document.getElementById('edit_perm_cutoff').checked = false;
+        document.getElementById('edit_perm_users').checked = false;
+      } else { // OPERATOR
+        cbs.forEach(cb => cb.disabled = false);
+        document.getElementById('edit_perm_pso').checked = true;
+        document.getElementById('edit_perm_import').checked = true;
+        document.getElementById('edit_perm_bills').checked = true;
+        document.getElementById('edit_perm_corrections').checked = true;
+        document.getElementById('edit_perm_credit').checked = true;
+        document.getElementById('edit_perm_seal').checked = false;
+        document.getElementById('edit_perm_cutoff').checked = false;
+        document.getElementById('edit_perm_users').checked = false;
+      }
+    });
+  }
+
   // Edit user modal fill
   document.querySelectorAll('.btn-edit-user').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -476,17 +509,34 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('edit-email').value = this.dataset.email;
       document.getElementById('edit-role-select').value = this.dataset.role;
 
-      document.getElementById('edit_perm_pso').checked = (this.dataset.pso === '1');
-      document.getElementById('edit_perm_import').checked = (this.dataset.import === '1');
-      document.getElementById('edit_perm_bills').checked = (this.dataset.bills === '1');
-      document.getElementById('edit_perm_corrections').checked = (this.dataset.corrections === '1');
-      document.getElementById('edit_perm_credit').checked = (this.dataset.credit === '1');
-      document.getElementById('edit_perm_seal').checked = (this.dataset.seal === '1');
-      document.getElementById('edit_perm_cutoff').checked = (this.dataset.cutoff === '1');
-      document.getElementById('edit_perm_users').checked = (this.dataset.users === '1');
+      const isSuperAdmin = (this.dataset.role === 'SUPER_ADMIN' || this.dataset.role === 'ADMIN');
+      const cbs = document.querySelectorAll('#edit-permission-checkboxes input[type="checkbox"]');
+      
+      if (isSuperAdmin) {
+        cbs.forEach(cb => { cb.checked = true; cb.disabled = true; });
+      } else {
+        cbs.forEach(cb => cb.disabled = false);
+        document.getElementById('edit_perm_pso').checked = (this.dataset.pso === '1');
+        document.getElementById('edit_perm_import').checked = (this.dataset.import === '1');
+        document.getElementById('edit_perm_bills').checked = (this.dataset.bills === '1');
+        document.getElementById('edit_perm_corrections').checked = (this.dataset.corrections === '1');
+        document.getElementById('edit_perm_credit').checked = (this.dataset.credit === '1');
+        document.getElementById('edit_perm_seal').checked = (this.dataset.seal === '1');
+        document.getElementById('edit_perm_cutoff').checked = (this.dataset.cutoff === '1');
+        document.getElementById('edit_perm_users').checked = (this.dataset.users === '1');
+      }
 
       const modal = new bootstrap.Modal(document.getElementById('modal-edit-user'));
       modal.show();
+    });
+  });
+
+  // Re-enable disabled checkboxes on form submit so values can be sent if needed
+  document.querySelectorAll('form').forEach(f => {
+    f.addEventListener('submit', function () {
+      this.querySelectorAll('input:disabled').forEach(inp => {
+        inp.disabled = false;
+      });
     });
   });
 

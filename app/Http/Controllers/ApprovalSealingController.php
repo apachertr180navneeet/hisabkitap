@@ -26,6 +26,11 @@ class ApprovalSealingController extends Controller
 
     public function sealDay(Request $request)
     {
+        $user = auth()->user();
+        if ($user && !$user->hasPermission('can_approve_sealing')) {
+            return redirect()->back()->with('error', 'Access Denied: You do not have permission to approve and seal daily records.');
+        }
+
         $businessDate = $this->reconService->getBusinessDate();
         $metrics = $this->reconService->getMetrics($businessDate);
 
@@ -33,7 +38,7 @@ class ApprovalSealingController extends Controller
             return redirect()->back()->with('error', 'Cannot seal day while Reconciliation variance is non-zero or missing bills remain.');
         }
 
-        $activeUser = session('active_user.name', 'Pooja Verma');
+        $activeUser = $user?->name ?? session('active_user.name', 'Authorized Signatory');
         $hashToken = 'SHA256:' . substr(hash('sha256', $businessDate . '_' . $metrics['psoCollection'] . '_' . time()), 0, 16);
 
         $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
@@ -61,8 +66,13 @@ class ApprovalSealingController extends Controller
 
     public function unsealDay(Request $request)
     {
+        $user = auth()->user();
+        if ($user && !$user->hasPermission('can_approve_sealing')) {
+            return redirect()->back()->with('error', 'Access Denied: You do not have permission to unseal records.');
+        }
+
         $businessDate = $this->reconService->getBusinessDate();
-        $activeUser = session('active_user.name', 'Pooja Verma');
+        $activeUser = $user?->name ?? session('active_user.name', 'Authorized Signatory');
         $reason = $request->reason ?: 'Administrative correction requested';
 
         $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();

@@ -47,6 +47,7 @@
             <span>Dashboard</span>
           </a>
         </li>
+        @if($currentUser->hasPermission('can_configure_pso'))
         <li>
           <a href="{{ route('admin.pso.index') }}" class="nav-item-custom {{ request()->routeIs('*.pso.*') || request()->routeIs('pso.*') ? 'active' : '' }}">
             <i class="bi bi-diagram-3-fill"></i>
@@ -54,12 +55,15 @@
             <span class="badge bg-primary">{{ $globalMetrics['activePsoCount'] ?? 0 }}</span>
           </a>
         </li>
+        @endif
+        @if($currentUser->hasPermission('can_import_excel'))
         <li>
           <a href="{{ route('admin.import.index') }}" class="nav-item-custom {{ request()->routeIs('*.import.*') || request()->routeIs('import.*') ? 'active' : '' }}">
             <i class="bi bi-file-earmark-spreadsheet-fill"></i>
             <span>Tally Excel Import</span>
           </a>
         </li>
+        @endif
         <li>
           <a href="{{ route('admin.verification.index') }}" class="nav-item-custom {{ request()->routeIs('*.verification.*') || request()->routeIs('verification.*') ? 'active' : '' }}">
             <i class="bi bi-receipt-cutoff"></i>
@@ -79,6 +83,7 @@
             <span>Payment Classification</span>
           </a>
         </li>
+        @if($currentUser->hasPermission('can_record_corrections'))
         <li>
           <a href="{{ route('admin.corrections.index') }}" class="nav-item-custom {{ request()->routeIs('*.corrections.*') || request()->routeIs('corrections.*') ? 'active' : '' }}">
             <i class="bi bi-arrow-left-right"></i>
@@ -86,6 +91,8 @@
             <span class="badge bg-secondary">{{ $globalMetrics['correctionsCount'] ?? 0 }}</span>
           </a>
         </li>
+        @endif
+        @if($currentUser->hasPermission('can_record_credit'))
         <li>
           <a href="{{ route('admin.credit.index') }}" class="nav-item-custom {{ request()->routeIs('*.credit.*') || request()->routeIs('credit.*') ? 'active' : '' }}">
             <i class="bi bi-cash-coin"></i>
@@ -93,6 +100,7 @@
             <span class="badge bg-warning text-dark">{{ $globalMetrics['creditRecordsCount'] ?? 0 }}</span>
           </a>
         </li>
+        @endif
         <li>
           <a href="{{ route('admin.summary.index') }}" class="nav-item-custom {{ request()->routeIs('*.summary.*') || request()->routeIs('summary.*') ? 'active' : '' }}">
             <i class="bi bi-table"></i>
@@ -116,12 +124,14 @@
             @endif
           </a>
         </li>
+        @if($currentUser->hasPermission('can_approve_sealing'))
         <li>
           <a href="{{ route('admin.approval.index') }}" class="nav-item-custom {{ request()->routeIs('*.approval.*') || request()->routeIs('approval.*') ? 'active' : '' }}">
             <i class="bi bi-lock-fill"></i>
             <span>Approval & Sealing</span>
           </a>
         </li>
+        @endif
         <li>
           <a href="{{ route('admin.retention.index') }}" class="nav-item-custom {{ request()->routeIs('*.retention.*') || request()->routeIs('retention.*') ? 'active' : '' }}">
             <i class="bi bi-clock-history"></i>
@@ -134,7 +144,10 @@
             <span>Reports & Exports</span>
           </a>
         </li>
+
+        @if($currentUser->hasPermission('can_manage_users') || $currentUser->hasPermission('can_edit_cutoff'))
         <li class="menu-category">System & Administration</li>
+        @if($currentUser->hasPermission('can_manage_users'))
         <li>
           <a href="{{ route('admin.users.index') }}" class="nav-item-custom {{ request()->routeIs('*.users.*') || request()->routeIs('users.*') ? 'active' : '' }}">
             <i class="bi bi-people-fill"></i>
@@ -142,12 +155,16 @@
             <span class="badge bg-danger">{{ $globalMetrics['totalUsersCount'] ?? 1 }}</span>
           </a>
         </li>
+        @endif
+        @if($currentUser->hasPermission('can_edit_cutoff'))
         <li>
           <a href="{{ route('admin.settings.index') }}" class="nav-item-custom {{ request()->routeIs('*.settings.*') || request()->routeIs('settings.*') ? 'active' : '' }}">
             <i class="bi bi-gear-fill"></i>
             <span>Cutoff & Settings</span>
           </a>
         </li>
+        @endif
+        @endif
       </ul>
 
       <div class="sidebar-footer">
@@ -292,6 +309,28 @@
                   </div>
                 </a>
               </li>
+
+              @if(isset($allUsers) && $allUsers->count() > 1)
+              <li><hr class="dropdown-divider my-2"></li>
+              <li class="px-3 py-1">
+                <small class="text-muted fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Switch Active Account</small>
+              </li>
+              @foreach($allUsers as $u)
+                @if($u->id !== ($currentUser->id ?? null) && $u->is_active)
+                <li>
+                  <a class="dropdown-item d-flex align-items-center py-1.5" href="{{ route('admin.switch_user', $u->id) }}">
+                    <div class="bg-{{ $u->badge_color }} text-white rounded-circle fw-bold d-flex align-items-center justify-content-center me-2" style="width: 22px; height: 22px; font-size: 0.65rem;">
+                      {{ $u->avatar }}
+                    </div>
+                    <div class="lh-sm">
+                      <div class="fw-semibold text-dark" style="font-size: 0.76rem;">{{ $u->name }}</div>
+                      <small class="text-muted" style="font-size: 0.65rem;">{{ $u->role_name }}</small>
+                    </div>
+                  </a>
+                </li>
+                @endif
+              @endforeach
+              @endif
 
               <li><hr class="dropdown-divider my-2"></li>
 

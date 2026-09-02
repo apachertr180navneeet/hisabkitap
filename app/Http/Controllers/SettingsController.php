@@ -21,8 +21,8 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $user = Auth::user();
-        if (! $user || ! $user->isSuperAdmin()) {
-            return redirect()->back()->with('error', 'Access Denied: Only System Administrator (Suresh Gupta) has permission to modify Cutoff Time and System Settings.');
+        if (! $user || ! $user->hasPermission('can_edit_cutoff')) {
+            return redirect()->back()->with('error', 'Access Denied: You do not have permission to modify Cutoff Time and System Settings.');
         }
 
         $request->validate([

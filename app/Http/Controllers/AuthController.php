@@ -75,4 +75,24 @@ class AuthController extends Controller
 
         return redirect()->route('admin.login')->with('success', 'You have been logged out of the ERP system.');
     }
+
+    /**
+     * Quick Switch active authenticated user (Persona testing)
+     */
+    public function switchUser(Request $request, $id)
+    {
+        $user = \App\Models\User::findOrFail($id);
+
+        if (!$user->is_active) {
+            return redirect()->back()->with('error', "Cannot switch to deactivated account '{$user->name}'.");
+        }
+
+        Auth::login($user);
+        $request->session()->regenerate();
+        session(['active_user' => $user->toArray()]);
+
+        AuditLog::log('USER_SWITCH', "Switched active session to {$user->name} ({$user->role_name}).");
+
+        return redirect()->route('admin.dashboard')->with('success', "Switched active account to {$user->name} ({$user->role_name}).");
+    }
 }
