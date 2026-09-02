@@ -37,7 +37,11 @@ class ExcelImportController extends Controller
         $request->validate([
             'business_date' => 'required|date',
             'pso_id' => 'required|string',
-            'excel_file' => 'nullable|file|mimes:xlsx,xls,csv,txt',
+            'excel_file' => 'nullable|file|mimes:xlsx,xls,csv,txt,xml|max:10240',
+        ], [
+            'excel_file.mimes' => 'The uploaded file must be an Excel spreadsheet (.xlsx, .xls) or CSV file (.csv).',
+            'excel_file.max' => 'The uploaded file size must not exceed 10 MB.',
+            'business_date.required' => 'Please select a valid business date.',
         ]);
 
         $businessDate = $request->business_date;
@@ -53,191 +57,284 @@ class ExcelImportController extends Controller
             $extension = strtolower($file->getClientOriginalExtension());
             $filePath = $file->getRealPath();
 
-            $parsedRows = [];
-
-            if (in_array($extension, ['csv', 'txt'])) {
-                $parsedRows = $this->parseCsvFile($filePath);
-            } elseif ($extension === 'xlsx') {
-                $parsedRows = $this->parseXlsxFile($filePath);
-            } elseif ($extension === 'xls') {
-                $parsedRows = $this->parseXlsFile($filePath);
+            if (!$file->isValid()) {
+                return redirect()->back()->withInput()->with('error', "Upload error: The file '{$filename}' could not be uploaded properly.");
             }
 
-            if (!empty($parsedRows)) {
-                $header = array_shift($parsedRows);
-                
-                // Normalize header column names
-                $normalizedHeader = array_map(function ($col) {
+            $parsedRows = [];
+            $parsingError = null;
+
+            try {
+                if (in_array($extension, ['csv', 'txt'])) {
+                    $parsedRows = $this->parseCsvFile($filePath);
+                } elseif ($extension === 'xlsx') {
+                    $parsedRows = $this->parseXlsxFile($filePath);
+                } elseif ($extension === 'xls' || $extension === 'xml') {
+                    $parsedRows = $this->parseXlsFile($filePath);
+                }
+            } catch (\Throwable $e) {
+                $parsingError = $e->getMessage();
+            }
+
+            if ($parsingError !== null) {
+                return redirect()->back()->withInput()->with('error', "Failed to read file '{$filename}': {$parsingError}. Please verify the file format.");
+            }
+
+            if (empty($parsedRows)) {
+                return redirect()->back()->withInput()->with('error', "The uploaded file '{$filename}' is empty or could not be parsed into rows. Please ensure it contains data.");
+            }
+
+            // Find header row (search first 10 rows in case of company/date headers)
+            $headerIndex = -1;
+            $normalizedHeader = [];
+            $colMap = [];
+
+            $dateKeys = ['date', 'dt', 'bill date', 'vch date', 'business date', 'invoice date'];
+            $custKeys = ['particulars', 'particular', 'party name', 'party', 'customer name', 'customer', 'ledger', 'party / ledger', 'account', 'party name / ledger'];
+            $typeKeys = ['voucher type', 'vch type', 'sales type', 'type', 'vouchertype', 'trn type'];
+            $billKeys = ['voucher no.', 'voucher no', 'vch no', 'vch no.', 'bill no', 'bill_no', 'bill number', 'invoice no', 'invoice #', 'bill', 'billno', 'vch #'];
+            $amtKeys = ['amount', 'total amount', 'bill amount', 'gross amount', 'total', 'debit', 'credit', 'billamount', 'net amount'];
+
+            foreach (array_slice($parsedRows, 0, 10, true) as $idx => $row) {
+                $norm = array_map(function ($col) {
                     $col = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', (string)$col);
                     return strtolower(trim($col));
-                }, $header);
+                }, $row);
 
-                $colMap = [
-                    'date' => $this->findColumnIndex($normalizedHeader, ['date', 'dt', 'bill date', 'vch date', 'business date']),
-                    'customer_name' => $this->findColumnIndex($normalizedHeader, ['particulars', 'particular', 'party name', 'party', 'customer name', 'customer', 'ledger', 'party / ledger', 'account']),
-                    'voucher_type' => $this->findColumnIndex($normalizedHeader, ['voucher type', 'vch type', 'sales type', 'type', 'vouchertype']),
-                    'bill_no' => $this->findColumnIndex($normalizedHeader, ['voucher no.', 'voucher no', 'vch no', 'vch no.', 'bill no', 'bill_no', 'bill number', 'invoice no', 'bill', 'billno']),
-                    'amount' => $this->findColumnIndex($normalizedHeader, ['amount', 'total amount', 'bill amount', 'gross amount', 'total', 'debit', 'credit', 'billamount']),
-                ];
+                $foundBill = $this->findColumnIndex($norm, $billKeys);
+                $foundAmt = $this->findColumnIndex($norm, $amtKeys);
 
-                // If not matched by name, fallback to standard 5-column positions: 0: Date, 1: Particulars, 2: Voucher Type, 3: Voucher No, 4: Amount
-                if ($colMap['bill_no'] === null && count($header) >= 4) {
-                    $colMap['date'] = 0;
-                    $colMap['customer_name'] = 1;
-                    $colMap['voucher_type'] = 2;
-                    $colMap['bill_no'] = 3;
-                    $colMap['amount'] = 4;
+                if ($foundBill !== null || $foundAmt !== null) {
+                    $headerIndex = $idx;
+                    $normalizedHeader = $norm;
+                    $colMap = [
+                        'date' => $this->findColumnIndex($norm, $dateKeys),
+                        'customer_name' => $this->findColumnIndex($norm, $custKeys),
+                        'voucher_type' => $this->findColumnIndex($norm, $typeKeys),
+                        'bill_no' => $foundBill,
+                        'amount' => $foundAmt,
+                    ];
+                    break;
+                }
+            }
+
+            // If header was not explicitly found by names, fallback if first row has 4+ columns
+            if ($headerIndex === -1) {
+                $firstRow = $parsedRows[0];
+                if (count($firstRow) >= 4) {
+                    $headerIndex = 0;
+                    $colMap = [
+                        'date' => 0,
+                        'customer_name' => 1,
+                        'voucher_type' => 2,
+                        'bill_no' => 3,
+                        'amount' => count($firstRow) > 4 ? 4 : 3,
+                    ];
+                } else {
+                    return redirect()->back()->withInput()->with('error', "Invalid spreadsheet format in '{$filename}': Could not identify required columns (Voucher No., Amount, Particulars, Date). Please download the sample template.");
+                }
+            }
+
+            // Ensure essential columns are mapped
+            if ($colMap['bill_no'] === null && $colMap['amount'] === null) {
+                return redirect()->back()->withInput()->with('error', "Missing required columns in '{$filename}': Both 'Voucher No.' and 'Amount' columns could not be identified.");
+            }
+
+            // Remove rows up to and including the header
+            $dataRows = array_slice($parsedRows, $headerIndex + 1);
+
+            $importedRows = 0;
+            $totalAmount = 0;
+            $rowErrors = [];
+            $rowNum = $headerIndex + 2; // 1-based index for user display
+
+            // Create TallyImport record
+            $import = TallyImport::create([
+                'filename' => $filename,
+                'business_date' => $businessDate,
+                'total_records' => 0,
+                'total_amount' => 0,
+                'status' => 'Imported & Scanned',
+                'operator_name' => $operatorName,
+            ]);
+
+            foreach ($dataRows as $row) {
+                // Skip completely empty rows
+                if (empty(array_filter($row, fn($v) => $v !== null && trim((string)$v) !== ''))) {
+                    $rowNum++;
+                    continue;
                 }
 
-                $importedRows = 0;
-                $totalAmount = 0;
-
-                // Create TallyImport record
-                $import = TallyImport::create([
-                    'filename' => $filename,
-                    'business_date' => $businessDate,
-                    'total_records' => 0,
-                    'total_amount' => 0,
-                    'status' => 'Imported & Scanned',
-                    'operator_name' => $operatorName,
-                ]);
-
-                foreach ($parsedRows as $row) {
-                    if (empty(array_filter($row, fn($v) => $v !== null && $v !== ''))) {
+                $rawBillNo = ($colMap['bill_no'] !== null && isset($row[$colMap['bill_no']])) ? trim((string)$row[$colMap['bill_no']]) : '';
+                
+                // Skip header repetitions or grand total rows
+                if (empty($rawBillNo) || stripos($rawBillNo, 'voucher') !== false || stripos($rawBillNo, 'bill no') !== false || stripos($rawBillNo, 'total') !== false) {
+                    if (!empty($rawBillNo) && (stripos($rawBillNo, 'total') !== false || stripos($rawBillNo, 'grand total') !== false)) {
+                        $rowNum++;
                         continue;
                     }
-
-                    $billNo = $colMap['bill_no'] !== null && isset($row[$colMap['bill_no']]) ? trim((string)$row[$colMap['bill_no']]) : '';
-                    if (empty($billNo) || stripos($billNo, 'voucher') !== false || stripos($billNo, 'bill no') !== false) {
+                    if (empty($rawBillNo)) {
+                        $rowErrors[] = "Row {$rowNum}: Skipped due to missing Voucher/Bill No.";
+                        $rowNum++;
                         continue;
                     }
+                }
 
-                    $rawDate = ($colMap['date'] !== null && !empty($row[$colMap['date']])) ? trim((string)$row[$colMap['date']]) : '';
-                    if (!empty($rawDate)) {
-                        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/', $rawDate, $matches)) {
-                            $year = (int)$matches[3];
-                            if ($year < 100) {
-                                $year += 2000;
-                            }
-                            $rowDate = sprintf('%04d-%02d-%02d', $year, $matches[2], $matches[1]);
-                        } else {
-                            $parsedTime = strtotime(str_replace('/', '-', $rawDate));
-                            $rowDate = ($parsedTime !== false && $parsedTime > 0) ? date('Y-m-d', $parsedTime) : $businessDate;
+                $billNo = $rawBillNo;
+
+                // Validate and parse amount
+                $rawAmount = ($colMap['amount'] !== null && isset($row[$colMap['amount']])) ? trim((string)$row[$colMap['amount']]) : '0';
+                $cleanAmount = str_replace([',', ' ', '₹', '$'], '', $rawAmount);
+                if (!is_numeric($cleanAmount)) {
+                    $rowErrors[] = "Row {$rowNum} (Bill '{$billNo}'): Invalid amount format '{$rawAmount}'. Amount must be numeric.";
+                    $rowNum++;
+                    continue;
+                }
+
+                $amount = (float) $cleanAmount;
+                if ($amount < 0) {
+                    $rowErrors[] = "Row {$rowNum} (Bill '{$billNo}'): Negative amount ₹{$amount} not allowed.";
+                    $rowNum++;
+                    continue;
+                }
+
+                // Date Parsing
+                $rawDate = ($colMap['date'] !== null && !empty($row[$colMap['date']])) ? trim((string)$row[$colMap['date']]) : '';
+                if (!empty($rawDate)) {
+                    if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/', $rawDate, $matches)) {
+                        $year = (int)$matches[3];
+                        if ($year < 100) {
+                            $year += 2000;
                         }
+                        $rowDate = sprintf('%04d-%02d-%02d', $year, (int)$matches[2], (int)$matches[1]);
                     } else {
-                        $rowDate = $businessDate;
+                        $parsedTime = strtotime(str_replace('/', '-', $rawDate));
+                        $rowDate = ($parsedTime !== false && $parsedTime > 0) ? date('Y-m-d', $parsedTime) : $businessDate;
                     }
+                } else {
+                    $rowDate = $businessDate;
+                }
 
-                    $customer = ($colMap['customer_name'] !== null && !empty($row[$colMap['customer_name']])) ? trim((string)$row[$colMap['customer_name']]) : 'General Customer';
-                    $voucherType = ($colMap['voucher_type'] !== null && !empty($row[$colMap['voucher_type']])) ? trim((string)$row[$colMap['voucher_type']]) : 'Sales Cadbury';
-                    $amount = ($colMap['amount'] !== null && isset($row[$colMap['amount']])) ? (float) str_replace([',', ' '], '', trim((string)$row[$colMap['amount']])) : 0;
-                    $rowTime = '12:00';
-                    $cdAmount = 0;
-                    $refundAmount = 0;
-                    $remarks = $voucherType;
+                $customer = ($colMap['customer_name'] !== null && !empty($row[$colMap['customer_name']])) ? trim((string)$row[$colMap['customer_name']]) : 'General Customer';
+                $voucherType = ($colMap['voucher_type'] !== null && !empty($row[$colMap['voucher_type']])) ? trim((string)$row[$colMap['voucher_type']]) : 'Sales Cadbury';
+                $rowTime = '12:00';
+                $cdAmount = 0;
+                $refundAmount = 0;
+                $remarks = $voucherType;
 
-                    // Standardize Payment Type
-                    $paymentTypeNormalized = 'Cash';
-                    if (stripos($voucherType, 'paytm') !== false || stripos($voucherType, 'upi') !== false) {
-                        $paymentTypeNormalized = 'Paytm';
-                    } elseif (stripos($voucherType, 'credit') !== false || stripos($customer, 'credit') !== false) {
-                        $paymentTypeNormalized = 'Credit';
-                    } elseif (stripos($voucherType, 'cancel') !== false) {
-                        $paymentTypeNormalized = 'Cancelled';
+                // Standardize Payment Type
+                $paymentTypeNormalized = 'Cash';
+                if (stripos($voucherType, 'paytm') !== false || stripos($voucherType, 'upi') !== false) {
+                    $paymentTypeNormalized = 'Paytm';
+                } elseif (stripos($voucherType, 'credit') !== false || stripos($customer, 'credit') !== false) {
+                    $paymentTypeNormalized = 'Credit';
+                } elseif (stripos($voucherType, 'cancel') !== false) {
+                    $paymentTypeNormalized = 'Cancelled';
+                }
+
+                // Determine PSO Mapping
+                $assignedPsoCode = 'PSO-1';
+                $psoConfigId = null;
+
+                if ($targetPsoId !== 'ALL') {
+                    $matchedPso = $psoConfigs->firstWhere('code', $targetPsoId);
+                    if ($matchedPso) {
+                        $assignedPsoCode = $matchedPso->code;
+                        $psoConfigId = $matchedPso->id;
                     }
-
-                    // Determine PSO Mapping
-                    $assignedPsoCode = 'PSO-1';
-                    $psoConfigId = null;
-
-                    if ($targetPsoId !== 'ALL') {
-                        $matchedPso = $psoConfigs->firstWhere('code', $targetPsoId);
-                        if ($matchedPso) {
-                            $assignedPsoCode = $matchedPso->code;
-                            $psoConfigId = $matchedPso->id;
+                } else {
+                    foreach ($psoConfigs as $pso) {
+                        if (!empty($pso->prefix) && stripos($billNo, $pso->prefix) === 0) {
+                            $assignedPsoCode = $pso->code;
+                            $psoConfigId = $pso->id;
+                            break;
                         }
-                    } else {
-                        foreach ($psoConfigs as $pso) {
-                            if (!empty($pso->prefix) && stripos($billNo, $pso->prefix) === 0) {
-                                $assignedPsoCode = $pso->code;
-                                $psoConfigId = $pso->id;
-                                break;
-                            }
-                        }
                     }
+                }
 
-                    // Check post-cutoff
-                    $isPostCutoff = false;
-                    $netAmount = max(0, $amount - $cdAmount - $refundAmount);
+                // Check post-cutoff
+                $isPostCutoff = false;
+                $netAmount = max(0, $amount - $cdAmount - $refundAmount);
 
-                    $bill = Bill::updateOrCreate(
+                $bill = Bill::updateOrCreate(
+                    [
+                        'bill_no' => $billNo,
+                        'business_date' => $rowDate,
+                    ],
+                    [
+                        'pso_config_id' => $psoConfigId,
+                        'pso_code' => $assignedPsoCode,
+                        'tally_import_id' => $import->id,
+                        'bill_time' => $rowTime,
+                        'customer_name' => $customer,
+                        'particulars' => $customer,
+                        'amount' => $amount,
+                        'payment_type' => $paymentTypeNormalized,
+                        'voucher_type' => $voucherType,
+                        'cd_amount' => $cdAmount,
+                        'refund_amount' => $refundAmount,
+                        'net_amount' => $netAmount,
+                        'status' => $paymentTypeNormalized === 'Cancelled' ? 'Cancelled' : ($isPostCutoff ? 'Next Day PSO' : 'Matched'),
+                        'is_expected' => true,
+                        'tally_found' => true,
+                        'is_post_cutoff' => $isPostCutoff,
+                        'remark' => $remarks,
+                        'verified_by' => $operatorName,
+                        'verified_at' => now(),
+                    ]
+                );
+
+                // Create Credit Collection record if payment type is Credit
+                if ($paymentTypeNormalized === 'Credit' && $amount > 0) {
+                    CreditCollection::updateOrCreate(
+                        ['bill_id' => $bill->id],
                         [
                             'bill_no' => $billNo,
-                            'business_date' => $rowDate,
-                        ],
-                        [
-                            'pso_config_id' => $psoConfigId,
-                            'pso_code' => $assignedPsoCode,
-                            'tally_import_id' => $import->id,
-                            'bill_time' => $rowTime,
                             'customer_name' => $customer,
-                            'particulars' => $customer,
-                            'amount' => $amount,
-                            'payment_type' => $paymentTypeNormalized,
-                            'voucher_type' => $voucherType,
-                            'cd_amount' => $cdAmount,
-                            'refund_amount' => $refundAmount,
-                            'net_amount' => $netAmount,
-                            'status' => $paymentTypeNormalized === 'Cancelled' ? 'Cancelled' : ($isPostCutoff ? 'Next Day PSO' : 'Matched'),
-                            'is_expected' => true,
-                            'tally_found' => true,
-                            'is_post_cutoff' => $isPostCutoff,
+                            'salesman_name' => 'Field Representative',
+                            'bill_date' => $rowDate,
+                            'due_date' => date('Y-m-d', strtotime($rowDate . ' +7 days')),
+                            'bill_amount' => $amount,
+                            'paid_amount' => 0,
+                            'outstanding_amount' => $amount,
+                            'collection_status' => 'Pending',
+                            'payment_mode' => 'Credit Pending',
                             'remark' => $remarks,
-                            'verified_by' => $operatorName,
-                            'verified_at' => now(),
                         ]
                     );
-
-                    // Create Credit Collection record if payment type is Credit
-                    if ($paymentTypeNormalized === 'Credit' && $amount > 0) {
-                        CreditCollection::updateOrCreate(
-                            ['bill_id' => $bill->id],
-                            [
-                                'bill_no' => $billNo,
-                                'customer_name' => $customer,
-                                'salesman_name' => 'Field Representative',
-                                'bill_date' => $rowDate,
-                                'due_date' => date('Y-m-d', strtotime($rowDate . ' +7 days')),
-                                'bill_amount' => $amount,
-                                'paid_amount' => 0,
-                                'outstanding_amount' => $amount,
-                                'collection_status' => 'Pending',
-                                'payment_mode' => 'Credit Pending',
-                                'remark' => $remarks,
-                            ]
-                        );
-                    }
-
-                    $importedRows++;
-                    $totalAmount += $amount;
                 }
 
-                // Update import aggregates
-                $import->update([
-                    'total_records' => $importedRows,
-                    'total_amount' => $totalAmount,
-                ]);
-
-                AuditLog::log('EXCEL_IMPORT', "Imported {$filename} for date {$businessDate} with {$importedRows} records total ₹" . number_format($totalAmount, 2));
-
-                return redirect()->route('admin.verification.index')->with('success', "Excel file '{$filename}' successfully imported! {$importedRows} bills processed (Total: ₹" . number_format($totalAmount, 2) . ").");
+                $importedRows++;
+                $totalAmount += $amount;
+                $rowNum++;
             }
+
+            if ($importedRows === 0) {
+                $import->delete();
+                $errDetail = !empty($rowErrors) ? ' (' . implode('; ', array_slice($rowErrors, 0, 3)) . ')' : '';
+                return redirect()->back()->withInput()->with('error', "No valid bill records could be imported from '{$filename}'{$errDetail}. Please check file structure.")->with('import_errors', $rowErrors);
+            }
+
+            // Update import aggregates
+            $import->update([
+                'total_records' => $importedRows,
+                'total_amount' => $totalAmount,
+            ]);
+
+            AuditLog::log('EXCEL_IMPORT', "Imported {$filename} for date {$businessDate} with {$importedRows} records total ₹" . number_format($totalAmount, 2));
+
+            $redirect = redirect()->route('admin.verification.index');
+            if (!empty($rowErrors)) {
+                return $redirect->with('success', "Excel file '{$filename}' imported! {$importedRows} bills processed (Total: ₹" . number_format($totalAmount, 2) . ").")
+                                ->with('warning', count($rowErrors) . " row(s) had formatting errors and were skipped.")
+                                ->with('import_errors', $rowErrors);
+            }
+
+            return $redirect->with('success', "Excel file '{$filename}' successfully imported! {$importedRows} bills processed (Total: ₹" . number_format($totalAmount, 2) . ").");
         }
 
-        // Fallback / simulated import
-        $filename = $request->hasFile('excel_file')
-            ? $request->file('excel_file')->getClientOriginalName()
-            : 'Tally_DayBook_' . date('dMY', strtotime($businessDate)) . '.xlsx';
+        // Fallback / simulated import when no file is chosen (for quick testing/demo)
+        $filename = 'Tally_DayBook_' . date('dMY', strtotime($businessDate)) . '.xlsx';
 
         $import = TallyImport::create([
             'filename' => $filename,
@@ -258,7 +355,28 @@ class ExcelImportController extends Controller
         $rows = [];
         $handle = fopen($filePath, 'r');
         if ($handle !== false) {
-            while (($data = fgetcsv($handle, 4000, ",")) !== false) {
+            // Read first line to detect delimiter
+            $firstLine = fgets($handle);
+            rewind($handle);
+
+            $delimiter = ',';
+            if ($firstLine !== false) {
+                // Strip UTF-8 BOM if present
+                if (str_starts_with($firstLine, "\xEF\xBB\xBF")) {
+                    fseek($handle, 3);
+                }
+                $commaCount = substr_count($firstLine, ',');
+                $semicolonCount = substr_count($firstLine, ';');
+                $tabCount = substr_count($firstLine, "\t");
+
+                if ($tabCount > $commaCount && $tabCount > $semicolonCount) {
+                    $delimiter = "\t";
+                } elseif ($semicolonCount > $commaCount) {
+                    $delimiter = ';';
+                }
+            }
+
+            while (($data = fgetcsv($handle, 8000, $delimiter)) !== false) {
                 $rows[] = $data;
             }
             fclose($handle);
@@ -282,16 +400,25 @@ class ExcelImportController extends Controller
             foreach ($xmlRows as $r) {
                 $rowVals = [];
                 $cells = $r->getElementsByTagName('Cell');
+                $colIndex = 0;
                 foreach ($cells as $c) {
-                    $dataElements = $c->getElementsByTagName('Data');
-                    if ($dataElements->length > 0) {
-                        $rowVals[] = trim($dataElements->item(0)->textContent);
-                    } else {
-                        $rowVals[] = trim($c->textContent);
+                    // Check ss:Index for skipped columns
+                    if ($c->hasAttribute('ss:Index')) {
+                        $colIndex = (int)$c->getAttribute('ss:Index') - 1;
                     }
+                    $dataElements = $c->getElementsByTagName('Data');
+                    $cellVal = ($dataElements->length > 0) ? trim($dataElements->item(0)->textContent) : trim($c->textContent);
+                    $rowVals[$colIndex] = $cellVal;
+                    $colIndex++;
                 }
-                if (!empty($rowVals)) {
-                    $rows[] = $rowVals;
+                if (!empty(array_filter($rowVals, fn($v) => $v !== null && $v !== ''))) {
+                    // Re-index array keys 0..max
+                    $maxKey = !empty($rowVals) ? max(array_keys($rowVals)) : 0;
+                    $normalizedRow = [];
+                    for ($i = 0; $i <= $maxKey; $i++) {
+                        $normalizedRow[$i] = $rowVals[$i] ?? '';
+                    }
+                    $rows[] = $normalizedRow;
                 }
             }
             return $rows;
@@ -312,7 +439,7 @@ class ExcelImportController extends Controller
                 foreach ($cells as $c) {
                     $rowVals[] = trim($c->textContent);
                 }
-                if (!empty($rowVals)) {
+                if (!empty(array_filter($rowVals, fn($v) => $v !== null && $v !== ''))) {
                     $rows[] = $rowVals;
                 }
             }
@@ -326,12 +453,13 @@ class ExcelImportController extends Controller
     protected function parseXlsxFile(string $filePath): array
     {
         if (!class_exists('\ZipArchive')) {
-            return [];
+            throw new \Exception('PHP ZipArchive extension is required to read .xlsx files.');
         }
 
         $zip = new \ZipArchive();
         if ($zip->open($filePath) !== true) {
-            return [];
+            // Check if file is actually an XML or CSV disguised as XLSX
+            return $this->parseXlsFile($filePath);
         }
 
         // Extract sharedStrings
@@ -351,8 +479,19 @@ class ExcelImportController extends Controller
             }
         }
 
-        // Extract sheet1
+        // Locate worksheet XML
         $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        if (!$sheetXml) {
+            // Find any sheet in xl/worksheets/
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $stat = $zip->statIndex($i);
+                if (preg_match('#xl/worksheets/sheet\d+\.xml#i', $stat['name'])) {
+                    $sheetXml = $zip->getFromIndex($i);
+                    break;
+                }
+            }
+        }
+
         $rows = [];
         if ($sheetXml) {
             $dom = new \DOMDocument();
@@ -362,22 +501,49 @@ class ExcelImportController extends Controller
                 $rowVals = [];
                 $cells = $r->getElementsByTagName('c');
                 foreach ($cells as $c) {
+                    $coord = $c->getAttribute('r'); // e.g. A1, B1, E1
+                    $colIdx = 0;
+                    if (!empty($coord) && preg_match('/^([A-Z]+)/i', $coord, $m)) {
+                        $colIdx = $this->columnLetterToIndex(strtoupper($m[1]));
+                    }
+
                     $type = $c->getAttribute('t');
                     $valElements = $c->getElementsByTagName('v');
                     $val = ($valElements->length > 0) ? $valElements->item(0)->textContent : '';
+
                     if ($type === 's' && isset($sharedStrings[(int)$val])) {
                         $val = $sharedStrings[(int)$val];
+                    } elseif ($type === 'inlineStr') {
+                        $isElements = $c->getElementsByTagName('t');
+                        $val = ($isElements->length > 0) ? $isElements->item(0)->textContent : $val;
                     }
-                    $rowVals[] = $val;
+
+                    $rowVals[$colIdx] = $val;
                 }
-                if (!empty($rowVals)) {
-                    $rows[] = $rowVals;
+
+                if (!empty(array_filter($rowVals, fn($v) => $v !== null && $v !== ''))) {
+                    $maxKey = max(array_keys($rowVals));
+                    $normalizedRow = [];
+                    for ($i = 0; $i <= $maxKey; $i++) {
+                        $normalizedRow[$i] = $rowVals[$i] ?? '';
+                    }
+                    $rows[] = $normalizedRow;
                 }
             }
         }
 
         $zip->close();
         return $rows;
+    }
+
+    protected function columnLetterToIndex(string $col): int
+    {
+        $index = 0;
+        $len = strlen($col);
+        for ($i = 0; $i < $len; $i++) {
+            $index = $index * 26 + (ord($col[$i]) - 64);
+        }
+        return $index - 1;
     }
 
     protected function findColumnIndex(array $headers, array $candidates): ?int

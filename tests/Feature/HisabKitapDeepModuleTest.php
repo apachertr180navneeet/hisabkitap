@@ -94,22 +94,71 @@ class HisabKitapDeepModuleTest extends TestCase
 
     public function test_tally_import_with_uploaded_file(): void
     {
-        $file = UploadedFile::fake()->create('Tally_2026.xlsx', 10, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->makePso('PSO-1', 'CB');
+        $csvContent = "Date,Particulars,Voucher Type,Voucher No.,Amount\n"
+                    . "14/08/2026,Customer One [101],Sales Cadbury,CB 01,5000.00\n"
+                    . "14/08/2026,Customer Two [102],Credit,CB 02,2500.00\n";
+
+        $file = UploadedFile::fake()->createWithContent('Tally_2026.csv', $csvContent);
         $response = $this->post('/admin/import', [
             'business_date' => '2026-08-14',
             'pso_id' => 'PSO-1',
             'excel_file' => $file,
         ]);
-        $response->assertRedirect('/verification');
-        $this->assertEquals('Tally_2026.xlsx', TallyImport::first()->filename);
+        $response->assertRedirect('/admin/verification');
+        $this->assertEquals(1, TallyImport::count());
+        $this->assertEquals('Tally_2026.csv', TallyImport::first()->filename);
+        $this->assertEquals(2, TallyImport::first()->total_records);
+        $this->assertEquals(7500.0, (float) TallyImport::first()->total_amount);
+        $this->assertEquals(2, Bill::count());
+    }
+
+    public function test_tally_import_rejects_invalid_headers(): void
+    {
+        $csvContent = "ColA,ColB\n1,2\n";
+        $file = UploadedFile::fake()->createWithContent('Invalid_Header.csv', $csvContent);
+        $response = $this->post('/admin/import', [
+            'business_date' => '2026-08-14',
+            'pso_id' => 'PSO-1',
+            'excel_file' => $file,
+        ]);
+        $response->assertSessionHas('error');
+        $this->assertEquals(0, TallyImport::count());
+    }
+
+    public function test_tally_import_reports_and_skips_invalid_amount_rows(): void
+    {
+        $this->makePso('PSO-1', 'CB');
+        $csvContent = "Date,Particulars,Voucher Type,Voucher No.,Amount\n"
+                    . "14/08/2026,Valid Customer,Sales,CB 01,5000.00\n"
+                    . "14/08/2026,Corrupt Customer,Sales,CB 02,NOT_A_NUMBER\n";
+
+        $file = UploadedFile::fake()->createWithContent('Partial_Invalid.csv', $csvContent);
+        $response = $this->post('/admin/import', [
+            'business_date' => '2026-08-14',
+            'pso_id' => 'PSO-1',
+            'excel_file' => $file,
+        ]);
+        $response->assertRedirect('/admin/verification');
+        $response->assertSessionHas('warning');
+        $response->assertSessionHas('import_errors');
+        $this->assertEquals(1, Bill::count());
     }
 
     public function test_import_sample_download_returns_csv(): void
     {
-        $response = $this->get('/admin/import/sample-download');
+        $response = $this->get('/admin/import/sample-download?format=csv');
         $response->assertStatus(200);
         $this->assertStringContainsString('text/csv', $response->headers->get('Content-Type'));
-        $this->assertStringContainsString('Tally_DayBook_Sample_Template.csv', $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('.csv', $response->headers->get('Content-Disposition'));
+    }
+
+    public function test_import_sample_download_returns_xls(): void
+    {
+        $response = $this->get('/admin/import/sample-download?format=xls');
+        $response->assertStatus(200);
+        $this->assertStringContainsString('application/vnd.ms-excel', $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('.xls', $response->headers->get('Content-Disposition'));
     }
 
     public function test_payment_classification_page_loads_and_filters(): void

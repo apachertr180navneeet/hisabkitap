@@ -375,18 +375,73 @@
         </div>
       @endif
 
-      <!-- Flash Messages -->
+      <!-- Flash Messages & Validation Alerts -->
       <div class="px-4 pt-3">
         @if(session('success'))
-          <div class="alert alert-success alert-dismissible fade show shadow-sm mb-0" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
+          <div class="alert alert-success alert-dismissible fade show shadow-sm mb-2" role="alert">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+              <div>{{ session('success') }}</div>
+            </div>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         @endif
-        @if(session('error'))
-          <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-0" role="alert">
-            <i class="bi bi-exclamation-octagon-fill me-2"></i> {{ session('error') }}
+
+        @if(session('warning'))
+          <div class="alert alert-warning alert-dismissible fade show shadow-sm mb-2" role="alert">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-warning"></i>
+              <div>{{ session('warning') }}</div>
+            </div>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        @endif
+
+        @if(session('error'))
+          <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-2" role="alert">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-exclamation-octagon-fill me-2 fs-5 text-danger"></i>
+              <div>{{ session('error') }}</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        @endif
+
+        @if($errors->any())
+          <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-2" role="alert">
+            <div class="d-flex align-items-start gap-2">
+              <i class="bi bi-x-circle-fill fs-5 mt-0.5 text-danger"></i>
+              <div>
+                <strong>Validation Errors Encountered:</strong>
+                <ul class="mb-0 ps-3 mt-1" style="font-size: 0.85rem;">
+                  @foreach($errors->all() as $err)
+                    <li>{{ $err }}</li>
+                  @endforeach
+                </ul>
+              </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        @endif
+
+        @if(session('import_errors') && count(session('import_errors')) > 0)
+          <div class="alert alert-light border border-warning shadow-sm mb-2" role="alert">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="fw-bold text-dark" style="font-size: 0.85rem;">
+                <i class="bi bi-file-earmark-break text-warning me-1.5"></i>
+                Import Row Validation Details ({{ count(session('import_errors')) }} issue{{ count(session('import_errors')) > 1 ? 's' : '' }} reported):
+              </span>
+              <button class="btn btn-xs btn-outline-secondary py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#importErrorCollapse" aria-expanded="false">
+                Toggle Details
+              </button>
+            </div>
+            <div class="collapse show mt-2" id="importErrorCollapse">
+              <div class="bg-white p-2 rounded border font-mono small text-danger" style="max-height: 160px; overflow-y: auto; font-size: 0.78rem;">
+                @foreach(session('import_errors') as $rowErr)
+                  <div class="py-0.5"><i class="bi bi-dot"></i> {{ $rowErr }}</div>
+                @endforeach
+              </div>
+            </div>
           </div>
         @endif
       </div>
