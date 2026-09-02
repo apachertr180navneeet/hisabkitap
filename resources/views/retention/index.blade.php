@@ -28,7 +28,7 @@
         @foreach($retentions as $ret)
           <tr>
             <td><strong>{{ $ret->pso_code }}</strong></td>
-            <td>{{ $ret->business_date->format('Y-m-d') }}</td>
+            <td>{{ $ret->business_date ? $ret->business_date->format('d/m/Y') : '' }}</td>
             <td>{{ $ret->created_date_formatted }}</td>
             <td>
               <div class="d-flex align-items-center gap-2" style="max-width: 220px;">

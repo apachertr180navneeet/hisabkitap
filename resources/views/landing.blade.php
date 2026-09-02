@@ -286,7 +286,7 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
               <div class="d-flex align-items-center gap-2">
                 <span class="badge bg-success"><i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> LIVE SYSTEM</span>
-                <span class="text-white-50 small font-mono">{{ $metrics['businessDate'] }}</span>
+                <span class="text-white-50 small font-mono">{{ date('d/m/Y', strtotime($metrics['businessDate'])) }}</span>
               </div>
               <span class="badge bg-primary font-mono">Cutoff: 19:00 IST</span>
             </div>

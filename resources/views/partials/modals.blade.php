@@ -223,7 +223,7 @@
         <div class="seal-certificate text-center">
           <div class="seal-stamp mb-3">
             <span>SEALED</span>
-            <span>{{ $businessDate }}</span>
+            <span>{{ $formattedBusinessDate ?? date('d/m/Y', strtotime($businessDate)) }}</span>
             <span>HISABKITAP</span>
           </div>
           <h4 class="fw-bold text-success mb-1">CERTIFICATE OF DAILY PSO RECONCILIATION</h4>
@@ -232,7 +232,7 @@
           <div class="row g-3 text-start border p-3 rounded bg-light mb-4">
             <div class="col-6">
               <small class="text-muted d-block">Business Date</small>
-              <strong class="font-mono">{{ $businessDate }}</strong>
+              <strong class="font-mono">{{ $formattedBusinessDate ?? date('d/m/Y', strtotime($businessDate)) }}</strong>
             </div>
             <div class="col-6">
               <small class="text-muted d-block">Total Tally Amount Reconciled</small>

@@ -23,7 +23,7 @@
       <div>
         <h4 class="fw-bold mb-1 text-dark">AWAITING TALLY DAYBOOK IMPORT</h4>
         <p class="mb-0 text-muted">
-          No bill records found for business date <strong>{{ $metrics['businessDate'] }}</strong>. Please configure PSO counter series and import your DayBook Excel file to begin reconciliation.
+          No bill records found for business date <strong>{{ date('d/m/Y', strtotime($metrics['businessDate'])) }}</strong>. Please configure PSO counter series and import your DayBook Excel file to begin reconciliation.
         </p>
       </div>
     </div>
@@ -94,7 +94,7 @@
         </li>
         <li class="list-group-item d-flex justify-content-between px-0">
           <span>Business Accounting Date</span>
-          <span class="fw-bold font-mono">{{ $metrics['businessDate'] }}</span>
+          <span class="fw-bold font-mono">{{ date('d/m/Y', strtotime($metrics['businessDate'])) }}</span>
         </li>
         <li class="list-group-item d-flex justify-content-between px-0">
           <span>Gross Debit/Credit Check</span>

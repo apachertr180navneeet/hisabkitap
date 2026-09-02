@@ -69,7 +69,7 @@
             <td class="font-mono text-danger fw-bold">-₹{{ number_format(abs($c->net_adjustment), 2) }}</td>
             <td>{{ $c->reason }}</td>
             <td><strong>{{ $c->approved_by }}</strong></td>
-            <td>{{ $c->created_at ? $c->created_at->format('Y-m-d H:i') : '2026-08-14' }}</td>
+            <td>{{ $c->created_at ? $c->created_at->format('d/m/Y H:i') : date('d/m/Y H:i') }}</td>
           </tr>
         @empty
           <tr>

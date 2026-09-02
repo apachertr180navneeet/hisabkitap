@@ -198,7 +198,7 @@
           <div class="header-chip">
             <i class="bi bi-calendar3 text-primary"></i>
             <span class="text-muted">Date:</span>
-            <span class="fw-semibold font-mono text-dark">{{ $businessDate }}</span>
+            <span class="fw-semibold font-mono text-dark">{{ $formattedBusinessDate ?? date('d/m/Y', strtotime($businessDate)) }}</span>
           </div>
 
           <!-- Cutoff Rule Indicator -->
@@ -365,7 +365,7 @@
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-lock-fill fs-4"></i>
             <div>
-              <div class="fw-bold">PSO SEALED & LOCKED FOR BUSINESS DATE {{ $businessDate }}</div>
+              <div class="fw-bold">PSO SEALED & LOCKED FOR BUSINESS DATE {{ $formattedBusinessDate ?? date('d/m/Y', strtotime($businessDate)) }}</div>
               <div style="font-size: 0.78rem;">All records are read-only. Sealed by <strong>{{ $sealInfo->sealed_by ?? 'Authorized Signatory' }}</strong> with Digital Hash Token <span class="font-mono">{{ $sealInfo->seal_hash ?? '#HK-8891-SEAL' }}</span></div>
             </div>
           </div>

@@ -144,7 +144,7 @@
               </span>
             </td>
             <td class="text-muted small">
-              {{ $u->created_at ? $u->created_at->format('d-M-Y') : 'System Seed' }}
+              {{ $u->created_at ? $u->created_at->format('d/m/Y') : 'System Seed' }}
             </td>
             <td class="text-end">
               <div class="btn-group">

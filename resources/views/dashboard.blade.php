@@ -38,7 +38,7 @@
       <i class="bi bi-info-circle-fill fs-5 text-primary"></i>
       <div>
         <span class="fw-semibold text-dark">Ready for Daily Reconciliation:</span>
-        <span class="text-secondary ms-1">No bills recorded yet for <strong>{{ $businessDate }}</strong>. Configure PSO series and import Tally DayBook to start.</span>
+        <span class="text-secondary ms-1">No bills recorded yet for <strong>{{ date('d/m/Y', strtotime($businessDate)) }}</strong>. Configure PSO series and import Tally DayBook to start.</span>
       </div>
     </div>
     <div class="d-flex gap-2">
@@ -206,7 +206,7 @@
       <div class="erp-card-header">
         <div>
           <span class="fw-semibold text-dark">Daily PSO Summary</span>
-          <span class="text-muted ms-2" style="font-size: 0.72rem;">Counter breakdown for {{ $businessDate }}</span>
+          <span class="text-muted ms-2" style="font-size: 0.72rem;">Counter breakdown for {{ date('d/m/Y', strtotime($businessDate)) }}</span>
         </div>
         <a href="{{ route('admin.summary.index') }}" class="btn btn-sm btn-outline-secondary">Full Details <i class="bi bi-chevron-right ms-1"></i></a>
       </div>
@@ -364,7 +364,7 @@
             @forelse($recentImports as $imp)
               <tr>
                 <td><i class="bi bi-file-earmark-spreadsheet text-success me-1"></i><span class="fw-medium text-dark">{{ $imp->filename }}</span></td>
-                <td class="text-muted">{{ $imp->created_at ? $imp->created_at->format('d-M-Y H:i') : '14-Aug-2026 18:45' }}</td>
+                <td class="text-muted">{{ $imp->created_at ? $imp->created_at->format('d/m/Y H:i') : date('d/m/Y H:i') }}</td>
                 <td>{{ $imp->total_records }}</td>
                 <td class="font-mono">₹{{ number_format($imp->total_amount, 2) }}</td>
                 <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ $imp->status }}</span></td>

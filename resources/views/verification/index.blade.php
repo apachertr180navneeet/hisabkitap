@@ -89,7 +89,7 @@
             <td><span class="badge bg-primary">{{ $bill->pso_code }}</span></td>
             <td><i class="bi bi-check-circle-fill text-success"></i></td>
             <td><i class="bi bi-check-circle-fill text-success"></i></td>
-            <td>{{ $bill->business_date ? $bill->business_date->format('d-M') : '' }} <small class="text-muted">{{ $bill->bill_time }}</small></td>
+            <td>{{ $bill->business_date ? $bill->business_date->format('d/m/Y') : '' }} <small class="text-muted">{{ $bill->bill_time }}</small></td>
             <td>{{ $bill->customer_name }}</td>
             <td class="font-mono">₹{{ number_format($bill->amount, 2) }}</td>
             <td>

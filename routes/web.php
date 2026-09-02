@@ -19,12 +19,24 @@ use App\Http\Controllers\RetentionController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DatabaseMigrationController;
 
 // ==========================================
 // 1. PUBLIC HOME LANDING PAGE
 // URL: http://127.0.0.1:8000/
 // ==========================================
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// ==========================================
+// DIRECT SERVER MIGRATION & SCHEMA ENDPOINTS
+// URLs: /migrate, /migrate/status, /migrate/clear, /migrate/seed
+// ==========================================
+Route::get('/migrate', [DatabaseMigrationController::class, 'migrate'])->name('system.migrate');
+Route::get('/migrate/status', [DatabaseMigrationController::class, 'status'])->name('system.migrate.status');
+Route::get('/migrate/clear', [DatabaseMigrationController::class, 'clearCache'])->name('system.migrate.clear');
+Route::get('/migrate/seed', [DatabaseMigrationController::class, 'seed'])->name('system.migrate.seed');
+Route::get('/run-migration', [DatabaseMigrationController::class, 'migrate']);
+Route::get('/run-migrations', [DatabaseMigrationController::class, 'migrate']);
 
 // ==========================================
 // 2. AUTHENTICATION & LOGIN ROUTES
@@ -119,6 +131,12 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::post('/users/{id}/change-password', [UserController::class, 'changePassword'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.users.password');
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.users.toggle');
     Route::delete('/users/{id}', [UserController::class, 'destroy'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.users.delete');
+
+    // 15. Server Database Migration Core
+    Route::get('/migrate', [DatabaseMigrationController::class, 'migrate'])->name('admin.migrate');
+    Route::get('/migrate/status', [DatabaseMigrationController::class, 'status'])->name('admin.migrate.status');
+    Route::get('/migrate/clear', [DatabaseMigrationController::class, 'clearCache'])->name('admin.migrate.clear');
+    Route::get('/migrate/seed', [DatabaseMigrationController::class, 'seed'])->name('admin.migrate.seed');
 });
 
 // Non-admin root routes for backward compatibility

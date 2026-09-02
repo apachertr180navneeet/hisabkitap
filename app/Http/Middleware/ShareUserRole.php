@@ -28,6 +28,7 @@ class ShareUserRole
 
         $allUsers = User::orderBy('id', 'asc')->get();
         $businessDate = SystemSetting::getVal('business_date', '2026-08-14');
+        $formattedBusinessDate = date('d/m/Y', strtotime($businessDate));
         $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
         
         $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
@@ -40,6 +41,7 @@ class ShareUserRole
             'currentUser' => $activeUser,
             'allUsers' => $allUsers,
             'businessDate' => $businessDate,
+            'formattedBusinessDate' => $formattedBusinessDate,
             'cutoffTime' => $cutoffTime,
             'isSealed' => $isSealed,
             'sealInfo' => $seal,

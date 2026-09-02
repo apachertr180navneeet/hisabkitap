@@ -17,8 +17,12 @@ class SystemSetting extends Model
 
     public static function getVal($key, $default = null)
     {
-        $setting = static::where('key', $key)->first();
-        return $setting ? $setting->value : $default;
+        try {
+            $setting = static::where('key', $key)->first();
+            return $setting ? $setting->value : $default;
+        } catch (\Throwable $e) {
+            return $default;
+        }
     }
 
     public static function setVal($key, $value, $description = null)

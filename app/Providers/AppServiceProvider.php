@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Blade;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +22,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Blade date formatting directive: dd/mm/yyyy
+        Blade::directive('date', function ($expression) {
+            return "<?php echo ($expression) ? (is_string($expression) ? date('d/m/Y', strtotime($expression)) : ($expression)->format('d/m/Y')) : ''; ?>";
+        });
+
+        Blade::directive('datetime', function ($expression) {
+            return "<?php echo ($expression) ? (is_string($expression) ? date('d/m/Y H:i', strtotime($expression)) : ($expression)->format('d/m/Y H:i')) : ''; ?>";
+        });
+
         Gate::before(function ($user, $ability) {
             if ($user->isSuperAdmin()) {
                 return true;

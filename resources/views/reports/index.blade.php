@@ -61,7 +61,7 @@
       <hr class="my-2">
       <div class="p-3 bg-light rounded font-mono" style="min-height: 400px; font-size: 0.85rem; overflow-x: auto;">
         @if($reportType === 'daily_pso')
-          <div class="p-2 border-bottom mb-2 fw-bold">HISABKITAP ERP - DAILY PSO SUMMARY REPORT (Date: {{ $businessDate }})</div>
+          <div class="p-2 border-bottom mb-2 fw-bold">HISABKITAP ERP - DAILY PSO SUMMARY REPORT (Date: {{ date('d/m/Y', strtotime($businessDate)) }})</div>
           <p>Total Tally Sales: ₹{{ number_format($metrics['tallyTotal'], 2) }} | Total Verified PSO: ₹{{ number_format($metrics['psoCollection'], 2) }} | Variance: ₹{{ number_format($metrics['difference'], 2) }}</p>
           <table class="table table-sm table-bordered bg-white">
             <thead>
@@ -94,7 +94,7 @@
                   <td>{{ $c->bill_no }}</td>
                   <td>{{ $c->customer_name }}</td>
                   <td>{{ $c->salesman_name }}</td>
-                  <td>{{ $c->bill_date->format('d-M-Y') }}</td>
+                  <td>{{ $c->bill_date ? $c->bill_date->format('d/m/Y') : '' }}</td>
                   <td>₹{{ number_format($c->bill_amount) }}</td>
                   <td>₹{{ number_format($c->paid_amount) }}</td>
                   <td class="text-danger fw-bold">₹{{ number_format($c->outstanding_amount) }}</td>
@@ -104,7 +104,7 @@
             </tbody>
           </table>
         @elseif($reportType === 'recon_sheet')
-          <div class="p-2 border-bottom mb-2 fw-bold">TALLY vs PSO MASTER RECONCILIATION SHEET (Date: {{ $businessDate }})</div>
+          <div class="p-2 border-bottom mb-2 fw-bold">TALLY vs PSO MASTER RECONCILIATION SHEET (Date: {{ date('d/m/Y', strtotime($businessDate)) }})</div>
           <p>Total Tally: ₹{{ number_format($metrics['tallyTotal'], 2) }} | PSO Collection: ₹{{ number_format($metrics['psoCollection'], 2) }} | Variance: <strong>₹{{ number_format($metrics['difference'], 2) }}</strong></p>
           <table class="table table-sm table-bordered bg-white">
             <thead>
@@ -126,7 +126,7 @@
             </tbody>
           </table>
         @elseif($reportType === 'missing_bills')
-          <div class="p-2 border-bottom mb-2 fw-bold">MISSING & DISCREPANCY BILL INVESTIGATION LOG (Date: {{ $businessDate }})</div>
+          <div class="p-2 border-bottom mb-2 fw-bold">MISSING & DISCREPANCY BILL INVESTIGATION LOG (Date: {{ date('d/m/Y', strtotime($businessDate)) }})</div>
           <table class="table table-sm table-bordered bg-white">
             <thead>
               <tr><th>Bill No</th><th>PSO</th><th>Customer</th><th>Amount</th><th>Pay Type</th><th>Status</th><th>Remark</th></tr>
@@ -173,7 +173,7 @@
           </table>
         @elseif($reportType === 'audit_history')
           <div class="p-2 border-bottom mb-2 fw-bold">STATUTORY REPORT PREVIEW ({{ $reportType }})</div>
-          <p>Generated for Business Date: {{ $businessDate }} | Status: Active</p>
+          <p>Generated for Business Date: {{ date('d/m/Y', strtotime($businessDate)) }} | Status: Active</p>
           <div class="p-3 bg-white border rounded">
             Report dataset loaded successfully. Use the Export button above to download full CSV dataset.
           </div>

@@ -63,7 +63,7 @@
             <td><strong>{{ $c->bill_no }}</strong></td>
             <td>{{ $c->customer_name }}</td>
             <td><i class="bi bi-person-badge text-primary me-1"></i>{{ $c->salesman_name }}</td>
-            <td>{{ $c->bill_date ? $c->bill_date->format('d-M-Y') : '' }}</td>
+            <td>{{ $c->bill_date ? $c->bill_date->format('d/m/Y') : '' }}</td>
             <td class="font-mono">₹{{ number_format($c->bill_amount, 2) }}</td>
             <td class="font-mono text-success">₹{{ number_format($c->paid_amount, 2) }}</td>
             <td class="font-mono {{ $c->outstanding_amount > 0 ? 'text-danger fw-bold' : 'text-success' }}">₹{{ number_format($c->outstanding_amount, 2) }}</td>
@@ -72,7 +72,7 @@
                 {{ $c->collection_status }}
               </span>
             </td>
-            <td>{{ $c->due_date ? $c->due_date->format('d-M-Y') : '-' }}</td>
+            <td>{{ $c->due_date ? $c->due_date->format('d/m/Y') : '-' }}</td>
             <td class="small text-muted">{{ $c->remark }}</td>
             <td class="text-end">
               @if($c->outstanding_amount > 0)
