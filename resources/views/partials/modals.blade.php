@@ -294,6 +294,19 @@
             <label class="form-label fw-semibold">Description</label>
             <textarea name="description" class="form-control" rows="2" placeholder="Optional description for this prefix..."></textarea>
           </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold"><i class="bi bi-person-badge text-primary me-1"></i> Linked Sales Person</label>
+            <select name="salesperson_id" class="form-select">
+              <option value="">-- No Sales Person Assigned (Optional) --</option>
+              @php
+                $spList = isset($salespersons) ? $salespersons : \App\Models\Salesperson::where('is_active', true)->orderBy('name')->get();
+              @endphp
+              @foreach($spList as $sp)
+                <option value="{{ $sp->id }}">{{ $sp->name }} [{{ $sp->code }}]{{ $sp->phone ? ' - ' . $sp->phone : '' }}</option>
+              @endforeach
+            </select>
+            <div class="form-text">Select the representative responsible for this bill sequence and credit recoveries.</div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

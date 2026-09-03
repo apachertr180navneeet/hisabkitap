@@ -171,6 +171,12 @@
             <span>Prefix Master</span>
           </a>
         </li>
+        <li>
+          <a href="{{ route('admin.salespersons.index') }}" class="nav-item-custom {{ request()->routeIs('*.salespersons.*') || request()->routeIs('salespersons.*') ? 'active' : '' }}">
+            <i class="bi bi-people-fill"></i>
+            <span>Sales Persons</span>
+          </a>
+        </li>
         @endif
         @endif
       </ul>

@@ -28,4 +28,20 @@ class Prefix extends Model
     {
         return $this->hasMany(PsoConfig::class, 'prefix', 'prefix');
     }
+
+    /**
+     * Get salespersons linked with this prefix.
+     */
+    public function salespersons()
+    {
+        return $this->hasMany(Salesperson::class, 'prefix_id');
+    }
+
+    /**
+     * Get the primary salesperson linked to this prefix.
+     */
+    public function salesperson()
+    {
+        return $this->hasOne(Salesperson::class, 'prefix_id');
+    }
 }

@@ -9,6 +9,8 @@ use App\Models\Bill;
 use App\Models\CreditCollection;
 use App\Models\AuditLog;
 use App\Models\SystemSetting;
+use App\Models\Prefix;
+use App\Models\Salesperson;
 use App\Services\ReconciliationService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -286,12 +288,17 @@ class ExcelImportController extends Controller
 
                 // Create Credit Collection record if payment type is Credit
                 if ($paymentTypeNormalized === 'Credit' && $amount > 0) {
+                    $billPrefix = strtoupper(trim(explode(' ', $billNo)[0] ?? ''));
+                    $assignedSalesman = Salesperson::where('prefix_code', $billPrefix)
+                        ->orWhereHas('prefix', fn($q) => $q->where('prefix', $billPrefix))
+                        ->value('name') ?? 'Field Representative';
+
                     CreditCollection::updateOrCreate(
                         ['bill_id' => $bill->id],
                         [
                             'bill_no' => $billNo,
                             'customer_name' => $customer,
-                            'salesman_name' => 'Field Representative',
+                            'salesman_name' => $assignedSalesman,
                             'bill_date' => $rowDate,
                             'due_date' => date('Y-m-d', strtotime($rowDate . ' +7 days')),
                             'bill_amount' => $amount,

@@ -21,6 +21,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DatabaseMigrationController;
 use App\Http\Controllers\PrefixMasterController;
+use App\Http\Controllers\SalespersonController;
 
 // ==========================================
 // 1. PUBLIC HOME LANDING PAGE
@@ -145,6 +146,13 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::post('/prefix-master/{id}/update', [PrefixMasterController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.update');
     Route::post('/prefix-master/{id}/toggle', [PrefixMasterController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.toggle');
     Route::delete('/prefix-master/{id}', [PrefixMasterController::class, 'destroy'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.delete');
+
+    // 17. Salesperson Master
+    Route::get('/salespersons', [SalespersonController::class, 'index'])->name('admin.salespersons.index');
+    Route::post('/salespersons/store', [SalespersonController::class, 'store'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.salespersons.store');
+    Route::post('/salespersons/{id}/update', [SalespersonController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.salespersons.update');
+    Route::post('/salespersons/{id}/toggle', [SalespersonController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.salespersons.toggle');
+    Route::delete('/salespersons/{id}', [SalespersonController::class, 'destroy'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.salespersons.delete');
 });
 
 // Non-admin root routes for backward compatibility
@@ -185,4 +193,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/prefix-master/{id}/update', [PrefixMasterController::class, 'update'])->middleware('read.only')->name('prefix.update');
     Route::post('/prefix-master/{id}/toggle', [PrefixMasterController::class, 'toggleStatus'])->middleware('read.only')->name('prefix.toggle');
     Route::delete('/prefix-master/{id}', [PrefixMasterController::class, 'destroy'])->middleware('read.only')->name('prefix.delete');
+    Route::get('/salespersons', [SalespersonController::class, 'index'])->name('salespersons.index');
+    Route::post('/salespersons/store', [SalespersonController::class, 'store'])->middleware('read.only')->name('salespersons.store');
+    Route::post('/salespersons/{id}/update', [SalespersonController::class, 'update'])->middleware('read.only')->name('salespersons.update');
+    Route::post('/salespersons/{id}/toggle', [SalespersonController::class, 'toggleStatus'])->middleware('read.only')->name('salespersons.toggle');
+    Route::delete('/salespersons/{id}', [SalespersonController::class, 'destroy'])->middleware('read.only')->name('salespersons.delete');
 });

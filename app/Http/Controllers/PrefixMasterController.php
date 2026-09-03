@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Prefix;
 use App\Models\PsoConfig;
+use App\Models\Salesperson;
 use Illuminate\Http\Request;
 
 class PrefixMasterController extends Controller
@@ -14,9 +15,10 @@ class PrefixMasterController extends Controller
      */
     public function index()
     {
-        $prefixes = Prefix::orderBy('code')->get();
+        $prefixes = Prefix::with('salespersons')->orderBy('code')->get();
+        $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
 
-        return view('prefix.index', compact('prefixes'));
+        return view('prefix.index', compact('prefixes', 'salespersons'));
     }
 
     /**
@@ -25,9 +27,10 @@ class PrefixMasterController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'prefix' => 'required|string|max:10|unique:prefixes,prefix',
-            'name'   => 'required|string|max:255',
-            'description' => 'nullable|string|max:500',
+            'prefix'         => 'required|string|max:10|unique:prefixes,prefix',
+            'name'           => 'required|string|max:255',
+            'description'    => 'nullable|string|max:500',
+            'salesperson_id' => 'nullable|integer|exists:salespersons,id',
         ]);
 
         $nextNum = (Prefix::max('id') ?? 0) + 1;
@@ -40,6 +43,17 @@ class PrefixMasterController extends Controller
             'description' => $validated['description'] ?? null,
             'is_active'   => true,
         ]);
+
+        // If a salesperson was selected, link this prefix on the salesperson record
+        if (!empty($validated['salesperson_id'])) {
+            $sp = Salesperson::find($validated['salesperson_id']);
+            if ($sp) {
+                $sp->update([
+                    'prefix_id'   => $prefix->id,
+                    'prefix_code' => $prefix->prefix,
+                ]);
+            }
+        }
 
         AuditLog::log('PREFIX_CREATE', "Created prefix master entry {$code} — {$prefix->prefix} ({$prefix->name})");
 
@@ -54,18 +68,41 @@ class PrefixMasterController extends Controller
         $prefix = Prefix::findOrFail($id);
 
         $validated = $request->validate([
-            'prefix'      => 'required|string|max:10|unique:prefixes,prefix,' . $id,
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string|max:500',
+            'prefix'         => 'required|string|max:10|unique:prefixes,prefix,' . $id,
+            'name'           => 'required|string|max:255',
+            'description'    => 'nullable|string|max:500',
+            'salesperson_id' => 'nullable|integer|exists:salespersons,id',
         ]);
 
         $oldPrefix = $prefix->prefix;
+        $newPrefix = strtoupper(trim($validated['prefix']));
 
         $prefix->update([
-            'prefix'      => strtoupper(trim($validated['prefix'])),
+            'prefix'      => $newPrefix,
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
         ]);
+
+        // Synchronize salesperson link (prefix_id on salespersons table)
+        if (array_key_exists('salesperson_id', $validated)) {
+            $newSpId = $validated['salesperson_id'];
+
+            // Clear previous salespersons linked to this prefix if a different one is selected or cleared
+            Salesperson::where('prefix_id', $prefix->id)
+                ->where('id', '!=', $newSpId ?? 0)
+                ->update([
+                    'prefix_id'   => null,
+                    'prefix_code' => null,
+                ]);
+
+            // Assign to newly selected salesperson
+            if (!empty($newSpId)) {
+                Salesperson::where('id', $newSpId)->update([
+                    'prefix_id'   => $prefix->id,
+                    'prefix_code' => $newPrefix,
+                ]);
+            }
+        }
 
         AuditLog::log('PREFIX_UPDATE', "Updated prefix {$prefix->code}: '{$oldPrefix}' → '{$prefix->prefix}' ({$prefix->name})");
 
@@ -98,6 +135,12 @@ class PrefixMasterController extends Controller
         if ($usedByPso) {
             return redirect()->back()->with('error', "Cannot delete prefix '{$prefix->prefix}' — it is currently assigned to one or more PSO configurations.");
         }
+
+        // Unlink any salespersons pointing to this prefix
+        Salesperson::where('prefix_id', $prefix->id)->update([
+            'prefix_id'   => null,
+            'prefix_code' => null,
+        ]);
 
         $code = $prefix->code;
         $prefixStr = $prefix->prefix;
