@@ -221,6 +221,58 @@
             <span class="text-muted">Cutoff:</span>
             <span class="fw-semibold font-mono text-dark">{{ $cutoffTime }} IST</span>
           </div>
+
+          <!-- Financial Year Dropdown Selector -->
+          <div class="dropdown d-none d-sm-inline-block">
+            <button class="header-chip border-0 bg-transparent dropdown-toggle p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Click to select or switch active Financial Year">
+              <i class="bi bi-calendar-range text-info"></i>
+              <span class="text-muted">FY:</span>
+              <span class="fw-semibold font-mono text-dark">{{ $activeFinancialYear ?? '2026-2027' }}</span>
+            </button>
+            <ul class="dropdown-menu shadow py-2" style="min-width: 250px;">
+              <li class="dropdown-header small text-uppercase fw-bold text-muted d-flex justify-content-between align-items-center">
+                <span>Select Financial Year</span>
+                <span class="badge bg-primary">Active: {{ $activeFinancialYear ?? '2026-2027' }}</span>
+              </li>
+              <li><hr class="dropdown-divider my-1"></li>
+              @forelse($allFinancialYears ?? [] as $fyOption)
+                <li>
+                  @if($currentUser->hasPermission('can_edit_cutoff'))
+                    <form action="{{ route('admin.settings.financial_year.set_active') }}" method="POST" class="m-0">
+                      @csrf
+                      <input type="hidden" name="financial_year_id" value="{{ $fyOption->id }}">
+                      <button type="submit" class="dropdown-item d-flex justify-content-between align-items-center py-2 {{ $fyOption->is_active ? 'active fw-bold' : '' }}">
+                        <div>
+                          <div class="font-mono">{{ $fyOption->name }}</div>
+                          <small class="text-muted" style="font-size: 0.72rem;">{{ $fyOption->formatted_range }}</small>
+                        </div>
+                        @if($fyOption->is_active)
+                          <i class="bi bi-check-circle-fill text-white ms-2"></i>
+                        @elseif($fyOption->is_locked)
+                          <i class="bi bi-lock-fill text-danger ms-2" title="Locked"></i>
+                        @endif
+                      </button>
+                    </form>
+                  @else
+                    <div class="dropdown-item py-2 {{ $fyOption->is_active ? 'active fw-bold' : '' }}">
+                      <div class="font-mono">{{ $fyOption->name }}</div>
+                      <small class="text-muted" style="font-size: 0.72rem;">{{ $fyOption->formatted_range }}</small>
+                    </div>
+                  @endif
+                </li>
+              @empty
+                <li class="px-3 py-1 small text-muted">No financial years defined</li>
+              @endforelse
+              @if($currentUser->hasPermission('can_edit_cutoff'))
+                <li><hr class="dropdown-divider my-1"></li>
+                <li>
+                  <a class="dropdown-item text-primary small py-1" href="{{ route('admin.settings.index') }}">
+                    <i class="bi bi-gear-fill me-1"></i> Manage Settings & FY
+                  </a>
+                </li>
+              @endif
+            </ul>
+          </div>
         </div>
 
         <!-- Right User & Status Area -->

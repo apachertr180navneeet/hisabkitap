@@ -120,6 +120,9 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     // 12. Cutoff & Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::post('/settings/update', [SettingsController::class, 'update'])->middleware(['read.only', 'permission:can_edit_cutoff'])->name('admin.settings.update');
+    Route::post('/settings/financial-year/set-active', [SettingsController::class, 'setActiveFinancialYear'])->middleware(['read.only', 'permission:can_edit_cutoff'])->name('admin.settings.financial_year.set_active');
+    Route::post('/settings/financial-year/store', [SettingsController::class, 'storeFinancialYear'])->middleware(['read.only', 'permission:can_edit_cutoff'])->name('admin.settings.financial_year.store');
+    Route::post('/settings/financial-year/{id}/toggle-lock', [SettingsController::class, 'toggleLockFinancialYear'])->middleware(['read.only', 'permission:can_edit_cutoff'])->name('admin.settings.financial_year.toggle_lock');
 
     // 13. User Profile & Change Password
     Route::get('/profile', [ProfileController::class, 'index'])->name('admin.profile');
@@ -188,6 +191,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/export', [ReportsController::class, 'exportExcel'])->name('reports.export');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings/update', [SettingsController::class, 'update'])->middleware('read.only')->name('settings.update');
+    Route::post('/settings/financial-year/set-active', [SettingsController::class, 'setActiveFinancialYear'])->middleware('read.only')->name('settings.financial_year.set_active');
+    Route::post('/settings/financial-year/store', [SettingsController::class, 'storeFinancialYear'])->middleware('read.only')->name('settings.financial_year.store');
+    Route::post('/settings/financial-year/{id}/toggle-lock', [SettingsController::class, 'toggleLockFinancialYear'])->middleware('read.only')->name('settings.financial_year.toggle_lock');
     Route::get('/prefix-master', [PrefixMasterController::class, 'index'])->name('prefix.index');
     Route::post('/prefix-master/store', [PrefixMasterController::class, 'store'])->middleware('read.only')->name('prefix.store');
     Route::post('/prefix-master/{id}/update', [PrefixMasterController::class, 'update'])->middleware('read.only')->name('prefix.update');

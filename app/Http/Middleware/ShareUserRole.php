@@ -37,12 +37,30 @@ class ShareUserRole
         $reconService = app(ReconciliationService::class);
         $metrics = $reconService->getMetrics($businessDate);
 
+        $activeFinancialYear = \App\Models\SystemSetting::getVal('financial_year', '2026-2027');
+        $activeFyModel = null;
+        $allFinancialYears = collect();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('financial_years')) {
+                $allFinancialYears = \App\Models\FinancialYear::orderBy('start_date', 'desc')->get();
+                $activeFyModel = \App\Models\FinancialYear::getActive();
+                if ($activeFyModel) {
+                    $activeFinancialYear = $activeFyModel->name;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Graceful fallback
+        }
+
         view()->share([
             'currentUser' => $activeUser,
             'allUsers' => $allUsers,
             'businessDate' => $businessDate,
             'formattedBusinessDate' => $formattedBusinessDate,
             'cutoffTime' => $cutoffTime,
+            'activeFinancialYear' => $activeFinancialYear,
+            'activeFyModel' => $activeFyModel,
+            'allFinancialYears' => $allFinancialYears,
             'isSealed' => $isSealed,
             'sealInfo' => $seal,
             'globalMetrics' => $metrics,

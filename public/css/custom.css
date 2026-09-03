@@ -750,6 +750,15 @@ body.is-sealed .lock-on-sealed {
   background-color: #f1f5f9;
 }
 
+/* Cutoff Banner Card */
+.cutoff-card {
+  background: linear-gradient(135deg, #1e3a8a, #0f172a);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.15);
+}
+
 /* Print Rules */
 @media print {
   #sidebar, #top-header, .role-context-banner, .btn-action-no-print, .modal-backdrop, .modal, .toast-container, .navbar, header {
