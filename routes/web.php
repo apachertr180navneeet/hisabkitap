@@ -20,6 +20,7 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DatabaseMigrationController;
+use App\Http\Controllers\PrefixMasterController;
 
 // ==========================================
 // 1. PUBLIC HOME LANDING PAGE
@@ -137,6 +138,13 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::get('/migrate/status', [DatabaseMigrationController::class, 'status'])->name('admin.migrate.status');
     Route::get('/migrate/clear', [DatabaseMigrationController::class, 'clearCache'])->name('admin.migrate.clear');
     Route::get('/migrate/seed', [DatabaseMigrationController::class, 'seed'])->name('admin.migrate.seed');
+
+    // 16. Prefix Master
+    Route::get('/prefix-master', [PrefixMasterController::class, 'index'])->name('admin.prefix.index');
+    Route::post('/prefix-master/store', [PrefixMasterController::class, 'store'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.store');
+    Route::post('/prefix-master/{id}/update', [PrefixMasterController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.update');
+    Route::post('/prefix-master/{id}/toggle', [PrefixMasterController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.toggle');
+    Route::delete('/prefix-master/{id}', [PrefixMasterController::class, 'destroy'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.delete');
 });
 
 // Non-admin root routes for backward compatibility
@@ -172,4 +180,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/export', [ReportsController::class, 'exportExcel'])->name('reports.export');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings/update', [SettingsController::class, 'update'])->middleware('read.only')->name('settings.update');
+    Route::get('/prefix-master', [PrefixMasterController::class, 'index'])->name('prefix.index');
+    Route::post('/prefix-master/store', [PrefixMasterController::class, 'store'])->middleware('read.only')->name('prefix.store');
+    Route::post('/prefix-master/{id}/update', [PrefixMasterController::class, 'update'])->middleware('read.only')->name('prefix.update');
+    Route::post('/prefix-master/{id}/toggle', [PrefixMasterController::class, 'toggleStatus'])->middleware('read.only')->name('prefix.toggle');
+    Route::delete('/prefix-master/{id}', [PrefixMasterController::class, 'destroy'])->middleware('read.only')->name('prefix.delete');
 });

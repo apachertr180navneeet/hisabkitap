@@ -269,3 +269,37 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Add New Prefix -->
+<div class="modal fade" id="modal-add-prefix" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-tag-fill text-primary me-1"></i> Add New Prefix</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ route('admin.prefix.store') }}" method="POST">
+        @csrf
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Prefix Code <span class="text-danger">*</span></label>
+            <input type="text" name="prefix" class="form-control text-uppercase" placeholder="e.g. CB, RB, ITC" maxlength="10" required>
+            <div class="form-text">Unique bill prefix code. Will be stored in UPPERCASE.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Prefix Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Counter Bill, Retail Bill" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <textarea name="description" class="form-control" rows="2" placeholder="Optional description for this prefix..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> Save Prefix</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

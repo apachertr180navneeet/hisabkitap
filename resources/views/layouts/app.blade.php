@@ -164,6 +164,14 @@
           </a>
         </li>
         @endif
+        @if($currentUser->hasPermission('can_configure_pso'))
+        <li>
+          <a href="{{ route('admin.prefix.index') }}" class="nav-item-custom {{ request()->routeIs('*.prefix.*') || request()->routeIs('prefix.*') ? 'active' : '' }}">
+            <i class="bi bi-tag-fill"></i>
+            <span>Prefix Master</span>
+          </a>
+        </li>
+        @endif
         @endif
       </ul>
 
