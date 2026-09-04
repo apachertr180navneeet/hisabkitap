@@ -86,86 +86,226 @@
         </div>
       </div>
 
-      {{-- Card 2: Bill Prefix, Financial Year & Range (All in One Line) --}}
+      {{-- Card 2: Crew & Vehicle Assignment (Driver, Helpers & Gadi) --}}
       <div class="card border bg-white shadow-sm mb-4">
         <div class="card-header bg-white py-3 px-4 border-bottom">
           <h6 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-card-checklist text-primary me-2"></i>Bill Series & Sequence Range
+            <i class="bi bi-truck text-primary me-2"></i>Crew & Vehicle Assignment (Driver, Helpers & Gadi)
           </h6>
         </div>
         <div class="card-body p-4">
-          <div class="row g-3">
-            {{-- 1. Bill Prefix Drop Down --}}
-            <div class="col-md-3">
-              <label class="form-label fw-semibold" for="prefix">
-                Bill Prefix <span class="text-danger">*</span>
+          {{-- Row 1: Driver Name (Required) & Gadi Number (Not required) --}}
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="driver_name">
+                Driver Name <span class="text-danger">*</span>
               </label>
               <div class="input-group">
-                <span class="input-group-text bg-light"><i class="bi bi-tag"></i></span>
-                <select name="prefix" id="prefix" class="form-select font-mono fw-bold text-uppercase @error('prefix') is-invalid @enderror" required>
-                  <option value="">-- Select Prefix --</option>
-                  @foreach($prefixes as $pfx)
-                    <option value="{{ $pfx->prefix }}" {{ old('prefix', 'CB') == $pfx->prefix ? 'selected' : '' }}>
-                      {{ $pfx->prefix }} &ndash; {{ $pfx->name }}
-                    </option>
-                  @endforeach
-                  @if($prefixes->isEmpty())
-                    <option value="CB" selected>CB &ndash; Counter Wholesale</option>
-                    <option value="RB">RB &ndash; Retail Walk-in</option>
-                    <option value="SC">SC &ndash; School Counter</option>
+                <span class="input-group-text bg-light"><i class="bi bi-person-badge text-primary"></i></span>
+                <input type="text" name="driver_name" id="driver_name" list="driver-options" 
+                       class="form-control @error('driver_name') is-invalid @enderror" 
+                       value="{{ old('driver_name') }}" 
+                       placeholder="e.g. Ramesh Kumar" required>
+                <datalist id="driver-options">
+                  @if(!empty($drivers))
+                    @foreach($drivers as $drv)
+                      <option value="{{ $drv }}">{{ $drv }}</option>
+                    @endforeach
                   @endif
-                </select>
+                </datalist>
               </div>
-              <div class="form-text small">Select from Prefix Master.</div>
-              @error('prefix')
+              <div class="form-text small">Designated route driver (Required).</div>
+              @error('driver_name')
                 <div class="text-danger small mt-1">{{ $message }}</div>
               @enderror
             </div>
 
-            {{-- 2. Readonly Current Financial Year --}}
-            <div class="col-md-3">
-              <label class="form-label fw-semibold" for="financial_year">
-                Current Financial Year <span class="badge bg-secondary ms-1 font-mono">Current</span>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="gadi_number">
+                Gadi Number (Vehicle No) <span class="text-muted small fw-normal">(Optional)</span>
               </label>
               <div class="input-group">
-                <span class="input-group-text bg-light"><i class="bi bi-calendar-range text-primary"></i></span>
-                <input type="text" name="financial_year" id="financial_year" class="form-control font-mono fw-bold bg-light" 
-                       value="{{ old('financial_year', $activeFinancialYear ?? '2026-2027') }}" readonly>
-                <span class="input-group-text bg-light text-muted" title="Active Financial Year (Read-only)"><i class="bi bi-lock-fill"></i></span>
+                <span class="input-group-text bg-light"><i class="bi bi-truck text-secondary"></i></span>
+                <input type="text" name="gadi_number" id="gadi_number" list="gadi-options" 
+                       class="form-control text-uppercase font-mono @error('gadi_number') is-invalid @enderror" 
+                       value="{{ old('gadi_number') }}" 
+                       placeholder="e.g. RJ 14 GA 1234 / DL 01 AB 5678">
+                <datalist id="gadi-options">
+                  @if(!empty($gadiOptions))
+                    @foreach($gadiOptions as $g)
+                      <option value="{{ $g }}">{{ $g }}</option>
+                    @endforeach
+                  @endif
+                </datalist>
               </div>
-              <div class="form-text small text-muted"><i class="bi bi-shield-check me-1"></i>System active FY period.</div>
-              @error('financial_year')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
-            </div>
-
-            {{-- 3. Start Number --}}
-            <div class="col-md-3">
-              <label class="form-label fw-semibold" for="start_no">
-                Start Number <span class="text-danger">*</span>
-              </label>
-              <input type="number" name="start_no" id="start_no" class="form-control font-mono @error('start_no') is-invalid @enderror" 
-                     value="{{ old('start_no', 1) }}" min="1" required>
-              <div class="form-text small">Initial sequential serial (e.g. 1, 11).</div>
-              @error('start_no')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
-            </div>
-
-            {{-- 4. End Number --}}
-            <div class="col-md-3">
-              <label class="form-label fw-semibold" for="end_no">
-                End Number <span class="text-danger">*</span>
-              </label>
-              <input type="number" name="end_no" id="end_no" class="form-control font-mono @error('end_no') is-invalid @enderror" 
-                     value="{{ old('end_no', 10) }}" min="1" required>
-              <div class="form-text small">Final expected serial (inclusive).</div>
-              @error('end_no')
+              <div class="form-text small">Delivery vehicle / van registration number (Not required).</div>
+              @error('gadi_number')
                 <div class="text-danger small mt-1">{{ $message }}</div>
               @enderror
             </div>
           </div>
 
+          {{-- Row 2: Helper 1 (Required), Helper 2 (Optional), Helper 3 (Optional) --}}
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="helper_1">
+                Helper 1 <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-person-fill text-primary"></i></span>
+                <input type="text" name="helper_1" id="helper_1" list="helper-options" 
+                       class="form-control @error('helper_1') is-invalid @enderror" 
+                       value="{{ old('helper_1') }}" 
+                       placeholder="e.g. Mukesh Kumar" required>
+              </div>
+              <div class="form-text small">Primary counter/delivery assistant (Required).</div>
+              @error('helper_1')
+                <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="helper_2">
+                Helper 2 <span class="text-muted small fw-normal">(Optional)</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-person-plus text-secondary"></i></span>
+                <input type="text" name="helper_2" id="helper_2" list="helper-options" 
+                       class="form-control @error('helper_2') is-invalid @enderror" 
+                       value="{{ old('helper_2') }}" 
+                       placeholder="e.g. Rajesh Singh">
+              </div>
+              <div class="form-text small">Second assistant (Optional).</div>
+              @error('helper_2')
+                <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="helper_3">
+                Helper 3 <span class="text-muted small fw-normal">(Optional)</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-person-plus text-secondary"></i></span>
+                <input type="text" name="helper_3" id="helper_3" list="helper-options" 
+                       class="form-control @error('helper_3') is-invalid @enderror" 
+                       value="{{ old('helper_3') }}" 
+                       placeholder="e.g. Sonu Lal">
+              </div>
+              <div class="form-text small">Third assistant / loader (Optional).</div>
+              @error('helper_3')
+                <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
+            </div>
+
+            <datalist id="helper-options">
+              @if(!empty($helpers))
+                @foreach($helpers as $h)
+                  <option value="{{ $h }}">{{ $h }}</option>
+                @endforeach
+              @endif
+            </datalist>
+          </div>
+        </div>
+      </div>
+
+      {{-- Card 3: Bill Prefix, Financial Year & Range (Dynamic Rows with Add More) --}}
+      <div class="card border bg-white shadow-sm mb-4">
+        <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h6 class="fw-bold mb-0 text-dark">
+            <i class="bi bi-card-checklist text-primary me-2"></i>Bill Series & Sequence Range
+          </h6>
+          <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="btn-add-series-row-top">
+            <i class="bi bi-plus-circle me-1"></i> Add More Range
+          </button>
+        </div>
+        <div class="card-body p-4">
+          <div id="series-rows-container">
+            {{-- Initial Row (Row 0) --}}
+            <div class="row g-2 align-items-end series-row mb-3" data-row-index="0">
+              {{-- 1. Bill Prefix Drop Down --}}
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                  Bill Prefix <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-tag"></i></span>
+                  <select name="series[0][prefix]" class="form-select font-mono fw-bold text-uppercase select-prefix" required>
+                    <option value="">-- SELECT PREFIX --</option>
+                    @foreach($prefixes as $pfx)
+                      <option value="{{ $pfx->prefix }}" {{ old('prefix', 'CB') == $pfx->prefix ? 'selected' : '' }}>
+                        {{ $pfx->prefix }} &ndash; {{ $pfx->name }}
+                      </option>
+                    @endforeach
+                    @if($prefixes->isEmpty())
+                      <option value="CB" selected>CB &ndash; Counter Wholesale</option>
+                      <option value="RB">RB &ndash; Retail Walk-in</option>
+                      <option value="SC">SC &ndash; School Counter</option>
+                    @endif
+                    <option value="__quick_add_prefix__" class="text-primary fw-bold">+ Add New Prefix...</option>
+                  </select>
+                  <button type="button" class="btn btn-outline-primary btn-quick-add-trigger" title="Quick Add Prefix to Master">
+                    <i class="bi bi-plus-lg"></i>
+                  </button>
+                </div>
+                <div class="form-text small">Select from Prefix Master.</div>
+              </div>
+
+              {{-- 2. Readonly Current Financial Year --}}
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                  Current Financial Year <span class="badge bg-secondary ms-1 font-mono">Current</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-calendar-range text-primary"></i></span>
+                  <input type="text" name="series[0][financial_year]" class="form-control font-mono fw-bold bg-light input-fy" 
+                         value="{{ old('financial_year', $activeFinancialYear ?? '2026-2027') }}" readonly>
+                  <span class="input-group-text bg-light text-muted" title="Active Financial Year (Read-only)"><i class="bi bi-lock-fill"></i></span>
+                </div>
+                <div class="form-text small text-muted"><i class="bi bi-shield-check me-1"></i>System active FY period.</div>
+              </div>
+
+              {{-- 3. Start Number --}}
+              <div class="col-md-2">
+                <label class="form-label fw-semibold">
+                  Start Number <span class="text-danger">*</span>
+                </label>
+                <input type="number" name="series[0][start_no]" class="form-control font-mono input-start" 
+                       value="{{ old('start_no', 1) }}" min="1" required>
+                <div class="form-text small">Initial sequential serial.</div>
+              </div>
+
+              {{-- 4. End Number --}}
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">
+                  End Number <span class="text-danger">*</span>
+                </label>
+                <input type="number" name="series[0][end_no]" class="form-control font-mono input-end" 
+                       value="{{ old('end_no', 10) }}" min="1" required>
+                <div class="form-text small">Final expected serial (inclusive).</div>
+              </div>
+
+              {{-- 5. Action / Delete button --}}
+              <div class="col-md-1 text-center">
+                <label class="form-label d-none d-md-block small text-muted">&nbsp;</label>
+                <button type="button" class="btn btn-outline-danger w-100 btn-remove-row" style="display: none;" title="Delete this range">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {{-- Add More Button Below Rows --}}
+          <div class="d-flex justify-content-between align-items-center pt-1 pb-1">
+            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="btn-add-series-row">
+              <i class="bi bi-plus-circle me-1"></i> Add More Range
+            </button>
+            <span class="text-muted small">
+              <i class="bi bi-layers text-primary me-1"></i><span id="series-row-count">1</span> Range(s) Configured
+            </span>
+          </div>
+
+          {{-- Sequence Preview Bar --}}
           <div class="alert alert-light border mt-3 p-3 mb-0 rounded">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
               <div class="d-flex align-items-center gap-2">
@@ -249,20 +389,33 @@
 
           <div class="border-top pt-2 mt-2">
             <div class="d-flex justify-content-between py-1 small">
-              <span class="text-muted">Prefix:</span>
-              <code class="fw-bold text-uppercase" id="preview-card-prefix">CB</code>
-            </div>
-            <div class="d-flex justify-content-between py-1 small">
               <span class="text-muted">Financial Year:</span>
               <span class="font-mono fw-semibold text-dark" id="preview-card-fy">{{ $activeFinancialYear ?? '2026-2027' }}</span>
             </div>
             <div class="d-flex justify-content-between py-1 small">
-              <span class="text-muted">Serial Range:</span>
-              <span class="font-mono fw-semibold" id="preview-card-range">01 &ndash; 10</span>
-            </div>
-            <div class="d-flex justify-content-between py-1 small">
               <span class="text-muted">Assigned Operator:</span>
               <span class="fw-semibold text-dark" id="preview-card-operator">Big Bite</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
+              <span class="text-muted">Driver:</span>
+              <span class="fw-semibold text-dark" id="preview-card-driver">—</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
+              <span class="text-muted">Gadi / Vehicle:</span>
+              <span class="font-mono fw-semibold text-dark" id="preview-card-gadi">—</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
+              <span class="text-muted">Helpers:</span>
+              <span class="fw-semibold text-dark text-end" id="preview-card-helpers">—</span>
+            </div>
+            <div class="border-top pt-2 mt-2">
+              <div class="fw-semibold text-dark small mb-1">Configured Ranges:</div>
+              <div id="preview-card-ranges-list" class="d-flex flex-column gap-1 small">
+                <div class="d-flex justify-content-between">
+                  <code class="fw-bold">CB</code>
+                  <span class="font-mono">01 &ndash; 10 (10 bills)</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -279,12 +432,52 @@
       <div class="card-body p-4 small text-secondary">
         <ul class="ps-3 mb-0 d-flex flex-column gap-2">
           <li><strong>Auto Code:</strong> PSO Identifier code is automatically assigned sequentially (read-only).</li>
-          <li><strong>Prefix:</strong> Select bill serial prefix directly from Prefix Master dropdown.</li>
-          <li><strong>Financial Year:</strong> Locked to the current active financial year session.</li>
-          <li><strong>Serial Range:</strong> Typically 10 bills per booklet (e.g., <code>1-10</code>, <code>11-20</code>, <code>21-30</code>).</li>
-          <li><strong>Special Bills:</strong> Non-sequential corporate accounts, e.g. <code>ITC 01, ITC 03</code>.</li>
+          <li><strong>Multiple Ranges:</strong> Click <code>+ Add More Range</code> to configure multiple prefix ranges under one PSO (e.g. <code>CB 11-20</code> + <code>ITC 1-5</code>).</li>
+          <li><strong>Quick Add Prefix:</strong> Use <code>+</code> button or select <em>"+ Add New Prefix..."</em> in the dropdown to create a prefix instantly.</li>
+          <li><strong>Financial Year:</strong> Automatically locked to active FY session.</li>
+          <li><strong>Special Bills:</strong> Use for non-sequential corporate accounts.</li>
         </ul>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Modal: Add New Prefix -->
+<div class="modal fade" id="modal-quick-add-prefix" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold"><i class="bi bi-tag-fill text-primary me-1"></i> Quick Add New Prefix</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="form-quick-add-prefix">
+        @csrf
+        <div class="modal-body p-4">
+          <div id="quick-prefix-alert" class="alert alert-danger py-2 small d-none"></div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Prefix Code <span class="text-danger">*</span></label>
+            <input type="text" name="prefix" id="quick-input-prefix" class="form-control font-mono fw-bold text-uppercase" 
+                   placeholder="e.g. SC, IB, RET" maxlength="10" required>
+            <div class="form-text">Will be automatically uppercase (e.g. SC).</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Prefix Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="quick-input-name" class="form-control" 
+                   placeholder="e.g. School Counter, Instant Bill" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description <span class="text-muted fw-normal">(Optional)</span></label>
+            <textarea name="description" id="quick-input-desc" class="form-control" rows="2" 
+                      placeholder="Optional notes for this prefix..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-quick-prefix">
+            <i class="bi bi-plus-circle me-1"></i> Save & Use Prefix
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -293,12 +486,18 @@
 @section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  const container = document.getElementById('series-rows-container');
+  const btnAddTop = document.getElementById('btn-add-series-row-top');
+  const btnAddBottom = document.getElementById('btn-add-series-row');
+  const rowCountBadge = document.getElementById('series-row-count');
+
   const inputCode = document.getElementById('code');
-  const inputPrefix = document.getElementById('prefix');
-  const inputFy = document.getElementById('financial_year');
-  const inputStart = document.getElementById('start_no');
-  const inputEnd = document.getElementById('end_no');
   const inputOperator = document.getElementById('operator_name');
+  const inputDriver = document.getElementById('driver_name');
+  const inputGadi = document.getElementById('gadi_number');
+  const inputHelper1 = document.getElementById('helper_1');
+  const inputHelper2 = document.getElementById('helper_2');
+  const inputHelper3 = document.getElementById('helper_3');
   const inputSpecials = document.getElementById('specials');
   const inputDesc = document.getElementById('description');
   const inputStatus = document.getElementById('is_active');
@@ -308,69 +507,361 @@ document.addEventListener('DOMContentLoaded', function() {
   const previewBadgeStatus = document.getElementById('preview-badge-status');
   const previewCardName = document.getElementById('preview-card-name');
   const previewCardDesc = document.getElementById('preview-card-desc');
-  const previewCardPrefix = document.getElementById('preview-card-prefix');
   const previewCardFy = document.getElementById('preview-card-fy');
-  const previewCardRange = document.getElementById('preview-card-range');
   const previewCardOperator = document.getElementById('preview-card-operator');
+  const previewCardDriver = document.getElementById('preview-card-driver');
+  const previewCardGadi = document.getElementById('preview-card-gadi');
+  const previewCardHelpers = document.getElementById('preview-card-helpers');
+  const previewCardRangesList = document.getElementById('preview-card-ranges-list');
   const previewSequenceText = document.getElementById('preview-sequence-text');
   const previewCount = document.getElementById('preview-count');
   const previewFy = document.getElementById('preview-fy');
   const specialsBadgeContainer = document.getElementById('specials-badge-container');
 
+  const activeFinancialYear = '{{ $activeFinancialYear ?? "2026-2027" }}';
+  let nextRowIndex = 1;
+  let activeSelectTarget = null;
+
   function padZero(num) {
     return String(num).padStart(2, '0');
   }
 
-  function updatePreview() {
-    const code = (inputCode ? inputCode.value.trim() : '') || 'PSO-X';
-    const prefix = (inputPrefix ? inputPrefix.value.trim() : 'CB').toUpperCase() || 'CB';
-    const fy = (inputFy ? inputFy.value.trim() : '') || '{{ $activeFinancialYear ?? "2026-2027" }}';
-    const start = parseInt(inputStart.value) || 1;
-    const end = parseInt(inputEnd.value) || 10;
-    const operator = inputOperator.value.trim() || 'Not assigned';
-    const desc = inputDesc.value.trim() || `Counter sequence ${prefix} ${padZero(start)} to ${prefix} ${padZero(end)}.`;
-    const isActive = inputStatus.checked;
+  // Generate prefix options HTML from the first select element
+  function getPrefixOptionsHtml() {
+    const firstSelect = container.querySelector('.select-prefix');
+    if (firstSelect) {
+      return firstSelect.innerHTML;
+    }
+    return `<option value="">-- SELECT PREFIX --</option>
+            <option value="CB" selected>CB – Counter Wholesale</option>
+            <option value="RB">RB – Retail Walk-in</option>
+            <option value="SC">SC – School Counter</option>
+            <option value="__quick_add_prefix__" class="text-primary fw-bold">+ Add New Prefix...</option>`;
+  }
 
-    previewBadgeCode.textContent = code;
-    previewCardName.textContent = code;
-    previewCardPrefix.textContent = prefix;
-    if (previewCardFy) previewCardFy.textContent = fy;
-    if (previewFy) previewFy.textContent = fy;
-    previewCardRange.textContent = `${padZero(start)} – ${padZero(end)}`;
-    previewCardOperator.textContent = operator;
-    previewCardDesc.textContent = desc;
+  function addRow() {
+    const idx = nextRowIndex++;
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'row g-2 align-items-end series-row mb-3';
+    rowDiv.setAttribute('data-row-index', idx);
 
-    const count = Math.max(0, end - start + 1);
-    previewSequenceText.textContent = `${prefix} ${padZero(start)} to ${prefix} ${padZero(end)}`;
-    previewCount.textContent = count;
+    rowDiv.innerHTML = `
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">
+          Bill Prefix <span class="text-danger">*</span>
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-light"><i class="bi bi-tag"></i></span>
+          <select name="series[${idx}][prefix]" class="form-select font-mono fw-bold text-uppercase select-prefix" required>
+            ${getPrefixOptionsHtml()}
+          </select>
+          <button type="button" class="btn btn-outline-primary btn-quick-add-trigger" title="Quick Add Prefix to Master">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
+        <div class="form-text small">Select from Prefix Master.</div>
+      </div>
 
-    if (isActive) {
-      previewBadgeStatus.textContent = 'Active';
-      previewBadgeStatus.className = 'badge bg-success';
-      statusLabel.textContent = 'Active (Operational)';
-      statusLabel.className = 'form-check-label ms-2 fw-semibold text-success';
-    } else {
-      previewBadgeStatus.textContent = 'Inactive';
-      previewBadgeStatus.className = 'badge bg-secondary';
-      statusLabel.textContent = 'Inactive (Disabled)';
-      statusLabel.className = 'form-check-label ms-2 fw-semibold text-muted';
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">
+          Current Financial Year <span class="badge bg-secondary ms-1 font-mono">Current</span>
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-light"><i class="bi bi-calendar-range text-primary"></i></span>
+          <input type="text" name="series[${idx}][financial_year]" class="form-control font-mono fw-bold bg-light input-fy" 
+                 value="${activeFinancialYear}" readonly>
+          <span class="input-group-text bg-light text-muted" title="Active Financial Year (Read-only)"><i class="bi bi-lock-fill"></i></span>
+        </div>
+        <div class="form-text small text-muted"><i class="bi bi-shield-check me-1"></i>System active FY period.</div>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label fw-semibold">
+          Start Number <span class="text-danger">*</span>
+        </label>
+        <input type="number" name="series[${idx}][start_no]" class="form-control font-mono input-start" 
+               value="1" min="1" required>
+        <div class="form-text small">Initial serial.</div>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">
+          End Number <span class="text-danger">*</span>
+        </label>
+        <input type="number" name="series[${idx}][end_no]" class="form-control font-mono input-end" 
+               value="10" min="1" required>
+        <div class="form-text small">Final expected serial.</div>
+      </div>
+
+      <div class="col-md-1 text-center">
+        <label class="form-label d-none d-md-block small text-muted">&nbsp;</label>
+        <button type="button" class="btn btn-outline-danger w-100 btn-remove-row" title="Delete this range">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </div>
+    `;
+
+    container.appendChild(rowDiv);
+    bindRowEvents(rowDiv);
+    updateRowButtons();
+    updatePreview();
+  }
+
+  function bindRowEvents(rowEl) {
+    const sel = rowEl.querySelector('.select-prefix');
+    const startIn = rowEl.querySelector('.input-start');
+    const endIn = rowEl.querySelector('.input-end');
+    const removeBtn = rowEl.querySelector('.btn-remove-row');
+    const quickBtn = rowEl.querySelector('.btn-quick-add-trigger');
+
+    if (sel) {
+      sel.addEventListener('change', function() {
+        if (this.value === '__quick_add_prefix__') {
+          activeSelectTarget = this;
+          openQuickAddModal();
+        } else {
+          updatePreview();
+        }
+      });
+      sel.addEventListener('input', updatePreview);
     }
 
-    // Update specials badges
-    const specialsVal = inputSpecials.value.trim();
-    specialsBadgeContainer.innerHTML = '';
-    if (specialsVal) {
-      const items = specialsVal.split(',').map(s => s.trim()).filter(Boolean);
-      items.forEach(item => {
-        const span = document.createElement('span');
-        span.className = 'badge bg-info text-dark font-mono';
-        span.textContent = item;
-        specialsBadgeContainer.appendChild(span);
+    if (startIn) {
+      startIn.addEventListener('input', updatePreview);
+      startIn.addEventListener('change', updatePreview);
+    }
+
+    if (endIn) {
+      endIn.addEventListener('input', updatePreview);
+      endIn.addEventListener('change', updatePreview);
+    }
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', function() {
+        rowEl.remove();
+        updateRowButtons();
+        updatePreview();
+      });
+    }
+
+    if (quickBtn) {
+      quickBtn.addEventListener('click', function() {
+        activeSelectTarget = sel;
+        openQuickAddModal();
       });
     }
   }
 
-  [inputPrefix, inputStart, inputEnd, inputOperator, inputSpecials, inputDesc, inputFy].forEach(el => {
+  function updateRowButtons() {
+    const rows = container.querySelectorAll('.series-row');
+    if (rowCountBadge) rowCountBadge.textContent = rows.length;
+
+    rows.forEach((row, i) => {
+      const btn = row.querySelector('.btn-remove-row');
+      if (btn) {
+        btn.style.display = (rows.length > 1) ? 'inline-block' : 'none';
+      }
+    });
+  }
+
+  function updatePreview() {
+    const code = (inputCode ? inputCode.value.trim() : '') || 'PSO-X';
+    const operator = (inputOperator ? inputOperator.value.trim() : '') || 'Not assigned';
+    const isActive = inputStatus ? inputStatus.checked : true;
+
+    previewBadgeCode.textContent = code;
+    previewCardName.textContent = code;
+    if (previewCardOperator) previewCardOperator.textContent = operator;
+    if (previewCardDriver) {
+      previewCardDriver.textContent = (inputDriver && inputDriver.value.trim()) || '—';
+    }
+    if (previewCardGadi) {
+      previewCardGadi.textContent = (inputGadi && inputGadi.value.trim()) ? inputGadi.value.trim().toUpperCase() : '—';
+    }
+    if (previewCardHelpers) {
+      const hlps = [];
+      if (inputHelper1 && inputHelper1.value.trim()) hlps.push(inputHelper1.value.trim());
+      if (inputHelper2 && inputHelper2.value.trim()) hlps.push(inputHelper2.value.trim());
+      if (inputHelper3 && inputHelper3.value.trim()) hlps.push(inputHelper3.value.trim());
+      previewCardHelpers.textContent = hlps.length ? hlps.join(', ') : '—';
+    }
+    if (previewCardFy) previewCardFy.textContent = activeFinancialYear;
+    if (previewFy) previewFy.textContent = activeFinancialYear;
+
+    const rows = container.querySelectorAll('.series-row');
+    let totalBills = 0;
+    const sequences = [];
+    let rangesHtml = '';
+
+    rows.forEach((row) => {
+      const sel = row.querySelector('.select-prefix');
+      const startIn = row.querySelector('.input-start');
+      const endIn = row.querySelector('.input-end');
+
+      let prefix = sel ? sel.value.trim().toUpperCase() : 'CB';
+      if (prefix === '__quick_add_prefix__' || !prefix) prefix = 'CB';
+
+      const start = parseInt(startIn ? startIn.value : 1) || 1;
+      const end = parseInt(endIn ? endIn.value : 10) || 10;
+      const count = Math.max(0, end - start + 1);
+
+      totalBills += count;
+      sequences.push(`${prefix} ${padZero(start)} to ${prefix} ${padZero(end)}`);
+
+      rangesHtml += `
+        <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+          <code class="fw-bold fs-6">${prefix}</code>
+          <span class="font-mono text-dark fw-semibold">${padZero(start)} &ndash; ${padZero(end)}</span>
+          <span class="badge bg-light text-secondary border font-mono">${count} bills</span>
+        </div>
+      `;
+    });
+
+    if (previewSequenceText) {
+      previewSequenceText.textContent = sequences.join(', ') || 'No range configured';
+    }
+    if (previewCount) {
+      previewCount.textContent = totalBills;
+    }
+    if (previewCardRangesList) {
+      previewCardRangesList.innerHTML = rangesHtml;
+    }
+
+    // Default description text
+    const desc = (inputDesc ? inputDesc.value.trim() : '') || `Counter sequence ${sequences.join(', ')}.`;
+    if (previewCardDesc) previewCardDesc.textContent = desc;
+
+    if (isActive) {
+      previewBadgeStatus.textContent = 'Active';
+      previewBadgeStatus.className = 'badge bg-success';
+      if (statusLabel) {
+        statusLabel.textContent = 'Active (Operational)';
+        statusLabel.className = 'form-check-label ms-2 fw-semibold text-success';
+      }
+    } else {
+      previewBadgeStatus.textContent = 'Inactive';
+      previewBadgeStatus.className = 'badge bg-secondary';
+      if (statusLabel) {
+        statusLabel.textContent = 'Inactive (Disabled)';
+        statusLabel.className = 'form-check-label ms-2 fw-semibold text-muted';
+      }
+    }
+
+    // Update specials badges
+    if (inputSpecials && specialsBadgeContainer) {
+      const specialsVal = inputSpecials.value.trim();
+      specialsBadgeContainer.innerHTML = '';
+      if (specialsVal) {
+        const items = specialsVal.split(',').map(s => s.trim()).filter(Boolean);
+        items.forEach(item => {
+          const span = document.createElement('span');
+          span.className = 'badge bg-info text-dark font-mono';
+          span.textContent = item;
+          specialsBadgeContainer.appendChild(span);
+        });
+      }
+    }
+  }
+
+  // Quick Add Prefix Modal Logic
+  const quickModalEl = document.getElementById('modal-quick-add-prefix');
+  const quickModal = quickModalEl ? new bootstrap.Modal(quickModalEl) : null;
+  const quickForm = document.getElementById('form-quick-add-prefix');
+  const quickAlert = document.getElementById('quick-prefix-alert');
+  const quickPrefixIn = document.getElementById('quick-input-prefix');
+  const quickNameIn = document.getElementById('quick-input-name');
+  const quickDescIn = document.getElementById('quick-input-desc');
+
+  function openQuickAddModal() {
+    if (quickAlert) quickAlert.classList.add('d-none');
+    if (quickForm) quickForm.reset();
+    if (quickModal) quickModal.show();
+  }
+
+  if (quickForm) {
+    quickForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const codeVal = quickPrefixIn.value.trim().toUpperCase();
+      const nameVal = quickNameIn.value.trim();
+      const descVal = quickDescIn ? quickDescIn.value.trim() : '';
+
+      if (!codeVal || !nameVal) {
+        if (quickAlert) {
+          quickAlert.textContent = 'Prefix code and name are required.';
+          quickAlert.classList.remove('d-none');
+        }
+        return;
+      }
+
+      const token = quickForm.querySelector('input[name="_token"]').value;
+      const formData = new FormData();
+      formData.append('_token', token);
+      formData.append('prefix', codeVal);
+      formData.append('name', nameVal);
+      if (descVal) formData.append('description', descVal);
+
+      fetch('{{ route("admin.prefix.store") }}', {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        },
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success || data.prefix) {
+          const newPfx = data.prefix ? data.prefix.prefix : codeVal;
+          const newName = data.prefix ? data.prefix.name : nameVal;
+
+          // Inject into ALL select-prefix dropdowns
+          const allSelects = container.querySelectorAll('.select-prefix');
+          allSelects.forEach(sel => {
+            const opt = document.createElement('option');
+            opt.value = newPfx;
+            opt.textContent = `${newPfx} – ${newName}`;
+            // insert before the last quick-add option
+            const lastOpt = sel.querySelector('option[value="__quick_add_prefix__"]');
+            if (lastOpt) {
+              sel.insertBefore(opt, lastOpt);
+            } else {
+              sel.appendChild(opt);
+            }
+          });
+
+          // Set selected on target select
+          if (activeSelectTarget) {
+            activeSelectTarget.value = newPfx;
+          }
+
+          if (quickModal) quickModal.hide();
+          updatePreview();
+        } else {
+          if (quickAlert) {
+            quickAlert.textContent = data.message || 'Failed to save prefix.';
+            quickAlert.classList.remove('d-none');
+          }
+        }
+      })
+      .catch(err => {
+        if (quickAlert) {
+          quickAlert.textContent = 'Error connecting to server. Please try again.';
+          quickAlert.classList.remove('d-none');
+        }
+      });
+    });
+  }
+
+  // Bind initial row
+  const initialRow = container.querySelector('.series-row');
+  if (initialRow) {
+    bindRowEvents(initialRow);
+  }
+
+  if (btnAddTop) btnAddTop.addEventListener('click', addRow);
+  if (btnAddBottom) btnAddBottom.addEventListener('click', addRow);
+
+  [inputOperator, inputDriver, inputGadi, inputHelper1, inputHelper2, inputHelper3, inputSpecials, inputDesc].forEach(el => {
     if (el) {
       el.addEventListener('input', updatePreview);
       el.addEventListener('change', updatePreview);
@@ -378,6 +869,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   if (inputStatus) inputStatus.addEventListener('change', updatePreview);
 
+  updateRowButtons();
   updatePreview();
 });
 </script>

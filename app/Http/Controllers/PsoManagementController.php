@@ -41,17 +41,31 @@ class PsoManagementController extends Controller
             ->filter()
             ->values();
 
-        return view('pso.create', compact('prefixes', 'suggestedCode', 'operators'));
+        $drivers = PsoConfig::whereNotNull('driver_name')->where('driver_name', '!=', '')->distinct()->pluck('driver_name')->values();
+        $helpers = PsoConfig::whereNotNull('helper_1')->pluck('helper_1')
+            ->merge(PsoConfig::whereNotNull('helper_2')->pluck('helper_2'))
+            ->merge(PsoConfig::whereNotNull('helper_3')->pluck('helper_3'))
+            ->unique()->filter()->values();
+        $gadiOptions = PsoConfig::whereNotNull('gadi_number')->where('gadi_number', '!=', '')->distinct()->pluck('gadi_number')->values();
+
+        return view('pso.create', compact('prefixes', 'suggestedCode', 'operators', 'drivers', 'helpers', 'gadiOptions'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'prefix' => 'required|string|max:10',
-            'financial_year' => 'nullable|string|max:20',
-            'start_no' => 'required|integer|min:1',
-            'end_no' => 'required|integer|gte:start_no',
+            'prefix' => 'nullable',
+            'financial_year' => 'nullable',
+            'start_no' => 'nullable',
+            'end_no' => 'nullable',
+            'series' => 'nullable|array',
             'operator_name' => 'required|string|max:255',
+            'driver_name' => 'nullable|string|max:255',
+            'helper_1' => 'nullable|string|max:255',
+            'helper_2' => 'nullable|string|max:255',
+            'helper_3' => 'nullable|string|max:255',
+            'gadi_number' => 'nullable|string|max:255',
+            'vehicle_no' => 'nullable|string|max:255',
             'specials' => 'nullable|string',
             'description' => 'nullable|string',
             'is_active' => 'nullable',
@@ -78,15 +92,72 @@ class PsoManagementController extends Controller
 
         $activeFy = \App\Models\SystemSetting::getVal('financial_year', '2026-2027');
 
+        // Parse series ranges (from dynamic 'series' rows or parallel arrays or single fields)
+        $seriesList = [];
+        if ($request->has('series') && is_array($request->input('series'))) {
+            foreach ($request->input('series') as $item) {
+                if (!empty($item['prefix'])) {
+                    $start = isset($item['start_no']) ? (int)$item['start_no'] : 1;
+                    $end = isset($item['end_no']) ? (int)$item['end_no'] : 10;
+                    if ($end < $start) $end = $start;
+                    $seriesList[] = [
+                        'prefix' => strtoupper(trim($item['prefix'])),
+                        'financial_year' => !empty($item['financial_year']) ? trim($item['financial_year']) : $activeFy,
+                        'start_no' => $start,
+                        'end_no' => $end,
+                    ];
+                }
+            }
+        } elseif (is_array($request->input('prefix'))) {
+            $prefixes = $request->input('prefix');
+            $starts = (array)$request->input('start_no');
+            $ends = (array)$request->input('end_no');
+            $fys = (array)$request->input('financial_year');
+            foreach ($prefixes as $i => $pfx) {
+                if (!empty($pfx)) {
+                    $start = isset($starts[$i]) ? (int)$starts[$i] : 1;
+                    $end = isset($ends[$i]) ? (int)$ends[$i] : 10;
+                    if ($end < $start) $end = $start;
+                    $seriesList[] = [
+                        'prefix' => strtoupper(trim($pfx)),
+                        'financial_year' => !empty($fys[$i]) ? trim($fys[$i]) : $activeFy,
+                        'start_no' => $start,
+                        'end_no' => $end,
+                    ];
+                }
+            }
+        }
+
+        if (empty($seriesList)) {
+            $singlePrefix = strtoupper(trim((string)$request->input('prefix', 'CB')));
+            $singleStart = (int)$request->input('start_no', 1);
+            $singleEnd = (int)$request->input('end_no', 10);
+            if ($singleEnd < $singleStart) $singleEnd = $singleStart;
+            $seriesList[] = [
+                'prefix' => $singlePrefix ?: 'CB',
+                'financial_year' => (string)$request->input('financial_year', $activeFy),
+                'start_no' => $singleStart,
+                'end_no' => $singleEnd,
+            ];
+        }
+
+        $primary = $seriesList[0];
+
         $pso = PsoConfig::create([
             'code' => $code,
-            'prefix' => strtoupper(trim($validated['prefix'])),
-            'financial_year' => $validated['financial_year'] ?? $request->input('financial_year', $activeFy),
-            'start_no' => $validated['start_no'],
-            'end_no' => $validated['end_no'],
+            'prefix' => $primary['prefix'],
+            'financial_year' => $primary['financial_year'],
+            'series_ranges' => $seriesList,
+            'start_no' => $primary['start_no'],
+            'end_no' => $primary['end_no'],
             'specials' => $specialsArr,
             'operator_name' => $validated['operator_name'],
-            'description' => $validated['description'] ?? ('Counter Bills ' . strtoupper($validated['prefix']) . " {$validated['start_no']} to {$validated['end_no']}"),
+            'driver_name' => $validated['driver_name'] ?? $request->input('driver_name'),
+            'helper_1' => $validated['helper_1'] ?? $request->input('helper_1'),
+            'helper_2' => $validated['helper_2'] ?? $request->input('helper_2'),
+            'helper_3' => $validated['helper_3'] ?? $request->input('helper_3'),
+            'gadi_number' => $validated['gadi_number'] ?? $request->input('gadi_number') ?? $request->input('vehicle_no'),
+            'description' => $validated['description'] ?? ('Counter Bills ' . $primary['prefix'] . " {$primary['start_no']} to {$primary['end_no']}"),
             'is_active' => $request->has('is_active') ? (bool)$request->is_active : true,
         ]);
 
@@ -105,7 +176,14 @@ class PsoManagementController extends Controller
             ->filter()
             ->values();
 
-        return view('pso.edit', compact('pso', 'prefixes', 'operators'));
+        $drivers = PsoConfig::whereNotNull('driver_name')->where('driver_name', '!=', '')->distinct()->pluck('driver_name')->values();
+        $helpers = PsoConfig::whereNotNull('helper_1')->pluck('helper_1')
+            ->merge(PsoConfig::whereNotNull('helper_2')->pluck('helper_2'))
+            ->merge(PsoConfig::whereNotNull('helper_3')->pluck('helper_3'))
+            ->unique()->filter()->values();
+        $gadiOptions = PsoConfig::whereNotNull('gadi_number')->where('gadi_number', '!=', '')->distinct()->pluck('gadi_number')->values();
+
+        return view('pso.edit', compact('pso', 'prefixes', 'operators', 'drivers', 'helpers', 'gadiOptions'));
     }
 
     public function update(Request $request, $id)
@@ -113,11 +191,18 @@ class PsoManagementController extends Controller
         $pso = PsoConfig::findOrFail($id);
 
         $validated = $request->validate([
-            'prefix' => 'required|string|max:10',
-            'financial_year' => 'nullable|string|max:20',
-            'start_no' => 'required|integer|min:1',
-            'end_no' => 'required|integer|gte:start_no',
+            'prefix' => 'nullable',
+            'financial_year' => 'nullable',
+            'start_no' => 'nullable',
+            'end_no' => 'nullable',
+            'series' => 'nullable|array',
             'operator_name' => 'required|string|max:255',
+            'driver_name' => 'nullable|string|max:255',
+            'helper_1' => 'nullable|string|max:255',
+            'helper_2' => 'nullable|string|max:255',
+            'helper_3' => 'nullable|string|max:255',
+            'gadi_number' => 'nullable|string|max:255',
+            'vehicle_no' => 'nullable|string|max:255',
             'specials' => 'nullable|string',
             'description' => 'nullable|string',
             'is_active' => 'nullable',
@@ -130,14 +215,71 @@ class PsoManagementController extends Controller
 
         $activeFy = \App\Models\SystemSetting::getVal('financial_year', '2026-2027');
 
+        // Parse series ranges
+        $seriesList = [];
+        if ($request->has('series') && is_array($request->input('series'))) {
+            foreach ($request->input('series') as $item) {
+                if (!empty($item['prefix'])) {
+                    $start = isset($item['start_no']) ? (int)$item['start_no'] : 1;
+                    $end = isset($item['end_no']) ? (int)$item['end_no'] : 10;
+                    if ($end < $start) $end = $start;
+                    $seriesList[] = [
+                        'prefix' => strtoupper(trim($item['prefix'])),
+                        'financial_year' => !empty($item['financial_year']) ? trim($item['financial_year']) : $activeFy,
+                        'start_no' => $start,
+                        'end_no' => $end,
+                    ];
+                }
+            }
+        } elseif (is_array($request->input('prefix'))) {
+            $prefixes = $request->input('prefix');
+            $starts = (array)$request->input('start_no');
+            $ends = (array)$request->input('end_no');
+            $fys = (array)$request->input('financial_year');
+            foreach ($prefixes as $i => $pfx) {
+                if (!empty($pfx)) {
+                    $start = isset($starts[$i]) ? (int)$starts[$i] : 1;
+                    $end = isset($ends[$i]) ? (int)$ends[$i] : 10;
+                    if ($end < $start) $end = $start;
+                    $seriesList[] = [
+                        'prefix' => strtoupper(trim($pfx)),
+                        'financial_year' => !empty($fys[$i]) ? trim($fys[$i]) : $activeFy,
+                        'start_no' => $start,
+                        'end_no' => $end,
+                    ];
+                }
+            }
+        }
+
+        if (empty($seriesList)) {
+            $singlePrefix = strtoupper(trim((string)$request->input('prefix', $pso->prefix)));
+            $singleStart = (int)$request->input('start_no', $pso->start_no);
+            $singleEnd = (int)$request->input('end_no', $pso->end_no);
+            if ($singleEnd < $singleStart) $singleEnd = $singleStart;
+            $seriesList[] = [
+                'prefix' => $singlePrefix ?: $pso->prefix,
+                'financial_year' => (string)$request->input('financial_year', $pso->financial_year ?? $activeFy),
+                'start_no' => $singleStart,
+                'end_no' => $singleEnd,
+            ];
+        }
+
+        $primary = $seriesList[0];
+
         $pso->update([
-            'prefix' => strtoupper(trim($validated['prefix'])),
-            'financial_year' => $validated['financial_year'] ?? $request->input('financial_year', $pso->financial_year ?? $activeFy),
-            'start_no' => $validated['start_no'],
-            'end_no' => $validated['end_no'],
+            'prefix' => $primary['prefix'],
+            'financial_year' => $primary['financial_year'],
+            'series_ranges' => $seriesList,
+            'start_no' => $primary['start_no'],
+            'end_no' => $primary['end_no'],
             'specials' => $specialsArr,
             'operator_name' => $validated['operator_name'],
-            'description' => $validated['description'],
+            'driver_name' => $validated['driver_name'] ?? $request->input('driver_name'),
+            'helper_1' => $validated['helper_1'] ?? $request->input('helper_1'),
+            'helper_2' => $validated['helper_2'] ?? $request->input('helper_2'),
+            'helper_3' => $validated['helper_3'] ?? $request->input('helper_3'),
+            'gadi_number' => $validated['gadi_number'] ?? $request->input('gadi_number') ?? $request->input('vehicle_no'),
+            'description' => $validated['description'] ?? null,
             'is_active' => $request->has('is_active') ? (bool)$request->is_active : false,
         ]);
 

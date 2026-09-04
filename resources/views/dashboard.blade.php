@@ -231,7 +231,19 @@
                 <td>{{ $row['billsCount'] }}</td>
                 <td class="font-mono">₹{{ number_format($row['gross'], 2) }}</td>
                 <td class="font-mono text-success fw-medium">₹{{ number_format($row['net'], 2) }}</td>
-                <td class="text-muted">{{ $row['pso']->operator_name }}</td>
+                <td>
+                  <div class="fw-medium text-dark">{{ $row['pso']->operator_name }}</div>
+                  @if($row['pso']->driver_name || $row['pso']->gadi_number)
+                    <div class="small text-muted font-mono" style="font-size: 0.72rem;">
+                      @if($row['pso']->gadi_number)
+                        <i class="bi bi-truck me-0.5 text-primary"></i>{{ $row['pso']->gadi_number }}
+                      @endif
+                      @if($row['pso']->driver_name)
+                        <span class="ms-1">&bull; Drv: {{ $row['pso']->driver_name }}</span>
+                      @endif
+                    </div>
+                  @endif
+                </td>
                 <td><span class="{{ $row['statusClass'] }}">{{ $row['status'] }}</span></td>
               </tr>
             @empty

@@ -36,7 +36,7 @@
           <tr>
             <td class="text-start">
               <strong class="font-mono">{{ $row['pso']->code }}</strong>
-              <div class="small text-muted">{{ $row['pso']->prefix }} {{ sprintf('%02d', $row['pso']->start_no) }}-{{ sprintf('%02d', $row['pso']->end_no) }} | Op: {{ $row['pso']->operator_name }}</div>
+              <div class="small text-muted">{{ $row['pso']->prefix }} {{ sprintf('%02d', $row['pso']->start_no) }}-{{ sprintf('%02d', $row['pso']->end_no) }} | Op: {{ $row['pso']->operator_name }}@if($row['pso']->driver_name) | Drv: {{ $row['pso']->driver_name }}@endif @if($row['pso']->gadi_number) | Gadi: {{ $row['pso']->gadi_number }}@endif</div>
             </td>
             <td>{{ $row['billsCount'] }}</td>
             <td class="font-mono">₹{{ number_format($row['gross'], 2) }}</td>

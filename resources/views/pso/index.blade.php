@@ -29,7 +29,7 @@
           <th>Range Start</th>
           <th>Range End</th>
           <th>Special Bills Series</th>
-          <th>Assigned Operator</th>
+          <th>Operator, Driver & Crew</th>
           <th>Status</th>
           <th class="text-end">Actions</th>
         </tr>
@@ -44,13 +44,45 @@
               @endif
             </td>
             <td>
-              <code class="fw-bold fs-6">{{ $pso->prefix }}</code>
-              <div class="text-muted font-mono" style="font-size: 0.72rem;">
-                <i class="bi bi-calendar3 text-primary me-0.5"></i>FY: {{ $pso->financial_year ?? $activeFinancialYear ?? '2026-2027' }}
-              </div>
+              @php $allRanges = $pso->getAllSeriesRanges(); @endphp
+              @if(count($allRanges) > 1)
+                <div class="d-flex flex-column gap-1">
+                  @foreach($allRanges as $rng)
+                    <div>
+                      <code class="fw-bold">{{ $rng['prefix'] }}</code>
+                      <span class="text-muted font-mono" style="font-size: 0.70rem;">({{ $rng['financial_year'] ?? $pso->financial_year ?? '2026-2027' }})</span>
+                    </div>
+                  @endforeach
+                </div>
+              @else
+                <code class="fw-bold fs-6">{{ $pso->prefix }}</code>
+                <div class="text-muted font-mono" style="font-size: 0.72rem;">
+                  <i class="bi bi-calendar3 text-primary me-0.5"></i>FY: {{ $pso->financial_year ?? $activeFinancialYear ?? '2026-2027' }}
+                </div>
+              @endif
             </td>
-            <td class="font-mono">{{ sprintf('%02d', $pso->start_no) }}</td>
-            <td class="font-mono">{{ sprintf('%02d', $pso->end_no) }}</td>
+            <td class="font-mono">
+              @if(count($allRanges) > 1)
+                <div class="d-flex flex-column gap-1">
+                  @foreach($allRanges as $rng)
+                    <div>{{ sprintf('%02d', $rng['start_no'] ?? 1) }}</div>
+                  @endforeach
+                </div>
+              @else
+                {{ sprintf('%02d', $pso->start_no) }}
+              @endif
+            </td>
+            <td class="font-mono">
+              @if(count($allRanges) > 1)
+                <div class="d-flex flex-column gap-1">
+                  @foreach($allRanges as $rng)
+                    <div>{{ sprintf('%02d', $rng['end_no'] ?? 10) }}</div>
+                  @endforeach
+                </div>
+              @else
+                {{ sprintf('%02d', $pso->end_no) }}
+              @endif
+            </td>
             <td>
               @if(!empty($pso->specials))
                 @foreach($pso->specials as $spec)
@@ -60,7 +92,28 @@
                 <span class="text-muted small">—</span>
               @endif
             </td>
-            <td>{{ $pso->operator_name }}</td>
+            <td>
+              <div class="fw-semibold text-dark">{{ $pso->operator_name }}</div>
+              @if($pso->driver_name || $pso->gadi_number)
+                <div class="small mt-1 d-flex flex-wrap align-items-center gap-1">
+                  @if($pso->gadi_number)
+                    <span class="badge bg-light text-dark border font-mono" title="Gadi / Vehicle Number">
+                      <i class="bi bi-truck me-1 text-primary"></i>{{ $pso->gadi_number }}
+                    </span>
+                  @endif
+                  @if($pso->driver_name)
+                    <span class="text-secondary small font-mono" title="Driver Name">
+                      <i class="bi bi-person-badge text-muted me-0.5"></i>{{ $pso->driver_name }}
+                    </span>
+                  @endif
+                </div>
+              @endif
+              @if(!empty($pso->helpers_list))
+                <div class="small text-muted mt-0.5" style="font-size: 0.72rem;" title="Helpers: {{ $pso->helpers_text }}">
+                  <i class="bi bi-people me-1 text-secondary"></i>{{ $pso->helpers_text }}
+                </div>
+              @endif
+            </td>
             <td>
               <span class="badge {{ $pso->is_active ? 'bg-success' : 'bg-secondary' }}">
                 {{ $pso->is_active ? 'Active' : 'Inactive' }}

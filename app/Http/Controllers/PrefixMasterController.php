@@ -57,6 +57,14 @@ class PrefixMasterController extends Controller
 
         AuditLog::log('PREFIX_CREATE', "Created prefix master entry {$code} — {$prefix->prefix} ({$prefix->name})");
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'prefix' => $prefix,
+                'message' => "Prefix '{$prefix->prefix}' ({$prefix->name}) created successfully."
+            ]);
+        }
+
         return redirect()->back()->with('success', "Prefix '{$prefix->prefix}' ({$prefix->name}) created successfully.");
     }
 

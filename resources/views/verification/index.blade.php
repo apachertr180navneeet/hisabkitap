@@ -34,7 +34,7 @@
       <select name="pso" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="ALL">All PSOs</option>
         @foreach($psoList as $pso)
-          <option value="{{ $pso->code }}" {{ request('pso') === $pso->code ? 'selected' : '' }}>{{ $pso->code }} ({{ $pso->prefix }})</option>
+          <option value="{{ $pso->code }}" {{ request('pso') === $pso->code ? 'selected' : '' }}>{{ $pso->code }} ({{ $pso->prefix }} - {{ $pso->operator_name }}{{ $pso->driver_name ? ' | Drv: ' . $pso->driver_name : '' }}{{ $pso->gadi_number ? ' | ' . $pso->gadi_number : '' }})</option>
         @endforeach
       </select>
     </div>

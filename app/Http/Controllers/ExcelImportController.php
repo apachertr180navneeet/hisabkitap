@@ -251,6 +251,15 @@ class ExcelImportController extends Controller
                             $psoConfigId = $pso->id;
                             break;
                         }
+                        if (!empty($pso->series_ranges)) {
+                            foreach ($pso->series_ranges as $sr) {
+                                if (!empty($sr['prefix']) && stripos($billNo, $sr['prefix']) === 0) {
+                                    $assignedPsoCode = $pso->code;
+                                    $psoConfigId = $pso->id;
+                                    break 2;
+                                }
+                            }
+                        }
                     }
                 }
 
