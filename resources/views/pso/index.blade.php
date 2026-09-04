@@ -43,7 +43,12 @@
                 <div class="text-muted small mt-1" style="font-size: 0.76rem;">{{ Str::limit($pso->description, 50) }}</div>
               @endif
             </td>
-            <td><code class="fw-bold">{{ $pso->prefix }}</code></td>
+            <td>
+              <code class="fw-bold fs-6">{{ $pso->prefix }}</code>
+              <div class="text-muted font-mono" style="font-size: 0.72rem;">
+                <i class="bi bi-calendar3 text-primary me-0.5"></i>FY: {{ $pso->financial_year ?? $activeFinancialYear ?? '2026-2027' }}
+              </div>
+            </td>
             <td class="font-mono">{{ sprintf('%02d', $pso->start_no) }}</td>
             <td class="font-mono">{{ sprintf('%02d', $pso->end_no) }}</td>
             <td>

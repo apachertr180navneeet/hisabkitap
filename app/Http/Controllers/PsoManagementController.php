@@ -48,6 +48,7 @@ class PsoManagementController extends Controller
     {
         $validated = $request->validate([
             'prefix' => 'required|string|max:10',
+            'financial_year' => 'nullable|string|max:20',
             'start_no' => 'required|integer|min:1',
             'end_no' => 'required|integer|gte:start_no',
             'operator_name' => 'required|string|max:255',
@@ -75,9 +76,12 @@ class PsoManagementController extends Controller
             $specialsArr = array_values(array_filter(array_map('trim', explode(',', $validated['specials']))));
         }
 
+        $activeFy = \App\Models\SystemSetting::getVal('financial_year', '2026-2027');
+
         $pso = PsoConfig::create([
             'code' => $code,
             'prefix' => strtoupper(trim($validated['prefix'])),
+            'financial_year' => $validated['financial_year'] ?? $request->input('financial_year', $activeFy),
             'start_no' => $validated['start_no'],
             'end_no' => $validated['end_no'],
             'specials' => $specialsArr,
@@ -110,6 +114,7 @@ class PsoManagementController extends Controller
 
         $validated = $request->validate([
             'prefix' => 'required|string|max:10',
+            'financial_year' => 'nullable|string|max:20',
             'start_no' => 'required|integer|min:1',
             'end_no' => 'required|integer|gte:start_no',
             'operator_name' => 'required|string|max:255',
@@ -123,8 +128,11 @@ class PsoManagementController extends Controller
             $specialsArr = array_values(array_filter(array_map('trim', explode(',', $validated['specials']))));
         }
 
+        $activeFy = \App\Models\SystemSetting::getVal('financial_year', '2026-2027');
+
         $pso->update([
             'prefix' => strtoupper(trim($validated['prefix'])),
+            'financial_year' => $validated['financial_year'] ?? $request->input('financial_year', $pso->financial_year ?? $activeFy),
             'start_no' => $validated['start_no'],
             'end_no' => $validated['end_no'],
             'specials' => $specialsArr,

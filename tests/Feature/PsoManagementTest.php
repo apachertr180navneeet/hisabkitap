@@ -47,6 +47,10 @@ class PsoManagementTest extends TestCase
         $response->assertSee('Configure New PSO Series');
         $response->assertSee('Save PSO Configuration');
         $response->assertSee('readonly');
+        $response->assertSee('name="prefix"', false);
+        $response->assertSee('name="financial_year"', false);
+        $response->assertSee('name="start_no"', false);
+        $response->assertSee('name="end_no"', false);
         $response->assertDontSee('PSO Display Name / Purpose');
     }
 
@@ -92,6 +96,10 @@ class PsoManagementTest extends TestCase
         $response->assertSee('PSO-EDIT-ME');
         $response->assertSee('Update PSO Configuration');
         $response->assertSee('readonly');
+        $response->assertSee('name="prefix"', false);
+        $response->assertSee('name="financial_year"', false);
+        $response->assertSee('name="start_no"', false);
+        $response->assertSee('name="end_no"', false);
         $response->assertDontSee('PSO Display Name / Purpose');
     }
 

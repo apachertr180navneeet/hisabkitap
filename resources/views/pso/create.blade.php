@@ -28,16 +28,16 @@
     <form action="{{ route('admin.pso.store') }}" method="POST" id="form-pso-create">
       @csrf
 
-      {{-- Section 1: Identifier & Series Range --}}
+      {{-- Card 1: PSO Identity & Operator Assignment --}}
       <div class="card border bg-white shadow-sm mb-4">
         <div class="card-header bg-white py-3 px-4 border-bottom">
           <h6 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-diagram-3 text-primary me-2"></i>PSO Identity & Sequence Range
+            <i class="bi bi-person-badge text-primary me-2"></i>PSO Identity & Operator Assignment
           </h6>
         </div>
         <div class="card-body p-4">
           <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
               <label class="form-label fw-semibold" for="code">
                 PSO Identifier Code <span class="badge bg-secondary ms-1 font-mono">Auto-generated</span>
               </label>
@@ -47,43 +47,113 @@
                        value="{{ $suggestedCode ?? 'PSO-1' }}" readonly>
                 <span class="input-group-text bg-light text-muted" title="Read-only auto-generated identifier"><i class="bi bi-lock-fill"></i></span>
               </div>
-              <div class="form-text small text-muted"><i class="bi bi-info-circle me-1"></i>System auto-assigned sequence code (Read-only).</div>
+              <div class="form-text small text-muted"><i class="bi bi-info-circle me-1"></i>System sequence code (Read-only).</div>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-5">
+              <label class="form-label fw-semibold" for="operator_name">
+                Assigned Operator / Staff <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+                <input type="text" name="operator_name" id="operator_name" list="operator-options" 
+                       class="form-control @error('operator_name') is-invalid @enderror" 
+                       value="{{ old('operator_name', $currentUser['name'] ?? 'Big Bite') }}" 
+                       placeholder="e.g. Big Bite or Ramesh Sharma" required>
+                <datalist id="operator-options">
+                  @foreach($operators as $op)
+                    <option value="{{ $op }}">{{ $op }}</option>
+                  @endforeach
+                </datalist>
+              </div>
+              <div class="form-text small">Staff responsible for physical verification and cash handover.</div>
+              @error('operator_name')
+                <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold" for="is_active">Status</label>
+              <div class="form-check form-switch pt-1">
+                <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', '1') == '1' ? 'checked' : '' }} style="width: 2.5em; height: 1.3em;">
+                <label class="form-check-label ms-2 fw-semibold text-success" for="is_active" id="status-label">
+                  Active (Operational)
+                </label>
+              </div>
+              <div class="form-text small">Include in daily verification.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {{-- Card 2: Bill Prefix, Financial Year & Range (All in One Line) --}}
+      <div class="card border bg-white shadow-sm mb-4">
+        <div class="card-header bg-white py-3 px-4 border-bottom">
+          <h6 class="fw-bold mb-0 text-dark">
+            <i class="bi bi-card-checklist text-primary me-2"></i>Bill Series & Sequence Range
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3">
+            {{-- 1. Bill Prefix Drop Down --}}
+            <div class="col-md-3">
               <label class="form-label fw-semibold" for="prefix">
                 Bill Prefix <span class="text-danger">*</span>
               </label>
               <div class="input-group">
-                <input type="text" name="prefix" id="prefix" list="prefix-options" 
-                       class="form-control text-uppercase font-mono fw-bold @error('prefix') is-invalid @enderror" 
-                       value="{{ old('prefix', 'CB') }}" placeholder="e.g. CB, SC, RB, IB" maxlength="10" required>
-                <datalist id="prefix-options">
-                  @foreach($prefixes as $pfx)
-                    <option value="{{ $pfx->prefix }}">{{ $pfx->prefix }} &ndash; {{ $pfx->name }}</option>
-                  @endforeach
-                </datalist>
                 <span class="input-group-text bg-light"><i class="bi bi-tag"></i></span>
+                <select name="prefix" id="prefix" class="form-select font-mono fw-bold text-uppercase @error('prefix') is-invalid @enderror" required>
+                  <option value="">-- Select Prefix --</option>
+                  @foreach($prefixes as $pfx)
+                    <option value="{{ $pfx->prefix }}" {{ old('prefix', 'CB') == $pfx->prefix ? 'selected' : '' }}>
+                      {{ $pfx->prefix }} &ndash; {{ $pfx->name }}
+                    </option>
+                  @endforeach
+                  @if($prefixes->isEmpty())
+                    <option value="CB" selected>CB &ndash; Counter Wholesale</option>
+                    <option value="RB">RB &ndash; Retail Walk-in</option>
+                    <option value="SC">SC &ndash; School Counter</option>
+                  @endif
+                </select>
               </div>
-              <div class="form-text small">Select from Prefix Master or type custom prefix.</div>
+              <div class="form-text small">Select from Prefix Master.</div>
               @error('prefix')
                 <div class="text-danger small mt-1">{{ $message }}</div>
               @enderror
             </div>
 
-            <div class="col-md-6">
+            {{-- 2. Readonly Current Financial Year --}}
+            <div class="col-md-3">
+              <label class="form-label fw-semibold" for="financial_year">
+                Current Financial Year <span class="badge bg-secondary ms-1 font-mono">Current</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-calendar-range text-primary"></i></span>
+                <input type="text" name="financial_year" id="financial_year" class="form-control font-mono fw-bold bg-light" 
+                       value="{{ old('financial_year', $activeFinancialYear ?? '2026-2027') }}" readonly>
+                <span class="input-group-text bg-light text-muted" title="Active Financial Year (Read-only)"><i class="bi bi-lock-fill"></i></span>
+              </div>
+              <div class="form-text small text-muted"><i class="bi bi-shield-check me-1"></i>System active FY period.</div>
+              @error('financial_year')
+                <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
+            </div>
+
+            {{-- 3. Start Number --}}
+            <div class="col-md-3">
               <label class="form-label fw-semibold" for="start_no">
                 Start Number <span class="text-danger">*</span>
               </label>
               <input type="number" name="start_no" id="start_no" class="form-control font-mono @error('start_no') is-invalid @enderror" 
                      value="{{ old('start_no', 1) }}" min="1" required>
-              <div class="form-text small">Initial sequential serial (e.g. 1, 11, 21).</div>
+              <div class="form-text small">Initial sequential serial (e.g. 1, 11).</div>
               @error('start_no')
                 <div class="text-danger small mt-1">{{ $message }}</div>
               @enderror
             </div>
 
-            <div class="col-md-6">
+            {{-- 4. End Number --}}
+            <div class="col-md-3">
               <label class="form-label fw-semibold" for="end_no">
                 End Number <span class="text-danger">*</span>
               </label>
@@ -97,23 +167,28 @@
           </div>
 
           <div class="alert alert-light border mt-3 p-3 mb-0 rounded">
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-info-circle-fill text-primary"></i>
-              <div class="small">
-                <strong>Sequence Preview:</strong> 
-                <span id="preview-sequence-text" class="font-mono text-dark fw-bold">CB 01 to CB 10</span> 
-                (<span id="preview-count">10</span> daily bills verified per sheet).
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle-fill text-primary"></i>
+                <div class="small">
+                  <strong>Sequence Preview:</strong> 
+                  <span id="preview-sequence-text" class="font-mono text-dark fw-bold">CB 01 to CB 10</span> 
+                  (<span id="preview-count">10</span> daily bills verified per sheet).
+                </div>
               </div>
+              <span class="badge bg-light text-dark border font-mono">
+                <i class="bi bi-calendar-range text-primary me-1"></i>FY: <span id="preview-fy">{{ $activeFinancialYear ?? '2026-2027' }}</span>
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {{-- Section 2: Special Bills & Operator Assignment --}}
+      {{-- Card 3: Special Bills & Description Notes --}}
       <div class="card border bg-white shadow-sm mb-4">
         <div class="card-header bg-white py-3 px-4 border-bottom">
           <h6 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-person-badge text-primary me-2"></i>Special Bills & Operator Assignment
+            <i class="bi bi-card-text text-primary me-2"></i>Special Bills & Additional Notes
           </h6>
         </div>
         <div class="card-body p-4">
@@ -129,39 +204,6 @@
               @error('specials')
                 <div class="text-danger small mt-1">{{ $message }}</div>
               @enderror
-            </div>
-
-            <div class="col-md-8">
-              <label class="form-label fw-semibold" for="operator_name">
-                Assigned Operator / Counter Staff <span class="text-danger">*</span>
-              </label>
-              <div class="input-group">
-                <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
-                <input type="text" name="operator_name" id="operator_name" list="operator-options" 
-                       class="form-control @error('operator_name') is-invalid @enderror" 
-                       value="{{ old('operator_name', $currentUser['name'] ?? 'Big Bite') }}" 
-                       placeholder="e.g. Big Bite or Ramesh Sharma" required>
-                <datalist id="operator-options">
-                  @foreach($operators as $op)
-                    <option value="{{ $op }}">{{ $op }}</option>
-                  @endforeach
-                </datalist>
-              </div>
-              <div class="form-text small">Default operator responsible for physical verification and cash handover.</div>
-              @error('operator_name')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label fw-semibold" for="is_active">Status</label>
-              <div class="form-check form-switch pt-1">
-                <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', '1') == '1' ? 'checked' : '' }} style="width: 2.5em; height: 1.3em;">
-                <label class="form-check-label ms-2 fw-semibold" for="is_active" id="status-label">
-                  Active (Operational)
-                </label>
-              </div>
-              <div class="form-text small">Inactive series are hidden from daily active verification.</div>
             </div>
 
             <div class="col-12">
@@ -211,6 +253,10 @@
               <code class="fw-bold text-uppercase" id="preview-card-prefix">CB</code>
             </div>
             <div class="d-flex justify-content-between py-1 small">
+              <span class="text-muted">Financial Year:</span>
+              <span class="font-mono fw-semibold text-dark" id="preview-card-fy">{{ $activeFinancialYear ?? '2026-2027' }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
               <span class="text-muted">Serial Range:</span>
               <span class="font-mono fw-semibold" id="preview-card-range">01 &ndash; 10</span>
             </div>
@@ -233,9 +279,10 @@
       <div class="card-body p-4 small text-secondary">
         <ul class="ps-3 mb-0 d-flex flex-column gap-2">
           <li><strong>Auto Code:</strong> PSO Identifier code is automatically assigned sequentially (read-only).</li>
-          <li><strong>Prefix:</strong> Must match the bill serial prefix exported by Tally / POS (e.g. <code>CB</code>, <code>SC</code>).</li>
+          <li><strong>Prefix:</strong> Select bill serial prefix directly from Prefix Master dropdown.</li>
+          <li><strong>Financial Year:</strong> Locked to the current active financial year session.</li>
           <li><strong>Serial Range:</strong> Typically 10 bills per booklet (e.g., <code>1-10</code>, <code>11-20</code>, <code>21-30</code>).</li>
-          <li><strong>Special Bills:</strong> Use for non-sequential corporate accounts, e.g. <code>ITC 01, ITC 03</code>.</li>
+          <li><strong>Special Bills:</strong> Non-sequential corporate accounts, e.g. <code>ITC 01, ITC 03</code>.</li>
         </ul>
       </div>
     </div>
@@ -248,6 +295,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   const inputCode = document.getElementById('code');
   const inputPrefix = document.getElementById('prefix');
+  const inputFy = document.getElementById('financial_year');
   const inputStart = document.getElementById('start_no');
   const inputEnd = document.getElementById('end_no');
   const inputOperator = document.getElementById('operator_name');
@@ -261,10 +309,12 @@ document.addEventListener('DOMContentLoaded', function() {
   const previewCardName = document.getElementById('preview-card-name');
   const previewCardDesc = document.getElementById('preview-card-desc');
   const previewCardPrefix = document.getElementById('preview-card-prefix');
+  const previewCardFy = document.getElementById('preview-card-fy');
   const previewCardRange = document.getElementById('preview-card-range');
   const previewCardOperator = document.getElementById('preview-card-operator');
   const previewSequenceText = document.getElementById('preview-sequence-text');
   const previewCount = document.getElementById('preview-count');
+  const previewFy = document.getElementById('preview-fy');
   const specialsBadgeContainer = document.getElementById('specials-badge-container');
 
   function padZero(num) {
@@ -273,7 +323,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function updatePreview() {
     const code = (inputCode ? inputCode.value.trim() : '') || 'PSO-X';
-    const prefix = (inputPrefix.value.trim() || 'CB').toUpperCase();
+    const prefix = (inputPrefix ? inputPrefix.value.trim() : 'CB').toUpperCase() || 'CB';
+    const fy = (inputFy ? inputFy.value.trim() : '') || '{{ $activeFinancialYear ?? "2026-2027" }}';
     const start = parseInt(inputStart.value) || 1;
     const end = parseInt(inputEnd.value) || 10;
     const operator = inputOperator.value.trim() || 'Not assigned';
@@ -283,6 +334,8 @@ document.addEventListener('DOMContentLoaded', function() {
     previewBadgeCode.textContent = code;
     previewCardName.textContent = code;
     previewCardPrefix.textContent = prefix;
+    if (previewCardFy) previewCardFy.textContent = fy;
+    if (previewFy) previewFy.textContent = fy;
     previewCardRange.textContent = `${padZero(start)} – ${padZero(end)}`;
     previewCardOperator.textContent = operator;
     previewCardDesc.textContent = desc;
@@ -317,8 +370,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  [inputPrefix, inputStart, inputEnd, inputOperator, inputSpecials, inputDesc].forEach(el => {
-    if (el) el.addEventListener('input', updatePreview);
+  [inputPrefix, inputStart, inputEnd, inputOperator, inputSpecials, inputDesc, inputFy].forEach(el => {
+    if (el) {
+      el.addEventListener('input', updatePreview);
+      el.addEventListener('change', updatePreview);
+    }
   });
   if (inputStatus) inputStatus.addEventListener('change', updatePreview);
 

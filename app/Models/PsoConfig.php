@@ -12,6 +12,7 @@ class PsoConfig extends Model
     protected $fillable = [
         'code',
         'prefix',
+        'financial_year',
         'start_no',
         'end_no',
         'specials',
