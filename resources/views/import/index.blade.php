@@ -121,7 +121,7 @@
           <select name="pso_id" class="form-select">
             <option value="ALL" selected>All PSOs (Auto-map by Series Prefix: CB, RB, etc.)</option>
             @foreach($psoList as $pso)
-              <option value="{{ $pso->code }}">{{ $pso->name }} ({{ $pso->prefix }} {{ $pso->start_no }}-{{ $pso->end_no }})</option>
+              <option value="{{ $pso->code }}">{{ $pso->code }} ({{ $pso->prefix }} {{ sprintf('%02d', $pso->start_no) }}-{{ sprintf('%02d', $pso->end_no) }})</option>
             @endforeach
           </select>
         </div>

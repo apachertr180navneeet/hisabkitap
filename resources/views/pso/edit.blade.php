@@ -14,7 +14,7 @@
       <span class="text-muted">/</span>
       <span class="badge bg-primary font-mono">{{ $pso->code }}</span>
     </div>
-    <h4 class="fw-bold mb-1">Edit PSO Series: <span class="text-primary">{{ $pso->name }}</span></h4>
+    <h4 class="fw-bold mb-1">Edit PSO Series: <span class="text-primary font-mono">{{ $pso->code }}</span></h4>
     <p class="text-muted mb-0">Modify serial range, prefix, assigned operator, and special bill series rules for this counter.</p>
   </div>
   <div class="d-flex align-items-center gap-2">
@@ -42,55 +42,29 @@
     <form action="{{ route('admin.pso.update', $pso->id) }}" method="POST" id="form-pso-edit">
       @csrf
 
-      {{-- Section 1: Identifier & Name --}}
+      {{-- Section 1: Identifier & Series Range --}}
       <div class="card border bg-white shadow-sm mb-4">
         <div class="card-header bg-white py-3 px-4 border-bottom">
           <h6 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-diagram-3 text-primary me-2"></i>PSO Identity & Naming
+            <i class="bi bi-diagram-3 text-primary me-2"></i>PSO Identity & Sequence Range
           </h6>
         </div>
         <div class="card-body p-4">
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold" for="code">
-                PSO Identifier Code <span class="text-danger">*</span>
+                PSO Identifier Code <span class="badge bg-secondary ms-1 font-mono">System Assigned</span>
               </label>
               <div class="input-group">
                 <span class="input-group-text bg-light font-mono"><i class="bi bi-hash"></i></span>
-                <input type="text" name="code" id="code" class="form-control font-mono fw-bold @error('code') is-invalid @enderror" 
-                       value="{{ old('code', $pso->code) }}" placeholder="e.g. PSO-1" required>
+                <input type="text" name="code" id="code" class="form-control font-mono fw-bold bg-light" 
+                       value="{{ $pso->code }}" readonly>
+                <span class="input-group-text bg-light text-muted" title="Read-only identifier"><i class="bi bi-lock-fill"></i></span>
               </div>
-              <div class="form-text small">Unique system code (e.g. PSO-1).</div>
-              @error('code')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
+              <div class="form-text small text-muted"><i class="bi bi-info-circle me-1"></i>System unique identifier (Read-only).</div>
             </div>
 
-            <div class="col-md-8">
-              <label class="form-label fw-semibold" for="name">
-                PSO Display Name / Purpose <span class="text-danger">*</span>
-              </label>
-              <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror" 
-                     value="{{ old('name', $pso->name) }}" placeholder="e.g. PSO-01 / Main Counter" required>
-              <div class="form-text small">Descriptive label shown in verification matrix and reports.</div>
-              @error('name')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {{-- Section 2: Bill Prefix & Number Sequence Range --}}
-      <div class="card border bg-white shadow-sm mb-4">
-        <div class="card-header bg-white py-3 px-4 border-bottom">
-          <h6 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-123 text-primary me-2"></i>Prefix & Bill Number Sequence Range
-          </h6>
-        </div>
-        <div class="card-body p-4">
-          <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold" for="prefix">
                 Bill Prefix <span class="text-danger">*</span>
               </label>
@@ -111,7 +85,7 @@
               @enderror
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold" for="start_no">
                 Start Number <span class="text-danger">*</span>
               </label>
@@ -123,7 +97,7 @@
               @enderror
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold" for="end_no">
                 End Number <span class="text-danger">*</span>
               </label>
@@ -149,7 +123,7 @@
         </div>
       </div>
 
-      {{-- Section 3: Special Bills & Operator Assignment --}}
+      {{-- Section 2: Special Bills & Operator Assignment --}}
       <div class="card border bg-white shadow-sm mb-4">
         <div class="card-header bg-white py-3 px-4 border-bottom">
           <h6 class="fw-bold mb-0 text-dark">
@@ -255,7 +229,7 @@
               {{ $pso->is_active ? 'Active' : 'Inactive' }}
             </span>
           </div>
-          <h5 class="fw-bold text-dark mb-1" id="preview-card-name">{{ $pso->name }}</h5>
+          <h5 class="fw-bold text-dark mb-1 font-mono" id="preview-card-name">{{ $pso->code }}</h5>
           <div class="text-muted small mb-3" id="preview-card-desc">{{ $pso->description ?: 'No description provided.' }}</div>
 
           <div class="border-top pt-2 mt-2">
@@ -312,7 +286,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const inputCode = document.getElementById('code');
-  const inputName = document.getElementById('name');
   const inputPrefix = document.getElementById('prefix');
   const inputStart = document.getElementById('start_no');
   const inputEnd = document.getElementById('end_no');
@@ -338,8 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function updatePreview() {
-    const code = inputCode.value.trim() || 'PSO-X';
-    const name = inputName.value.trim() || 'PSO Name Preview';
+    const code = (inputCode ? inputCode.value.trim() : '') || '{{ $pso->code }}';
     const prefix = (inputPrefix.value.trim() || 'CB').toUpperCase();
     const start = parseInt(inputStart.value) || 1;
     const end = parseInt(inputEnd.value) || 10;
@@ -348,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const isActive = inputStatus.checked;
 
     previewBadgeCode.textContent = code;
-    previewCardName.textContent = name;
+    previewCardName.textContent = code;
     previewCardPrefix.textContent = prefix;
     previewCardRange.textContent = `${padZero(start)} – ${padZero(end)}`;
     previewCardOperator.textContent = operator;
@@ -384,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  [inputCode, inputName, inputPrefix, inputStart, inputEnd, inputOperator, inputSpecials, inputDesc].forEach(el => {
+  [inputPrefix, inputStart, inputEnd, inputOperator, inputSpecials, inputDesc].forEach(el => {
     if (el) el.addEventListener('input', updatePreview);
   });
   if (inputStatus) inputStatus.addEventListener('change', updatePreview);

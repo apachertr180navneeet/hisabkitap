@@ -20,8 +20,21 @@ class PsoManagementController extends Controller
     public function create()
     {
         $prefixes = Prefix::where('is_active', true)->orderBy('prefix')->get();
-        $nextNum = (PsoConfig::max('id') ?? 0) + 1;
+
+        $maxId = PsoConfig::max('id') ?? 0;
+        $codes = PsoConfig::pluck('code')->toArray();
+        $maxNum = 0;
+        foreach ($codes as $c) {
+            if (preg_match('/PSO-(\d+)/i', $c, $matches)) {
+                $num = (int)$matches[1];
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
+        }
+        $nextNum = max($maxId, $maxNum) + 1;
         $suggestedCode = 'PSO-' . $nextNum;
+
         $operators = User::orderBy('name')->pluck('name')
             ->merge(PsoConfig::distinct()->pluck('operator_name'))
             ->unique()
@@ -34,8 +47,6 @@ class PsoManagementController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'nullable|string|max:50|unique:pso_configs,code',
-            'name' => 'required|string|max:255',
             'prefix' => 'required|string|max:10',
             'start_no' => 'required|integer|min:1',
             'end_no' => 'required|integer|gte:start_no',
@@ -45,8 +56,19 @@ class PsoManagementController extends Controller
             'is_active' => 'nullable',
         ]);
 
-        $nextNum = (PsoConfig::max('id') ?? 0) + 1;
-        $code = !empty($validated['code']) ? trim($validated['code']) : ('PSO-' . $nextNum);
+        $maxId = PsoConfig::max('id') ?? 0;
+        $codes = PsoConfig::pluck('code')->toArray();
+        $maxNum = 0;
+        foreach ($codes as $c) {
+            if (preg_match('/PSO-(\d+)/i', $c, $matches)) {
+                $num = (int)$matches[1];
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
+        }
+        $nextNum = max($maxId, $maxNum) + 1;
+        $code = 'PSO-' . $nextNum;
 
         $specialsArr = [];
         if (!empty($validated['specials'])) {
@@ -55,7 +77,6 @@ class PsoManagementController extends Controller
 
         $pso = PsoConfig::create([
             'code' => $code,
-            'name' => $validated['name'],
             'prefix' => strtoupper(trim($validated['prefix'])),
             'start_no' => $validated['start_no'],
             'end_no' => $validated['end_no'],
@@ -65,9 +86,9 @@ class PsoManagementController extends Controller
             'is_active' => $request->has('is_active') ? (bool)$request->is_active : true,
         ]);
 
-        AuditLog::log('PSO_CONFIG_CREATE', "Created PSO series {$code} ({$pso->name}) range {$pso->prefix} {$pso->start_no}-{$pso->end_no}");
+        AuditLog::log('PSO_CONFIG_CREATE', "Created PSO series {$code} range {$pso->prefix} {$pso->start_no}-{$pso->end_no}");
 
-        return redirect()->route('admin.pso.index')->with('success', "PSO Configuration '{$pso->name}' ({$pso->code}) successfully created.");
+        return redirect()->route('admin.pso.index')->with('success', "PSO Configuration '{$pso->code}' successfully created.");
     }
 
     public function edit($id)
@@ -88,8 +109,6 @@ class PsoManagementController extends Controller
         $pso = PsoConfig::findOrFail($id);
 
         $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:pso_configs,code,' . $id,
-            'name' => 'required|string|max:255',
             'prefix' => 'required|string|max:10',
             'start_no' => 'required|integer|min:1',
             'end_no' => 'required|integer|gte:start_no',
@@ -105,8 +124,6 @@ class PsoManagementController extends Controller
         }
 
         $pso->update([
-            'code' => trim($validated['code']),
-            'name' => $validated['name'],
             'prefix' => strtoupper(trim($validated['prefix'])),
             'start_no' => $validated['start_no'],
             'end_no' => $validated['end_no'],
@@ -116,9 +133,9 @@ class PsoManagementController extends Controller
             'is_active' => $request->has('is_active') ? (bool)$request->is_active : false,
         ]);
 
-        AuditLog::log('PSO_CONFIG_UPDATE', "Updated PSO series {$pso->code} ({$pso->name}) range {$pso->prefix} {$pso->start_no}-{$pso->end_no}");
+        AuditLog::log('PSO_CONFIG_UPDATE', "Updated PSO series {$pso->code} range {$pso->prefix} {$pso->start_no}-{$pso->end_no}");
 
-        return redirect()->route('admin.pso.index')->with('success', "PSO Configuration '{$pso->name}' ({$pso->code}) updated successfully.");
+        return redirect()->route('admin.pso.index')->with('success', "PSO Configuration '{$pso->code}' updated successfully.");
     }
 
     public function toggleStatus($id)
@@ -141,11 +158,10 @@ class PsoManagementController extends Controller
         }
 
         $code = $pso->code;
-        $name = $pso->name;
         $pso->delete();
 
-        AuditLog::log('PSO_CONFIG_DELETE', "Deleted PSO series {$code} ({$name})");
+        AuditLog::log('PSO_CONFIG_DELETE', "Deleted PSO series {$code}");
 
-        return redirect()->route('admin.pso.index')->with('success', "PSO Configuration '{$name}' ({$code}) deleted successfully.");
+        return redirect()->route('admin.pso.index')->with('success', "PSO Configuration '{$code}' deleted successfully.");
     }
 }

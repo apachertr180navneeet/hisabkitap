@@ -41,7 +41,6 @@ class HisabKitapDeepModuleTest extends TestCase
     {
         return PsoConfig::create([
             'code' => $code,
-            'name' => "{$code} Test Counter",
             'prefix' => $prefix,
             'start_no' => 1,
             'end_no' => 10,

@@ -25,7 +25,6 @@
       <thead>
         <tr>
           <th>PSO Identifier</th>
-          <th>PSO Name</th>
           <th>Prefix</th>
           <th>Range Start</th>
           <th>Range End</th>
@@ -38,11 +37,10 @@
       <tbody>
         @forelse($psoList as $pso)
           <tr>
-            <td><span class="badge bg-primary font-mono">{{ $pso->code }}</span></td>
             <td>
-              <strong>{{ $pso->name }}</strong>
+              <span class="badge bg-primary font-mono fs-6">{{ $pso->code }}</span>
               @if($pso->description)
-                <div class="text-muted small" style="font-size: 0.76rem;">{{ Str::limit($pso->description, 50) }}</div>
+                <div class="text-muted small mt-1" style="font-size: 0.76rem;">{{ Str::limit($pso->description, 50) }}</div>
               @endif
             </td>
             <td><code class="fw-bold">{{ $pso->prefix }}</code></td>
@@ -84,7 +82,7 @@
                 {{-- Delete Action (if safe) --}}
                 @if(($pso->bills_count ?? 0) === 0)
                 <form action="{{ route('admin.pso.delete', $pso->id) }}" method="POST" class="d-inline"
-                      onsubmit="return confirm('Are you sure you want to delete PSO Series {{ $pso->code }} ({{ $pso->name }})?');">
+                      onsubmit="return confirm('Are you sure you want to delete PSO Series {{ $pso->code }}?');">
                   @csrf
                   @method('DELETE')
                   <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete PSO Configuration">
@@ -100,7 +98,7 @@
           </tr>
         @empty
           <tr>
-            <td colspan="9" class="text-center text-muted py-4">
+            <td colspan="8" class="text-center text-muted py-4">
               <i class="bi bi-diagram-3 fs-3 d-block mb-1 text-primary"></i>
               No PSO Series configured. Click <a href="{{ route('admin.pso.create') }}" class="text-primary fw-bold">"+ Configure New PSO"</a> above to add your first counter series.
             </td>

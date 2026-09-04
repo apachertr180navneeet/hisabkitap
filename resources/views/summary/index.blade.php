@@ -35,7 +35,7 @@
         @forelse($matrixRows as $row)
           <tr>
             <td class="text-start">
-              <strong>{{ $row['pso']->name }}</strong>
+              <strong class="font-mono">{{ $row['pso']->code }}</strong>
               <div class="small text-muted">{{ $row['pso']->prefix }} {{ sprintf('%02d', $row['pso']->start_no) }}-{{ sprintf('%02d', $row['pso']->end_no) }} | Op: {{ $row['pso']->operator_name }}</div>
             </td>
             <td>{{ $row['billsCount'] }}</td>

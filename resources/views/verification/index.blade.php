@@ -34,7 +34,7 @@
       <select name="pso" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="ALL">All PSOs</option>
         @foreach($psoList as $pso)
-          <option value="{{ $pso->code }}" {{ request('pso') === $pso->code ? 'selected' : '' }}>{{ $pso->name }}</option>
+          <option value="{{ $pso->code }}" {{ request('pso') === $pso->code ? 'selected' : '' }}>{{ $pso->code }} ({{ $pso->prefix }})</option>
         @endforeach
       </select>
     </div>

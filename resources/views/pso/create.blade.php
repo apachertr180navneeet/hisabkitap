@@ -28,55 +28,29 @@
     <form action="{{ route('admin.pso.store') }}" method="POST" id="form-pso-create">
       @csrf
 
-      {{-- Section 1: Identifier & Name --}}
+      {{-- Section 1: Identifier & Series Range --}}
       <div class="card border bg-white shadow-sm mb-4">
         <div class="card-header bg-white py-3 px-4 border-bottom">
           <h6 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-diagram-3 text-primary me-2"></i>PSO Identity & Naming
+            <i class="bi bi-diagram-3 text-primary me-2"></i>PSO Identity & Sequence Range
           </h6>
         </div>
         <div class="card-body p-4">
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold" for="code">
-                PSO Identifier Code <span class="text-danger">*</span>
+                PSO Identifier Code <span class="badge bg-secondary ms-1 font-mono">Auto-generated</span>
               </label>
               <div class="input-group">
                 <span class="input-group-text bg-light font-mono"><i class="bi bi-hash"></i></span>
-                <input type="text" name="code" id="code" class="form-control font-mono fw-bold @error('code') is-invalid @enderror" 
-                       value="{{ old('code', $suggestedCode ?? 'PSO-1') }}" placeholder="e.g. PSO-4" required>
+                <input type="text" name="code" id="code" class="form-control font-mono fw-bold bg-light" 
+                       value="{{ $suggestedCode ?? 'PSO-1' }}" readonly>
+                <span class="input-group-text bg-light text-muted" title="Read-only auto-generated identifier"><i class="bi bi-lock-fill"></i></span>
               </div>
-              <div class="form-text small">Unique system identifier for this counter series.</div>
-              @error('code')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
+              <div class="form-text small text-muted"><i class="bi bi-info-circle me-1"></i>System auto-assigned sequence code (Read-only).</div>
             </div>
 
-            <div class="col-md-8">
-              <label class="form-label fw-semibold" for="name">
-                PSO Display Name / Purpose <span class="text-danger">*</span>
-              </label>
-              <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror" 
-                     value="{{ old('name') }}" placeholder="e.g. PSO 4 - Institutional Delivery / Counter 4" required>
-              <div class="form-text small">Descriptive label shown in verification matrix and reports.</div>
-              @error('name')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {{-- Section 2: Bill Prefix & Number Sequence Range --}}
-      <div class="card border bg-white shadow-sm mb-4">
-        <div class="card-header bg-white py-3 px-4 border-bottom">
-          <h6 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-123 text-primary me-2"></i>Prefix & Bill Number Sequence Range
-          </h6>
-        </div>
-        <div class="card-body p-4">
-          <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold" for="prefix">
                 Bill Prefix <span class="text-danger">*</span>
               </label>
@@ -97,7 +71,7 @@
               @enderror
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold" for="start_no">
                 Start Number <span class="text-danger">*</span>
               </label>
@@ -109,7 +83,7 @@
               @enderror
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold" for="end_no">
                 End Number <span class="text-danger">*</span>
               </label>
@@ -135,7 +109,7 @@
         </div>
       </div>
 
-      {{-- Section 3: Special Bills & Operator Assignment --}}
+      {{-- Section 2: Special Bills & Operator Assignment --}}
       <div class="card border bg-white shadow-sm mb-4">
         <div class="card-header bg-white py-3 px-4 border-bottom">
           <h6 class="fw-bold mb-0 text-dark">
@@ -225,10 +199,10 @@
       <div class="card-body p-4">
         <div class="p-3 border rounded bg-white shadow-xs">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="badge bg-primary fs-6 font-mono" id="preview-badge-code">PSO-1</span>
+            <span class="badge bg-primary fs-6 font-mono" id="preview-badge-code">{{ $suggestedCode ?? 'PSO-1' }}</span>
             <span class="badge bg-success" id="preview-badge-status">Active</span>
           </div>
-          <h5 class="fw-bold text-dark mb-1" id="preview-card-name">PSO Name Preview</h5>
+          <h5 class="fw-bold text-dark mb-1" id="preview-card-name">{{ $suggestedCode ?? 'PSO-1' }}</h5>
           <div class="text-muted small mb-3" id="preview-card-desc">Series description preview will appear here.</div>
 
           <div class="border-top pt-2 mt-2">
@@ -258,10 +232,10 @@
       </div>
       <div class="card-body p-4 small text-secondary">
         <ul class="ps-3 mb-0 d-flex flex-column gap-2">
+          <li><strong>Auto Code:</strong> PSO Identifier code is automatically assigned sequentially (read-only).</li>
           <li><strong>Prefix:</strong> Must match the bill serial prefix exported by Tally / POS (e.g. <code>CB</code>, <code>SC</code>).</li>
           <li><strong>Serial Range:</strong> Typically 10 bills per booklet (e.g., <code>1-10</code>, <code>11-20</code>, <code>21-30</code>).</li>
           <li><strong>Special Bills:</strong> Use for non-sequential corporate accounts, e.g. <code>ITC 01, ITC 03</code>.</li>
-          <li><strong>Automatic Rollover:</strong> The reconciliation engine uses these rules to check for missing bills daily.</li>
         </ul>
       </div>
     </div>
@@ -273,7 +247,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const inputCode = document.getElementById('code');
-  const inputName = document.getElementById('name');
   const inputPrefix = document.getElementById('prefix');
   const inputStart = document.getElementById('start_no');
   const inputEnd = document.getElementById('end_no');
@@ -299,8 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function updatePreview() {
-    const code = inputCode.value.trim() || 'PSO-X';
-    const name = inputName.value.trim() || 'PSO Name Preview';
+    const code = (inputCode ? inputCode.value.trim() : '') || 'PSO-X';
     const prefix = (inputPrefix.value.trim() || 'CB').toUpperCase();
     const start = parseInt(inputStart.value) || 1;
     const end = parseInt(inputEnd.value) || 10;
@@ -309,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const isActive = inputStatus.checked;
 
     previewBadgeCode.textContent = code;
-    previewCardName.textContent = name;
+    previewCardName.textContent = code;
     previewCardPrefix.textContent = prefix;
     previewCardRange.textContent = `${padZero(start)} – ${padZero(end)}`;
     previewCardOperator.textContent = operator;
@@ -345,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  [inputCode, inputName, inputPrefix, inputStart, inputEnd, inputOperator, inputSpecials, inputDesc].forEach(el => {
+  [inputPrefix, inputStart, inputEnd, inputOperator, inputSpecials, inputDesc].forEach(el => {
     if (el) el.addEventListener('input', updatePreview);
   });
   if (inputStatus) inputStatus.addEventListener('change', updatePreview);

@@ -23,7 +23,6 @@ class PsoManagementTest extends TestCase
 
         $pso = PsoConfig::create([
             'code' => 'PSO-TEST-1',
-            'name' => 'Test PSO 1',
             'prefix' => 'TS',
             'start_no' => 1,
             'end_no' => 10,
@@ -36,9 +35,10 @@ class PsoManagementTest extends TestCase
         $response->assertSee(route('admin.pso.create'));
         $response->assertSee(route('admin.pso.edit', $pso->id));
         $response->assertDontSee('#modal-add-pso');
+        $response->assertDontSee('<th>PSO Name</th>');
     }
 
-    public function test_pso_create_page_loads_successfully(): void
+    public function test_pso_create_page_loads_successfully_with_readonly_code(): void
     {
         $admin = User::where('code', 'usr_admin')->first();
 
@@ -46,15 +46,15 @@ class PsoManagementTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Configure New PSO Series');
         $response->assertSee('Save PSO Configuration');
+        $response->assertSee('readonly');
+        $response->assertDontSee('PSO Display Name / Purpose');
     }
 
-    public function test_pso_store_action_creates_record_and_redirects(): void
+    public function test_pso_store_action_creates_record_with_auto_generated_code(): void
     {
         $admin = User::where('code', 'usr_admin')->first();
 
         $response = $this->actingAs($admin)->post(route('admin.pso.store'), [
-            'code' => 'PSO-99',
-            'name' => 'New Airport Delivery Counter',
             'prefix' => 'AD',
             'start_no' => 1,
             'end_no' => 10,
@@ -66,9 +66,11 @@ class PsoManagementTest extends TestCase
 
         $response->assertRedirect(route('admin.pso.index'));
         $this->assertDatabaseHas('pso_configs', [
-            'code' => 'PSO-99',
-            'name' => 'New Airport Delivery Counter',
+            'code' => 'PSO-1',
             'prefix' => 'AD',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'Ramesh Sharma',
         ]);
     }
 
@@ -78,7 +80,6 @@ class PsoManagementTest extends TestCase
 
         $pso = PsoConfig::create([
             'code' => 'PSO-EDIT-ME',
-            'name' => 'Pre-edit Name',
             'prefix' => 'PE',
             'start_no' => 1,
             'end_no' => 10,
@@ -89,8 +90,9 @@ class PsoManagementTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.pso.edit', $pso->id));
         $response->assertStatus(200);
         $response->assertSee('PSO-EDIT-ME');
-        $response->assertSee('Pre-edit Name');
         $response->assertSee('Update PSO Configuration');
+        $response->assertSee('readonly');
+        $response->assertDontSee('PSO Display Name / Purpose');
     }
 
     public function test_pso_update_action_modifies_record_and_redirects(): void
@@ -99,7 +101,6 @@ class PsoManagementTest extends TestCase
 
         $pso = PsoConfig::create([
             'code' => 'PSO-ORIG',
-            'name' => 'Original Name',
             'prefix' => 'OG',
             'start_no' => 1,
             'end_no' => 10,
@@ -108,8 +109,6 @@ class PsoManagementTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->post(route('admin.pso.update', $pso->id), [
-            'code' => 'PSO-UPDATED',
-            'name' => 'Updated Name Here',
             'prefix' => 'UP',
             'start_no' => 5,
             'end_no' => 15,
@@ -122,8 +121,7 @@ class PsoManagementTest extends TestCase
         $response->assertRedirect(route('admin.pso.index'));
         $this->assertDatabaseHas('pso_configs', [
             'id' => $pso->id,
-            'code' => 'PSO-UPDATED',
-            'name' => 'Updated Name Here',
+            'code' => 'PSO-ORIG',
             'prefix' => 'UP',
             'start_no' => 5,
             'end_no' => 15,
