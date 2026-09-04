@@ -209,116 +209,142 @@
         </div>
       </div>
 
-      {{-- Card 3: Bill Prefix, Financial Year & Range (Dynamic Rows with Add More) --}}
+      {{-- Card 3: Bill Series & Sequence Range (Table-style Multi-Range) --}}
       <div class="card border bg-white shadow-sm mb-4">
         <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h6 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-card-checklist text-primary me-2"></i>Bill Series & Sequence Range
-          </h6>
+          <div>
+            <h6 class="fw-bold mb-0 text-dark">
+              <i class="bi bi-card-checklist text-primary me-2"></i>Bill Series & Sequence Range
+            </h6>
+            <div class="text-muted small">Configure counter bill prefix and continuous sequential number series.</div>
+          </div>
           <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="btn-add-series-row-top">
             <i class="bi bi-plus-circle me-1"></i> Add More Range
           </button>
         </div>
         <div class="card-body p-4">
+          {{-- Table Header Bar (Rendered once on top) --}}
+          <div class="d-none d-md-block bg-light rounded-top border p-2 px-3 fw-semibold text-muted small text-uppercase" style="letter-spacing: 0.03em; font-size: 0.72rem;">
+            <div class="row g-2 align-items-center">
+              <div class="col-md-3">
+                <i class="bi bi-tag text-primary me-1"></i>Bill Prefix <span class="text-danger">*</span>
+              </div>
+              <div class="col-md-3">
+                <i class="bi bi-calendar-range text-primary me-1"></i>Current Financial Year <span class="badge bg-secondary-subtle text-secondary font-mono ms-1" style="font-size: 0.65rem;">Active</span>
+              </div>
+              <div class="col-md-2 text-center">
+                Start Number <span class="text-danger">*</span>
+              </div>
+              <div class="col-md-2 text-center">
+                End Number <span class="text-danger">*</span>
+              </div>
+              <div class="col-md-1 text-center">
+                Bills
+              </div>
+              <div class="col-md-1 text-center">
+                Action
+              </div>
+            </div>
+          </div>
+
           <div id="series-rows-container">
             {{-- Initial Row (Row 0) --}}
-            <div class="row g-2 align-items-end series-row mb-3" data-row-index="0">
-              {{-- 1. Bill Prefix Drop Down --}}
-              <div class="col-md-3">
-                <label class="form-label fw-semibold">
-                  Bill Prefix <span class="text-danger">*</span>
-                </label>
-                <div class="input-group">
-                  <span class="input-group-text bg-light"><i class="bi bi-tag"></i></span>
-                  <select name="series[0][prefix]" class="form-select font-mono fw-bold text-uppercase select-prefix" required>
-                    <option value="">-- SELECT PREFIX --</option>
-                    @foreach($prefixes as $pfx)
-                      <option value="{{ $pfx->prefix }}" {{ old('prefix', 'CB') == $pfx->prefix ? 'selected' : '' }}>
-                        {{ $pfx->prefix }} &ndash; {{ $pfx->name }}
-                      </option>
-                    @endforeach
-                    @if($prefixes->isEmpty())
-                      <option value="CB" selected>CB &ndash; Counter Wholesale</option>
-                      <option value="RB">RB &ndash; Retail Walk-in</option>
-                      <option value="SC">SC &ndash; School Counter</option>
-                    @endif
-                    <option value="__quick_add_prefix__" class="text-primary fw-bold">+ Add New Prefix...</option>
-                  </select>
-                  <button type="button" class="btn btn-outline-primary btn-quick-add-trigger" title="Quick Add Prefix to Master">
-                    <i class="bi bi-plus-lg"></i>
+            <div class="series-row p-2 px-3 border-start border-end border-bottom bg-white" data-row-index="0">
+              <div class="row g-2 align-items-center">
+                {{-- 1. Bill Prefix Drop Down --}}
+                <div class="col-md-3">
+                  <div class="d-md-none text-muted small fw-semibold mb-1">Bill Prefix <span class="text-danger">*</span></div>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-tag"></i></span>
+                    <select name="series[0][prefix]" class="form-select form-select-sm font-mono fw-bold text-uppercase select-prefix" required>
+                      <option value="">-- SELECT PREFIX --</option>
+                      @foreach($prefixes as $pfx)
+                        <option value="{{ $pfx->prefix }}" {{ old('prefix', 'CB') == $pfx->prefix ? 'selected' : '' }}>
+                          {{ $pfx->prefix }} &ndash; {{ $pfx->name }}
+                        </option>
+                      @endforeach
+                      @if($prefixes->isEmpty())
+                        <option value="CB" selected>CB &ndash; Counter Wholesale</option>
+                        <option value="RB">RB &ndash; Retail Walk-in</option>
+                        <option value="SC">SC &ndash; School Counter</option>
+                      @endif
+                      <option value="__quick_add_prefix__" class="text-primary fw-bold">+ Add New Prefix...</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-primary btn-quick-add-trigger" title="Quick Add Prefix to Master">
+                      <i class="bi bi-plus-lg"></i>
+                    </button>
+                  </div>
+                </div>
+
+                {{-- 2. Readonly Current Financial Year --}}
+                <div class="col-md-3">
+                  <div class="d-md-none text-muted small fw-semibold mb-1">Current Financial Year</div>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-primary"><i class="bi bi-calendar3"></i></span>
+                    <input type="text" name="series[0][financial_year]" class="form-control form-control-sm font-mono fw-bold bg-light input-fy" 
+                           value="{{ old('financial_year', $activeFinancialYear ?? '2026-2027') }}" readonly>
+                    <span class="input-group-text bg-light text-muted" title="Active Financial Year (Read-only)"><i class="bi bi-lock-fill" style="font-size: 0.72rem;"></i></span>
+                  </div>
+                </div>
+
+                {{-- 3. Start Number --}}
+                <div class="col-md-2">
+                  <div class="d-md-none text-muted small fw-semibold mb-1">Start Number <span class="text-danger">*</span></div>
+                  <input type="number" name="series[0][start_no]" class="form-control form-control-sm font-mono text-center fw-semibold input-start" 
+                         value="{{ old('start_no', 1) }}" min="1" required placeholder="Start">
+                </div>
+
+                {{-- 4. End Number --}}
+                <div class="col-md-2">
+                  <div class="d-md-none text-muted small fw-semibold mb-1">End Number <span class="text-danger">*</span></div>
+                  <input type="number" name="series[0][end_no]" class="form-control form-control-sm font-mono text-center fw-semibold input-end" 
+                         value="{{ old('end_no', 10) }}" min="1" required placeholder="End">
+                </div>
+
+                {{-- 5. Row Bills Count Badge --}}
+                <div class="col-md-1 text-center">
+                  <div class="d-md-none text-muted small fw-semibold mb-1">Bills Count</div>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono py-1 px-2 row-bills-badge">10</span>
+                </div>
+
+                {{-- 6. Action / Delete button --}}
+                <div class="col-md-1 text-center">
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" style="display: none; padding: 0.25rem 0.5rem;" title="Remove this range">
+                    <i class="bi bi-trash3"></i>
                   </button>
                 </div>
-                <div class="form-text small">Select from Prefix Master.</div>
-              </div>
-
-              {{-- 2. Readonly Current Financial Year --}}
-              <div class="col-md-3">
-                <label class="form-label fw-semibold">
-                  Current Financial Year <span class="badge bg-secondary ms-1 font-mono">Current</span>
-                </label>
-                <div class="input-group">
-                  <span class="input-group-text bg-light"><i class="bi bi-calendar-range text-primary"></i></span>
-                  <input type="text" name="series[0][financial_year]" class="form-control font-mono fw-bold bg-light input-fy" 
-                         value="{{ old('financial_year', $activeFinancialYear ?? '2026-2027') }}" readonly>
-                  <span class="input-group-text bg-light text-muted" title="Active Financial Year (Read-only)"><i class="bi bi-lock-fill"></i></span>
-                </div>
-                <div class="form-text small text-muted"><i class="bi bi-shield-check me-1"></i>System active FY period.</div>
-              </div>
-
-              {{-- 3. Start Number --}}
-              <div class="col-md-2">
-                <label class="form-label fw-semibold">
-                  Start Number <span class="text-danger">*</span>
-                </label>
-                <input type="number" name="series[0][start_no]" class="form-control font-mono input-start" 
-                       value="{{ old('start_no', 1) }}" min="1" required>
-                <div class="form-text small">Initial sequential serial.</div>
-              </div>
-
-              {{-- 4. End Number --}}
-              <div class="col-md-3">
-                <label class="form-label fw-semibold">
-                  End Number <span class="text-danger">*</span>
-                </label>
-                <input type="number" name="series[0][end_no]" class="form-control font-mono input-end" 
-                       value="{{ old('end_no', 10) }}" min="1" required>
-                <div class="form-text small">Final expected serial (inclusive).</div>
-              </div>
-
-              {{-- 5. Action / Delete button --}}
-              <div class="col-md-1 text-center">
-                <label class="form-label d-none d-md-block small text-muted">&nbsp;</label>
-                <button type="button" class="btn btn-outline-danger w-100 btn-remove-row" style="display: none;" title="Delete this range">
-                  <i class="bi bi-trash3"></i>
-                </button>
               </div>
             </div>
           </div>
 
           {{-- Add More Button Below Rows --}}
-          <div class="d-flex justify-content-between align-items-center pt-1 pb-1">
-            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="btn-add-series-row">
+          <div class="d-flex justify-content-between align-items-center mt-3 pt-1">
+            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold px-3" id="btn-add-series-row">
               <i class="bi bi-plus-circle me-1"></i> Add More Range
             </button>
-            <span class="text-muted small">
-              <i class="bi bi-layers text-primary me-1"></i><span id="series-row-count">1</span> Range(s) Configured
+            <span class="badge bg-light text-secondary border font-mono px-3 py-2">
+              <i class="bi bi-layers-fill text-primary me-1"></i><span id="series-row-count">1</span> Range(s) Configured
             </span>
           </div>
 
-          {{-- Sequence Preview Bar --}}
-          <div class="alert alert-light border mt-3 p-3 mb-0 rounded">
+          {{-- Enhanced Sequence Preview Banner --}}
+          <div class="alert alert-primary bg-primary-subtle border-primary-subtle text-dark mt-3 p-3 mb-0 rounded shadow-xs">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
               <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-info-circle-fill text-primary"></i>
-                <div class="small">
-                  <strong>Sequence Preview:</strong> 
-                  <span id="preview-sequence-text" class="font-mono text-dark fw-bold">CB 01 to CB 10</span> 
-                  (<span id="preview-count">10</span> daily bills verified per sheet).
+                <span class="badge bg-primary p-1.5 rounded-circle"><i class="bi bi-info-lg text-white"></i></span>
+                <div>
+                  <div class="small fw-semibold text-muted">Sequence Preview:</div>
+                  <div class="font-mono text-primary fw-bold fs-6" id="preview-sequence-text">CB 01 to CB 10</div>
                 </div>
               </div>
-              <span class="badge bg-light text-dark border font-mono">
-                <i class="bi bi-calendar-range text-primary me-1"></i>FY: <span id="preview-fy">{{ $activeFinancialYear ?? '2026-2027' }}</span>
-              </span>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success font-mono fs-6 px-3 py-1.5">
+                  <span id="preview-count">10</span> daily bills verified
+                </span>
+                <span class="badge bg-white text-dark border font-mono py-1.5">
+                  <i class="bi bi-calendar-range text-primary me-1"></i>FY: <span id="preview-fy">{{ $activeFinancialYear ?? '2026-2027' }}</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -542,62 +568,56 @@ document.addEventListener('DOMContentLoaded', function() {
   function addRow() {
     const idx = nextRowIndex++;
     const rowDiv = document.createElement('div');
-    rowDiv.className = 'row g-2 align-items-end series-row mb-3';
+    rowDiv.className = 'series-row p-2 px-3 border-start border-end border-bottom bg-white';
     rowDiv.setAttribute('data-row-index', idx);
 
     rowDiv.innerHTML = `
-      <div class="col-md-3">
-        <label class="form-label fw-semibold">
-          Bill Prefix <span class="text-danger">*</span>
-        </label>
-        <div class="input-group">
-          <span class="input-group-text bg-light"><i class="bi bi-tag"></i></span>
-          <select name="series[${idx}][prefix]" class="form-select font-mono fw-bold text-uppercase select-prefix" required>
-            ${getPrefixOptionsHtml()}
-          </select>
-          <button type="button" class="btn btn-outline-primary btn-quick-add-trigger" title="Quick Add Prefix to Master">
-            <i class="bi bi-plus-lg"></i>
+      <div class="row g-2 align-items-center">
+        <div class="col-md-3">
+          <div class="d-md-none text-muted small fw-semibold mb-1">Bill Prefix <span class="text-danger">*</span></div>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light text-muted"><i class="bi bi-tag"></i></span>
+            <select name="series[${idx}][prefix]" class="form-select form-select-sm font-mono fw-bold text-uppercase select-prefix" required>
+              ${getPrefixOptionsHtml()}
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-primary btn-quick-add-trigger" title="Quick Add Prefix to Master">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="d-md-none text-muted small fw-semibold mb-1">Current Financial Year</div>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light text-primary"><i class="bi bi-calendar3"></i></span>
+            <input type="text" name="series[${idx}][financial_year]" class="form-control form-control-sm font-mono fw-bold bg-light input-fy" 
+                   value="${activeFinancialYear}" readonly>
+            <span class="input-group-text bg-light text-muted" title="Active Financial Year (Read-only)"><i class="bi bi-lock-fill" style="font-size: 0.72rem;"></i></span>
+          </div>
+        </div>
+
+        <div class="col-md-2">
+          <div class="d-md-none text-muted small fw-semibold mb-1">Start Number <span class="text-danger">*</span></div>
+          <input type="number" name="series[${idx}][start_no]" class="form-control form-control-sm font-mono text-center fw-semibold input-start" 
+                 value="1" min="1" required placeholder="Start">
+        </div>
+
+        <div class="col-md-2">
+          <div class="d-md-none text-muted small fw-semibold mb-1">End Number <span class="text-danger">*</span></div>
+          <input type="number" name="series[${idx}][end_no]" class="form-control form-control-sm font-mono text-center fw-semibold input-end" 
+                 value="10" min="1" required placeholder="End">
+        </div>
+
+        <div class="col-md-1 text-center">
+          <div class="d-md-none text-muted small fw-semibold mb-1">Bills Count</div>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono py-1 px-2 row-bills-badge">10</span>
+        </div>
+
+        <div class="col-md-1 text-center">
+          <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" style="padding: 0.25rem 0.5rem;" title="Remove this range">
+            <i class="bi bi-trash3"></i>
           </button>
         </div>
-        <div class="form-text small">Select from Prefix Master.</div>
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label fw-semibold">
-          Current Financial Year <span class="badge bg-secondary ms-1 font-mono">Current</span>
-        </label>
-        <div class="input-group">
-          <span class="input-group-text bg-light"><i class="bi bi-calendar-range text-primary"></i></span>
-          <input type="text" name="series[${idx}][financial_year]" class="form-control font-mono fw-bold bg-light input-fy" 
-                 value="${activeFinancialYear}" readonly>
-          <span class="input-group-text bg-light text-muted" title="Active Financial Year (Read-only)"><i class="bi bi-lock-fill"></i></span>
-        </div>
-        <div class="form-text small text-muted"><i class="bi bi-shield-check me-1"></i>System active FY period.</div>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label fw-semibold">
-          Start Number <span class="text-danger">*</span>
-        </label>
-        <input type="number" name="series[${idx}][start_no]" class="form-control font-mono input-start" 
-               value="1" min="1" required>
-        <div class="form-text small">Initial serial.</div>
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label fw-semibold">
-          End Number <span class="text-danger">*</span>
-        </label>
-        <input type="number" name="series[${idx}][end_no]" class="form-control font-mono input-end" 
-               value="10" min="1" required>
-        <div class="form-text small">Final expected serial.</div>
-      </div>
-
-      <div class="col-md-1 text-center">
-        <label class="form-label d-none d-md-block small text-muted">&nbsp;</label>
-        <button type="button" class="btn btn-outline-danger w-100 btn-remove-row" title="Delete this range">
-          <i class="bi bi-trash3"></i>
-        </button>
       </div>
     `;
 
@@ -704,6 +724,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const start = parseInt(startIn ? startIn.value : 1) || 1;
       const end = parseInt(endIn ? endIn.value : 10) || 10;
       const count = Math.max(0, end - start + 1);
+
+      const rowBadge = row.querySelector('.row-bills-badge');
+      if (rowBadge) {
+        rowBadge.textContent = count;
+      }
 
       totalBills += count;
       sequences.push(`${prefix} ${padZero(start)} to ${prefix} ${padZero(end)}`);
