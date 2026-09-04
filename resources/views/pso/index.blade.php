@@ -9,16 +9,16 @@
     <p class="text-muted mb-0">Define counter PSO prefixes, starting/ending serial ranges, and special company bill series.</p>
   </div>
   @if($currentUser->hasPermission('can_configure_pso'))
-  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-add-pso">
+  <a href="{{ route('admin.pso.create') }}" class="btn btn-primary">
     <i class="bi bi-plus-circle me-1"></i> Configure New PSO
-  </button>
+  </a>
   @endif
 </div>
 
 <div class="erp-table-container mb-4">
   <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
     <span class="fw-semibold text-dark">Active PSO Series Rules (Default Configuration)</span>
-    <span class="badge bg-success">{{ $psoList->count() }} Configs Active</span>
+    <span class="badge bg-success">{{ $psoList->where('is_active', true)->count() }} Configs Active</span>
   </div>
   <div class="table-responsive">
     <table class="table erp-table align-middle">
@@ -38,18 +38,23 @@
       <tbody>
         @forelse($psoList as $pso)
           <tr>
-            <td><span class="badge bg-primary">{{ $pso->code }}</span></td>
-            <td><strong>{{ $pso->name }}</strong></td>
-            <td><code>{{ $pso->prefix }}</code></td>
-            <td>{{ sprintf('%02d', $pso->start_no) }}</td>
-            <td>{{ sprintf('%02d', $pso->end_no) }}</td>
+            <td><span class="badge bg-primary font-mono">{{ $pso->code }}</span></td>
+            <td>
+              <strong>{{ $pso->name }}</strong>
+              @if($pso->description)
+                <div class="text-muted small" style="font-size: 0.76rem;">{{ Str::limit($pso->description, 50) }}</div>
+              @endif
+            </td>
+            <td><code class="fw-bold">{{ $pso->prefix }}</code></td>
+            <td class="font-mono">{{ sprintf('%02d', $pso->start_no) }}</td>
+            <td class="font-mono">{{ sprintf('%02d', $pso->end_no) }}</td>
             <td>
               @if(!empty($pso->specials))
                 @foreach($pso->specials as $spec)
-                  <span class="badge bg-info text-dark me-1">{{ $spec }}</span>
+                  <span class="badge bg-info text-dark me-1 font-mono">{{ $spec }}</span>
                 @endforeach
               @else
-                <span class="text-muted small">None</span>
+                <span class="text-muted small">—</span>
               @endif
             </td>
             <td>{{ $pso->operator_name }}</td>
@@ -58,15 +63,36 @@
                 {{ $pso->is_active ? 'Active' : 'Inactive' }}
               </span>
             </td>
-            <td class="text-end">
+            <td class="text-end text-nowrap">
               @if($currentUser->hasPermission('can_configure_pso'))
-              <form action="{{ route('pso.toggle', $pso->id) }}" method="POST" class="d-inline">
-                @csrf
-                <button type="submit" class="btn btn-sm btn-outline-secondary">
-                  <i class="bi {{ $pso->is_active ? 'bi-pause-fill' : 'bi-play-fill' }}"></i>
-                  {{ $pso->is_active ? 'Disable' : 'Enable' }}
-                </button>
-              </form>
+              <div class="d-flex justify-content-end align-items-center gap-1">
+                {{-- Edit Action --}}
+                <a href="{{ route('admin.pso.edit', $pso->id) }}" class="btn btn-sm btn-outline-primary" title="Edit PSO Configuration">
+                  <i class="bi bi-pencil-square me-1"></i> Edit
+                </a>
+
+                {{-- Status Toggle --}}
+                <form action="{{ route('admin.pso.toggle', $pso->id) }}" method="POST" class="d-inline">
+                  @csrf
+                  <button type="submit" class="btn btn-sm {{ $pso->is_active ? 'btn-outline-secondary' : 'btn-outline-success' }}" 
+                          title="{{ $pso->is_active ? 'Disable' : 'Enable' }}">
+                    <i class="bi {{ $pso->is_active ? 'bi-pause-fill' : 'bi-play-fill' }}"></i>
+                    {{ $pso->is_active ? 'Disable' : 'Enable' }}
+                  </button>
+                </form>
+
+                {{-- Delete Action (if safe) --}}
+                @if(($pso->bills_count ?? 0) === 0)
+                <form action="{{ route('admin.pso.delete', $pso->id) }}" method="POST" class="d-inline"
+                      onsubmit="return confirm('Are you sure you want to delete PSO Series {{ $pso->code }} ({{ $pso->name }})?');">
+                  @csrf
+                  @method('DELETE')
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete PSO Configuration">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+                @endif
+              </div>
               @else
                 <span class="text-muted small">Read Only</span>
               @endif
@@ -76,7 +102,7 @@
           <tr>
             <td colspan="9" class="text-center text-muted py-4">
               <i class="bi bi-diagram-3 fs-3 d-block mb-1 text-primary"></i>
-              No PSO Series configured. Click <strong>"+ Configure New PSO"</strong> above to add your first counter series.
+              No PSO Series configured. Click <a href="{{ route('admin.pso.create') }}" class="text-primary fw-bold">"+ Configure New PSO"</a> above to add your first counter series.
             </td>
           </tr>
         @endforelse
@@ -88,19 +114,19 @@
 <!-- Series Reference Cards -->
 <div class="row g-3">
   <div class="col-md-4">
-    <div class="card border p-3 bg-white">
+    <div class="card border p-3 bg-white h-100">
       <div class="fw-bold text-primary mb-1">PSO 1 Series Logic</div>
       <div class="text-muted" style="font-size: 0.82rem;">Handles standard counter sequence <code>CB 01</code> to <code>CB 10</code>. Verifies 10 bills sequentially.</div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card border p-3 bg-white">
+    <div class="card border p-3 bg-white h-100">
       <div class="fw-bold text-primary mb-1">PSO 2 Series Logic</div>
       <div class="text-muted" style="font-size: 0.82rem;">Handles sequence <code>CB 11</code> to <code>CB 20</code> plus Special Company bills <code>ITC 01</code> and <code>ITC 03</code>.</div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card border p-3 bg-white">
+    <div class="card border p-3 bg-white h-100">
       <div class="fw-bold text-primary mb-1">PSO 3 Series Logic</div>
       <div class="text-muted" style="font-size: 0.82rem;">Handles Retail counter sequence <code>RB 01</code> to <code>RB 10</code> for walk-in instant counter receipts.</div>
     </div>

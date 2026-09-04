@@ -1,51 +1,5 @@
 <!-- ALL INTERACTIVE MODALS -->
 
-<!-- Modal 1: Add/Edit PSO Series -->
-<div class="modal fade" id="modal-add-pso" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold">Configure New PSO Series</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form action="{{ route('pso.store') }}" method="POST">
-        @csrf
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">PSO Code / Name</label>
-            <input type="text" name="name" class="form-control" placeholder="e.g. PSO 4 - Institutional Delivery" required>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-4">
-              <label class="form-label fw-semibold">Prefix</label>
-              <input type="text" name="prefix" class="form-control text-uppercase" placeholder="e.g. IB" required>
-            </div>
-            <div class="col-4">
-              <label class="form-label fw-semibold">Start No.</label>
-              <input type="number" name="start_no" class="form-control" value="1" required>
-            </div>
-            <div class="col-4">
-              <label class="form-label fw-semibold">End No.</label>
-              <input type="number" name="end_no" class="form-control" value="10" required>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Special Bills (Comma separated)</label>
-            <input type="text" name="specials" class="form-control" placeholder="e.g. ITC 05, SPL 01">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Assigned Operator</label>
-            <input type="text" name="operator_name" class="form-control" value="{{ $currentUser['name'] ?? 'Ramesh Sharma' }}" required>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save PSO Configuration</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
 
 <!-- Modal 2: Missing Bill Investigation -->
 <div class="modal fade" id="modal-investigate-bill" tabindex="-1" aria-hidden="true">

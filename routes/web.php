@@ -72,8 +72,13 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     // 1. PSO Series Management
     Route::get('/pso', [PsoManagementController::class, 'index'])->name('admin.pso.index');
+    Route::get('/pso/create', [PsoManagementController::class, 'create'])->middleware('permission:can_configure_pso')->name('admin.pso.create');
     Route::post('/pso/store', [PsoManagementController::class, 'store'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.store');
+    Route::get('/pso/{id}/edit', [PsoManagementController::class, 'edit'])->middleware('permission:can_configure_pso')->name('admin.pso.edit');
+    Route::post('/pso/{id}/update', [PsoManagementController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.update');
+    Route::put('/pso/{id}', [PsoManagementController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.put_update');
     Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.toggle');
+    Route::delete('/pso/{id}', [PsoManagementController::class, 'destroy'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.delete');
 
     // 2. Tally Excel Import
     Route::get('/import', [ExcelImportController::class, 'index'])->name('admin.import.index');
@@ -165,8 +170,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->middleware('read.only')->name('profile.password');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/pso', [PsoManagementController::class, 'index'])->name('pso.index');
+    Route::get('/pso/create', [PsoManagementController::class, 'create'])->name('pso.create');
     Route::post('/pso/store', [PsoManagementController::class, 'store'])->middleware('read.only')->name('pso.store');
+    Route::get('/pso/{id}/edit', [PsoManagementController::class, 'edit'])->name('pso.edit');
+    Route::post('/pso/{id}/update', [PsoManagementController::class, 'update'])->middleware('read.only')->name('pso.update');
+    Route::put('/pso/{id}', [PsoManagementController::class, 'update'])->middleware('read.only')->name('pso.put_update');
     Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware('read.only')->name('pso.toggle');
+    Route::delete('/pso/{id}', [PsoManagementController::class, 'destroy'])->middleware('read.only')->name('pso.delete');
     Route::get('/import', [ExcelImportController::class, 'index'])->name('import.index');
     Route::post('/import', [ExcelImportController::class, 'import'])->middleware('read.only')->name('import.process');
     Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('import.sample');
