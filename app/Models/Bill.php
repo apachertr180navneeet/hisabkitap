@@ -21,6 +21,8 @@ class Bill extends Model
         'amount',
         'payment_type',
         'voucher_type',
+        'salesperson_id',
+        'salesman_name',
         'cd_amount',
         'refund_amount',
         'net_amount',
@@ -53,6 +55,11 @@ class Bill extends Model
     public function tallyImport()
     {
         return $this->belongsTo(TallyImport::class, 'tally_import_id');
+    }
+
+    public function salesperson()
+    {
+        return $this->belongsTo(Salesperson::class, 'salesperson_id');
     }
 
     public function corrections()

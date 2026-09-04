@@ -42,4 +42,12 @@ class Salesperson extends Model
     {
         return $this->hasMany(CreditCollection::class, 'salesman_name', 'name');
     }
+
+    /**
+     * Get all bills assigned to this salesperson.
+     */
+    public function bills()
+    {
+        return $this->hasMany(Bill::class, 'salesperson_id');
+    }
 }
