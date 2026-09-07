@@ -73,6 +73,9 @@ class ExcelImportController extends Controller
                     $parsedRows = $this->parseXlsxFile($filePath);
                 } elseif ($extension === 'xls' || $extension === 'xml') {
                     $parsedRows = $this->parseXlsFile($filePath);
+                } else {
+                    // Try parsing as CSV if unknown extension
+                    $parsedRows = $this->parseCsvFile($filePath);
                 }
             } catch (\Throwable $e) {
                 $parsingError = $e->getMessage();
@@ -86,60 +89,13 @@ class ExcelImportController extends Controller
                 return redirect()->back()->withInput()->with('error', "The uploaded file '{$filename}' is empty or could not be parsed into rows. Please ensure it contains data.");
             }
 
-            // Find header row (search first 10 rows in case of company/date headers)
-            $headerIndex = -1;
-            $normalizedHeader = [];
-            $colMap = [];
+            // Detect header row and column mapping across top 30 rows
+            $mappingResult = $this->findHeaderAndMapColumns($parsedRows);
+            $headerIndex = $mappingResult['header_index'];
+            $colMap = $mappingResult['col_map'];
 
-            $dateKeys = ['date', 'dt', 'bill date', 'vch date', 'business date', 'invoice date'];
-            $custKeys = ['particulars', 'particular', 'party name', 'party', 'customer name', 'customer', 'ledger', 'party / ledger', 'account', 'party name / ledger'];
-            $typeKeys = ['voucher type', 'vch type', 'sales type', 'type', 'vouchertype', 'trn type'];
-            $billKeys = ['voucher no.', 'voucher no', 'vch no', 'vch no.', 'bill no', 'bill_no', 'bill number', 'invoice no', 'invoice #', 'bill', 'billno', 'vch #'];
-            $amtKeys = ['amount', 'total amount', 'bill amount', 'gross amount', 'total', 'debit', 'credit', 'billamount', 'net amount'];
-
-            foreach (array_slice($parsedRows, 0, 10, true) as $idx => $row) {
-                $norm = array_map(function ($col) {
-                    $col = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', (string)$col);
-                    return strtolower(trim($col));
-                }, $row);
-
-                $foundBill = $this->findColumnIndex($norm, $billKeys);
-                $foundAmt = $this->findColumnIndex($norm, $amtKeys);
-
-                if ($foundBill !== null || $foundAmt !== null) {
-                    $headerIndex = $idx;
-                    $normalizedHeader = $norm;
-                    $colMap = [
-                        'date' => $this->findColumnIndex($norm, $dateKeys),
-                        'customer_name' => $this->findColumnIndex($norm, $custKeys),
-                        'voucher_type' => $this->findColumnIndex($norm, $typeKeys),
-                        'bill_no' => $foundBill,
-                        'amount' => $foundAmt,
-                    ];
-                    break;
-                }
-            }
-
-            // If header was not explicitly found by names, fallback if first row has 4+ columns
-            if ($headerIndex === -1) {
-                $firstRow = $parsedRows[0];
-                if (count($firstRow) >= 4) {
-                    $headerIndex = 0;
-                    $colMap = [
-                        'date' => 0,
-                        'customer_name' => 1,
-                        'voucher_type' => 2,
-                        'bill_no' => 3,
-                        'amount' => count($firstRow) > 4 ? 4 : 3,
-                    ];
-                } else {
-                    return redirect()->back()->withInput()->with('error', "Invalid spreadsheet format in '{$filename}': Could not identify required columns (Voucher No., Amount, Particulars, Date). Please download the sample template.");
-                }
-            }
-
-            // Ensure essential columns are mapped
-            if ($colMap['bill_no'] === null && $colMap['amount'] === null) {
-                return redirect()->back()->withInput()->with('error', "Missing required columns in '{$filename}': Both 'Voucher No.' and 'Amount' columns could not be identified.");
+            if ($headerIndex === -1 || ($colMap['bill_no'] === null && $colMap['amount'] === null)) {
+                return redirect()->back()->withInput()->with('error', "Invalid spreadsheet format in '{$filename}': Could not identify required columns (Voucher/Bill No. and Amount). Please ensure column headers like 'Voucher No.', 'Particulars', 'Amount', 'Date' exist or download the sample template.");
             }
 
             // Remove rows up to and including the header
@@ -169,9 +125,13 @@ class ExcelImportController extends Controller
 
                 $rawBillNo = ($colMap['bill_no'] !== null && isset($row[$colMap['bill_no']])) ? trim((string)$row[$colMap['bill_no']]) : '';
                 
-                // Skip header repetitions or grand total rows
-                if (empty($rawBillNo) || stripos($rawBillNo, 'voucher') !== false || stripos($rawBillNo, 'bill no') !== false || stripos($rawBillNo, 'total') !== false) {
-                    if (!empty($rawBillNo) && (stripos($rawBillNo, 'total') !== false || stripos($rawBillNo, 'grand total') !== false)) {
+                // Skip header repetitions, dashes/separator rows, or summary rows
+                if (empty($rawBillNo) || 
+                    preg_match('/^(voucher|bill[\s_]*no|total|grand[\s_]*total|closing|opening|carried|brought|\-+|\=+|\*+)$/i', $rawBillNo) ||
+                    stripos($rawBillNo, 'grand total') !== false ||
+                    (stripos($rawBillNo, 'total') !== false && !preg_match('/\d/', $rawBillNo))) {
+                    
+                    if (!empty($rawBillNo) && (stripos($rawBillNo, 'total') !== false || stripos($rawBillNo, 'closing') !== false)) {
                         $rowNum++;
                         continue;
                     }
@@ -180,42 +140,27 @@ class ExcelImportController extends Controller
                         $rowNum++;
                         continue;
                     }
+                    $rowNum++;
+                    continue;
                 }
 
                 $billNo = $rawBillNo;
 
                 // Validate and parse amount
                 $rawAmount = ($colMap['amount'] !== null && isset($row[$colMap['amount']])) ? trim((string)$row[$colMap['amount']]) : '0';
-                $cleanAmount = str_replace([',', ' ', '₹', '$'], '', $rawAmount);
-                if (!is_numeric($cleanAmount)) {
+                $cleanAmount = $this->normalizeAmount($rawAmount);
+
+                if ($cleanAmount === null || !is_numeric($cleanAmount)) {
                     $rowErrors[] = "Row {$rowNum} (Bill '{$billNo}'): Invalid amount format '{$rawAmount}'. Amount must be numeric.";
                     $rowNum++;
                     continue;
                 }
 
-                $amount = (float) $cleanAmount;
-                if ($amount < 0) {
-                    $rowErrors[] = "Row {$rowNum} (Bill '{$billNo}'): Negative amount ₹{$amount} not allowed.";
-                    $rowNum++;
-                    continue;
-                }
+                $amount = abs((float) $cleanAmount);
 
                 // Date Parsing
                 $rawDate = ($colMap['date'] !== null && !empty($row[$colMap['date']])) ? trim((string)$row[$colMap['date']]) : '';
-                if (!empty($rawDate)) {
-                    if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/', $rawDate, $matches)) {
-                        $year = (int)$matches[3];
-                        if ($year < 100) {
-                            $year += 2000;
-                        }
-                        $rowDate = sprintf('%04d-%02d-%02d', $year, (int)$matches[2], (int)$matches[1]);
-                    } else {
-                        $parsedTime = strtotime(str_replace('/', '-', $rawDate));
-                        $rowDate = ($parsedTime !== false && $parsedTime > 0) ? date('Y-m-d', $parsedTime) : $businessDate;
-                    }
-                } else {
-                    $rowDate = $businessDate;
-                }
+                $rowDate = $this->parseRowDate($rawDate, $businessDate);
 
                 $customer = ($colMap['customer_name'] !== null && !empty($row[$colMap['customer_name']])) ? trim((string)$row[$colMap['customer_name']]) : 'General Customer';
                 $voucherType = ($colMap['voucher_type'] !== null && !empty($row[$colMap['voucher_type']])) ? trim((string)$row[$colMap['voucher_type']]) : 'Sales Cadbury';
@@ -366,37 +311,359 @@ class ExcelImportController extends Controller
         return redirect()->route('admin.verification.index')->with('success', "Tally file '{$filename}' ingested and scanned successfully.");
     }
 
+    /**
+     * Clean and normalize raw amount string (supports commas, currency symbols, Dr/Cr, parentheses).
+     */
+    protected function normalizeAmount(string $raw): ?string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+
+        // Remove currency symbols, Dr/Cr tags, and non-breaking spaces
+        $clean = str_ireplace(['dr', 'cr', 'rs.', 'rs', 'inr', '₹', '$', '/-', ','], '', $raw);
+        $clean = preg_replace('/\s+/', '', $clean);
+
+        // Accounting parentheses e.g. (1500) -> -1500 or 1500
+        if (preg_match('/^\((.+)\)$/', $clean, $m)) {
+            $clean = $m[1];
+        }
+
+        // Remove any remaining unexpected characters except digits, minus, and dot
+        $clean = preg_replace('/[^\d\.\-]/', '', $clean);
+
+        if ($clean === '' || !is_numeric($clean)) {
+            return null;
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Robust Date Parsing (supports Excel serial numbers, DD/MM/YYYY, YYYY-MM-DD, DD-Mon-YYYY).
+     */
+    protected function parseRowDate(string $rawDate, string $businessDate): string
+    {
+        $rawDate = trim($rawDate);
+        if (empty($rawDate)) {
+            return $businessDate;
+        }
+
+        // 1. Check if Excel numeric serial date (e.g. 45543 = 2024-09-08)
+        if (is_numeric($rawDate)) {
+            $numVal = (float)$rawDate;
+            if ($numVal >= 25000 && $numVal <= 80000) {
+                // Excel epoch: 1900-01-01 (with leap year bug, offset is 25569 to UNIX epoch 1970-01-01)
+                $unix = (int)(($numVal - 25569) * 86400);
+                return gmdate('Y-m-d', $unix);
+            }
+        }
+
+        // 2. Format: DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/', $rawDate, $matches)) {
+            $day = (int)$matches[1];
+            $month = (int)$matches[2];
+            $year = (int)$matches[3];
+            if ($year < 100) {
+                $year += 2000;
+            }
+
+            // Validate day & month order (if month > 12 and day <= 12, swap)
+            if ($month > 12 && $day <= 12) {
+                $tmp = $day;
+                $day = $month;
+                $month = $tmp;
+            }
+
+            if (checkdate($month, $day, $year)) {
+                return sprintf('%04d-%02d-%02d', $year, $month, $day);
+            }
+        }
+
+        // 3. Format: YYYY-MM-DD or YYYY/MM/DD
+        if (preg_match('/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/', $rawDate, $matches)) {
+            $year = (int)$matches[1];
+            $month = (int)$matches[2];
+            $day = (int)$matches[3];
+            if (checkdate($month, $day, $year)) {
+                return sprintf('%04d-%02d-%02d', $year, $month, $day);
+            }
+        }
+
+        // 4. Try standard strtotime with hyphen separator
+        $standardized = str_replace(['/', '.'], '-', $rawDate);
+        $parsedTime = strtotime($standardized);
+        if ($parsedTime !== false && $parsedTime > 0) {
+            return date('Y-m-d', $parsedTime);
+        }
+
+        return $businessDate;
+    }
+
+    /**
+     * Smart Header & Column Detection across top 30 rows.
+     */
+    protected function findHeaderAndMapColumns(array $parsedRows): array
+    {
+        $headerIndex = -1;
+        $colMap = [
+            'date' => null,
+            'customer_name' => null,
+            'voucher_type' => null,
+            'bill_no' => null,
+            'amount' => null,
+        ];
+
+        $maxScanRows = min(30, count($parsedRows));
+
+        for ($idx = 0; $idx < $maxScanRows; $idx++) {
+            $row = $parsedRows[$idx];
+            $cleaned = [];
+            foreach ($row as $cIdx => $cell) {
+                $str = (string) $cell;
+                $str = preg_replace('/[\x00-\x1F\x7F\x80-\xFF]/', '', $str);
+                $str = strtolower(trim($str));
+                $str = preg_replace('/[^\w\s\.\#\/\-]/', '', $str);
+                $cleaned[$cIdx] = $str;
+            }
+
+            $dateCol = $this->matchColumnDate($cleaned);
+            $billCol = $this->matchColumnBillNo($cleaned, $dateCol);
+            $amtCol = $this->matchColumnAmount($cleaned, $dateCol, $billCol);
+            $custCol = $this->matchColumnCustomer($cleaned, [$dateCol, $billCol, $amtCol]);
+            $typeCol = $this->matchColumnVoucherType($cleaned, [$dateCol, $billCol, $amtCol, $custCol]);
+
+            $matchedCount = 0;
+            if ($billCol !== null) $matchedCount++;
+            if ($amtCol !== null) $matchedCount++;
+            if ($custCol !== null) $matchedCount++;
+            if ($dateCol !== null) $matchedCount++;
+            if ($typeCol !== null) $matchedCount++;
+
+            // If at least 2 primary columns matched (including bill_no or amount)
+            if ($matchedCount >= 2 && ($billCol !== null || $amtCol !== null)) {
+                $headerIndex = $idx;
+                $colMap = [
+                    'date' => $dateCol,
+                    'customer_name' => $custCol,
+                    'voucher_type' => $typeCol,
+                    'bill_no' => $billCol,
+                    'amount' => $amtCol,
+                ];
+                break;
+            }
+        }
+
+        // Fallback: If header row wasn't found by text, check if first row has 4+ columns
+        if ($headerIndex === -1 && !empty($parsedRows)) {
+            $firstRow = $parsedRows[0];
+            $colCount = count($firstRow);
+            if ($colCount >= 4) {
+                $headerIndex = 0;
+                $colMap = [
+                    'date' => 0,
+                    'customer_name' => 1,
+                    'voucher_type' => 2,
+                    'bill_no' => 3,
+                    'amount' => $colCount > 4 ? 4 : 3,
+                ];
+            }
+        }
+
+        return [
+            'header_index' => $headerIndex,
+            'col_map' => $colMap,
+        ];
+    }
+
+    protected function matchColumnDate(array $headers): ?int
+    {
+        $exacts = ['date', 'dt', 'bill date', 'bill_date', 'vch date', 'vch_date', 'voucher date', 'voucher_date', 'invoice date', 'inv date', 'business date', 'entry date', 'doc date', 'trn date', 'txn date'];
+        foreach ($headers as $idx => $h) {
+            if (in_array($h, $exacts, true)) {
+                return $idx;
+            }
+        }
+
+        foreach ($headers as $idx => $h) {
+            if (preg_match('/\b(date|bill\s*date|vch\s*date|invoice\s*date)\b/i', $h) && !preg_match('/\b(no|num|#|amt|amount|total)\b/i', $h)) {
+                return $idx;
+            }
+        }
+        return null;
+    }
+
+    protected function matchColumnBillNo(array $headers, ?int $excludeDateCol = null): ?int
+    {
+        $exacts = [
+            'voucher no.', 'voucher no', 'vch no.', 'vch no', 'bill no.', 'bill no', 'bill_no',
+            'bill number', 'bill #', 'vch #', 'invoice no.', 'invoice no', 'inv no.', 'inv no',
+            'billno', 'vchno', 'invoice #', 'doc no.', 'doc no', 'ref no.', 'ref no', 'bill'
+        ];
+
+        foreach ($headers as $idx => $h) {
+            if ($idx === $excludeDateCol) continue;
+            if (in_array($h, $exacts, true)) {
+                return $idx;
+            }
+        }
+
+        foreach ($headers as $idx => $h) {
+            if ($idx === $excludeDateCol) continue;
+            // Never match date, amount, total or type as bill number
+            if (preg_match('/\b(date|dt|amt|amount|total|sum|type)\b/i', $h)) {
+                continue;
+            }
+            if (preg_match('/\b(voucher\s*no|vch\s*no|bill\s*no|inv\s*no|invoice\s*no|bill_num|billnum|vch_num|doc\s*no|reference\s*no|ref\s*no)\b/i', $h) ||
+                (stripos($h, 'bill') !== false && stripos($h, 'no') !== false) ||
+                (stripos($h, 'voucher') !== false && (stripos($h, 'no') !== false || stripos($h, '#') !== false))) {
+                return $idx;
+            }
+        }
+        return null;
+    }
+
+    protected function matchColumnAmount(array $headers, ?int $exclude1 = null, ?int $exclude2 = null): ?int
+    {
+        $exacts = [
+            'amount', 'bill amount', 'gross amount', 'net amount', 'total amount', 'total',
+            'debit', 'credit', 'debit amount', 'credit amount', 'dr amount', 'cr amount',
+            'gross total', 'net total', 'bill amount (rs.)', 'amount (rs.)', 'amt', 'value', 'bill value', 'total value'
+        ];
+
+        foreach ($headers as $idx => $h) {
+            if ($idx === $exclude1 || $idx === $exclude2) continue;
+            if (in_array($h, $exacts, true)) {
+                return $idx;
+            }
+        }
+
+        foreach ($headers as $idx => $h) {
+            if ($idx === $exclude1 || $idx === $exclude2) continue;
+            if (preg_match('/\b(date|no|num|#|type|particular)\b/i', $h)) {
+                continue;
+            }
+            if (preg_match('/\b(amount|amt|total|debit|credit|dr_amt|cr_amt|value)\b/i', $h)) {
+                return $idx;
+            }
+        }
+        return null;
+    }
+
+    protected function matchColumnCustomer(array $headers, array $exclude = []): ?int
+    {
+        $exacts = [
+            'particulars', 'particular', 'party name', 'party', 'customer name', 'customer',
+            'ledger', 'ledger name', 'party / ledger', 'account', 'account name', 'party name / ledger',
+            'buyer', 'buyer name', 'consignee', 'client', 'client name', 'party ledger'
+        ];
+
+        foreach ($headers as $idx => $h) {
+            if (in_array($idx, $exclude, true)) continue;
+            if (in_array($h, $exacts, true)) {
+                return $idx;
+            }
+        }
+
+        foreach ($headers as $idx => $h) {
+            if (in_array($idx, $exclude, true)) continue;
+            if (preg_match('/\b(particulars|particular|party|customer|ledger|account|buyer|consignee|client)\b/i', $h)) {
+                return $idx;
+            }
+        }
+        return null;
+    }
+
+    protected function matchColumnVoucherType(array $headers, array $exclude = []): ?int
+    {
+        $exacts = [
+            'voucher type', 'vch type', 'sales type', 'trn type', 'transaction type', 'type',
+            'vouchertype', 'trn_type', 'vch_type', 'category', 'bill type'
+        ];
+
+        foreach ($headers as $idx => $h) {
+            if (in_array($idx, $exclude, true)) continue;
+            if (in_array($h, $exacts, true)) {
+                return $idx;
+            }
+        }
+
+        foreach ($headers as $idx => $h) {
+            if (in_array($idx, $exclude, true)) continue;
+            if (preg_match('/\b(no|num|#|date|amt|amount|total)\b/i', $h)) {
+                continue;
+            }
+            if (preg_match('/\b(voucher\s*type|vch\s*type|sales\s*type|trans\s*type|type)\b/i', $h)) {
+                return $idx;
+            }
+        }
+        return null;
+    }
+
     protected function parseCsvFile(string $filePath): array
     {
-        $rows = [];
-        $handle = fopen($filePath, 'r');
-        if ($handle !== false) {
-            // Read first line to detect delimiter
-            $firstLine = fgets($handle);
-            rewind($handle);
+        if (!file_exists($filePath)) {
+            return [];
+        }
 
-            $delimiter = ',';
-            if ($firstLine !== false) {
-                // Strip UTF-8 BOM if present
-                if (str_starts_with($firstLine, "\xEF\xBB\xBF")) {
-                    fseek($handle, 3);
-                }
-                $commaCount = substr_count($firstLine, ',');
-                $semicolonCount = substr_count($firstLine, ';');
-                $tabCount = substr_count($firstLine, "\t");
+        $rawContent = file_get_contents($filePath);
+        if ($rawContent === false || $rawContent === '') {
+            return [];
+        }
 
-                if ($tabCount > $commaCount && $tabCount > $semicolonCount) {
-                    $delimiter = "\t";
-                } elseif ($semicolonCount > $commaCount) {
-                    $delimiter = ';';
-                }
+        // Check for UTF-16 LE / BE encoding (frequent in Tally exports)
+        if (str_starts_with($rawContent, "\xFF\xFE")) {
+            $rawContent = mb_convert_encoding(substr($rawContent, 2), 'UTF-8', 'UTF-16LE');
+        } elseif (str_starts_with($rawContent, "\xFE\xFF")) {
+            $rawContent = mb_convert_encoding(substr($rawContent, 2), 'UTF-8', 'UTF-16BE');
+        } elseif (str_contains(substr($rawContent, 0, 100), "\x00")) {
+            $rawContent = mb_convert_encoding($rawContent, 'UTF-8', 'UTF-16LE');
+        } elseif (str_starts_with($rawContent, "\xEF\xBB\xBF")) {
+            // Strip UTF-8 BOM
+            $rawContent = substr($rawContent, 3);
+        }
+
+        // Split lines
+        $lines = preg_split('/\r\n|\r|\n/', $rawContent);
+        if (empty($lines)) {
+            return [];
+        }
+
+        // Detect delimiter from non-empty first 5 lines
+        $sample = '';
+        $sampleLines = 0;
+        foreach ($lines as $line) {
+            if (trim($line) !== '') {
+                $sample .= $line . "\n";
+                $sampleLines++;
+                if ($sampleLines >= 5) break;
             }
+        }
 
-            while (($data = fgetcsv($handle, 8000, $delimiter)) !== false) {
+        $commaCount = substr_count($sample, ',');
+        $tabCount = substr_count($sample, "\t");
+        $semiCount = substr_count($sample, ';');
+        $pipeCount = substr_count($sample, '|');
+
+        $delimiter = ',';
+        if ($tabCount > $commaCount && $tabCount > $semiCount) {
+            $delimiter = "\t";
+        } elseif ($semiCount > $commaCount && $semiCount > $tabCount) {
+            $delimiter = ';';
+        } elseif ($pipeCount > $commaCount && $pipeCount > $tabCount) {
+            $delimiter = '|';
+        }
+
+        $rows = [];
+        foreach ($lines as $line) {
+            if (trim($line) === '') continue;
+            $data = str_getcsv($line, $delimiter);
+            if (!empty($data)) {
                 $rows[] = $data;
             }
-            fclose($handle);
         }
+
         return $rows;
     }
 
@@ -407,7 +674,12 @@ class ExcelImportController extends Controller
             return [];
         }
 
-        // Check if SpreadsheetML XML format
+        // Check if UTF-16 XML
+        if (str_starts_with($content, "\xFF\xFE") || str_contains(substr($content, 0, 50), "\x00")) {
+            $content = mb_convert_encoding($content, 'UTF-8', 'UTF-16LE');
+        }
+
+        // 1. Check if SpreadsheetML XML format (<Workbook ... <Row ... <Cell>)
         if (stripos($content, '<Workbook') !== false && stripos($content, '<Row') !== false) {
             $rows = [];
             $dom = new \DOMDocument();
@@ -418,7 +690,6 @@ class ExcelImportController extends Controller
                 $cells = $r->getElementsByTagName('Cell');
                 $colIndex = 0;
                 foreach ($cells as $c) {
-                    // Check ss:Index for skipped columns
                     if ($c->hasAttribute('ss:Index')) {
                         $colIndex = (int)$c->getAttribute('ss:Index') - 1;
                     }
@@ -428,7 +699,6 @@ class ExcelImportController extends Controller
                     $colIndex++;
                 }
                 if (!empty(array_filter($rowVals, fn($v) => $v !== null && $v !== ''))) {
-                    // Re-index array keys 0..max
                     $maxKey = !empty($rowVals) ? max(array_keys($rowVals)) : 0;
                     $normalizedRow = [];
                     for ($i = 0; $i <= $maxKey; $i++) {
@@ -437,14 +707,16 @@ class ExcelImportController extends Controller
                     $rows[] = $normalizedRow;
                 }
             }
-            return $rows;
+            if (!empty($rows)) {
+                return $rows;
+            }
         }
 
-        // Check if HTML Table format
+        // 2. Check if HTML Table format (<table ... <tr> ... <td>)
         if (stripos($content, '<table') !== false && stripos($content, '<tr') !== false) {
             $rows = [];
             $dom = new \DOMDocument();
-            @$dom->loadHTML($content);
+            @$dom->loadHTML('<?xml encoding="UTF-8">' . $content);
             $trElements = $dom->getElementsByTagName('tr');
             foreach ($trElements as $tr) {
                 $rowVals = [];
@@ -453,16 +725,18 @@ class ExcelImportController extends Controller
                     $cells = $tr->getElementsByTagName('th');
                 }
                 foreach ($cells as $c) {
-                    $rowVals[] = trim($c->textContent);
+                    $rowVals[] = html_entity_decode(trim($c->textContent), ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 }
                 if (!empty(array_filter($rowVals, fn($v) => $v !== null && $v !== ''))) {
                     $rows[] = $rowVals;
                 }
             }
-            return $rows;
+            if (!empty($rows)) {
+                return $rows;
+            }
         }
 
-        // Fallback to CSV parser
+        // 3. Fallback to CSV parser
         return $this->parseCsvFile($filePath);
     }
 
@@ -501,7 +775,7 @@ class ExcelImportController extends Controller
             // Find any sheet in xl/worksheets/
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $stat = $zip->statIndex($i);
-                if (preg_match('#xl/worksheets/sheet\d+\.xml#i', $stat['name'])) {
+                if (preg_match('#xl/worksheets/sheet\d*\.xml#i', $stat['name'])) {
                     $sheetXml = $zip->getFromIndex($i);
                     break;
                 }
@@ -516,9 +790,10 @@ class ExcelImportController extends Controller
             foreach ($rowElements as $r) {
                 $rowVals = [];
                 $cells = $r->getElementsByTagName('c');
+                $autoColIdx = 0;
                 foreach ($cells as $c) {
                     $coord = $c->getAttribute('r'); // e.g. A1, B1, E1
-                    $colIdx = 0;
+                    $colIdx = $autoColIdx;
                     if (!empty($coord) && preg_match('/^([A-Z]+)/i', $coord, $m)) {
                         $colIdx = $this->columnLetterToIndex(strtoupper($m[1]));
                     }
@@ -532,9 +807,12 @@ class ExcelImportController extends Controller
                     } elseif ($type === 'inlineStr') {
                         $isElements = $c->getElementsByTagName('t');
                         $val = ($isElements->length > 0) ? $isElements->item(0)->textContent : $val;
+                    } elseif ($type === 'b') {
+                        $val = $val === '1' ? 'TRUE' : 'FALSE';
                     }
 
                     $rowVals[$colIdx] = $val;
+                    $autoColIdx = $colIdx + 1;
                 }
 
                 if (!empty(array_filter($rowVals, fn($v) => $v !== null && $v !== ''))) {
