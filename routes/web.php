@@ -105,8 +105,9 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware(['read.only', 'permission:can_record_credit'])->name('admin.credit.update');
     Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('admin.credit.export');
 
-    // 7. PSO Summary Matrix
+    // 7. PSO Summary Matrix & Single PSO Detail
     Route::get('/pso-summary', [PsoSummaryController::class, 'index'])->name('admin.summary.index');
+    Route::get('/pso-summary/{id}', [PsoSummaryController::class, 'show'])->name('admin.summary.show');
 
     // 8. Master Reconciliation Engine
     Route::get('/reconciliation', [MasterReconciliationController::class, 'index'])->name('admin.reconciliation.index');
@@ -195,6 +196,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware('read.only')->name('credit.update');
     Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('credit.export');
     Route::get('/pso-summary', [PsoSummaryController::class, 'index'])->name('summary.index');
+    Route::get('/pso-summary/{id}', [PsoSummaryController::class, 'show'])->name('summary.show');
     Route::get('/reconciliation', [MasterReconciliationController::class, 'index'])->name('reconciliation.index');
     Route::post('/reconciliation/quick-resolve', [MasterReconciliationController::class, 'quickResolveDiscrepancy'])->middleware('read.only')->name('reconciliation.resolve');
     Route::get('/approval-sealing', [ApprovalSealingController::class, 'index'])->name('approval.index');
