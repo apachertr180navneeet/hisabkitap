@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Bill;
+use App\Models\CashDenomination;
 use App\Models\Correction;
 use App\Models\CreditCollection;
 use App\Models\PsoConfig;
@@ -27,10 +28,6 @@ class ReconciliationService
     {
         $date = $businessDate ?: $this->getBusinessDate();
 
-        $bills = Bill::whereDate('business_date', $date)
-            ->where('is_post_cutoff', false)
-            ->get();
-
         $tallyTotal = 0;
         $psoCollection = 0;
         $pso1Total = 0;
@@ -49,48 +46,64 @@ class ReconciliationService
         $matchedCount = 0;
         $missingCount = 0;
         $cancelledCount = 0;
-        $totalBillsCount = $bills->count();
+        $totalBillsCount = 0;
 
-        foreach ($bills as $bill) {
-            $tallyTotal += (float) $bill->amount;
-            $totCd += (float) $bill->cd_amount;
-            $totRefund += (float) $bill->refund_amount;
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('bills')) {
+                $bills = Bill::whereDate('business_date', $date)
+                    ->where('is_post_cutoff', false)
+                    ->get();
+                $totalBillsCount = $bills->count();
 
-            if ($bill->status === 'Matched') {
-                $matchedCount++;
-            } elseif ($bill->status === 'Missing') {
-                $missingCount++;
-            } elseif ($bill->status === 'Cancelled') {
-                $cancelledCount++;
+                foreach ($bills as $bill) {
+                    $tallyTotal += (float) $bill->amount;
+                    $totCd += (float) $bill->cd_amount;
+                    $totRefund += (float) $bill->refund_amount;
+
+                    if ($bill->status === 'Matched') {
+                        $matchedCount++;
+                    } elseif ($bill->status === 'Missing') {
+                        $missingCount++;
+                    } elseif ($bill->status === 'Cancelled') {
+                        $cancelledCount++;
+                    }
+
+                    // Payment breakdown (handling split Cash + Paytm or standard payment_type)
+                    $effectiveAmt = (float) ($bill->net_amount > 0 ? $bill->net_amount : $bill->amount);
+
+                    if ($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0)) {
+                        $totCash += (float) $bill->cash_amount;
+                        $totPaytm += (float) $bill->paytm_amount;
+                    } else {
+                        if ($bill->payment_type === 'Cash') {
+                            $totCash += (float) ($bill->cash_amount > 0 ? $bill->cash_amount : $effectiveAmt);
+                        } elseif ($bill->payment_type === 'Paytm') {
+                            $totPaytm += (float) ($bill->paytm_amount > 0 ? $bill->paytm_amount : $effectiveAmt);
+                        } elseif ($bill->payment_type === 'Check') {
+                            $totCheck += $effectiveAmt;
+                        } elseif ($bill->payment_type === 'Credit') {
+                            $totCredit += $effectiveAmt;
+                        } elseif ($bill->payment_type === 'Cancelled') {
+                            $totCancelled += (float) $bill->amount;
+                        }
+                    }
+
+                    // PSO breakdown (Only if non-missing)
+                    $psoAmt = ($bill->status === 'Missing') ? 0 : (float) $bill->net_amount;
+                    $psoCollection += $psoAmt;
+
+                    // Explicit breakdown for the standard PSO-1/2/3 counters
+                    if ($bill->pso_code === 'PSO-1') {
+                        $pso1Total += $psoAmt;
+                    } elseif ($bill->pso_code === 'PSO-2') {
+                        $pso2Total += $psoAmt;
+                    } elseif ($bill->pso_code === 'PSO-3') {
+                        $pso3Total += $psoAmt;
+                    }
+                }
             }
-
-            // Payment breakdown (using net_amount or amount)
-            $effectiveAmt = (float) ($bill->net_amount > 0 ? $bill->net_amount : $bill->amount);
-
-            if ($bill->payment_type === 'Cash') {
-                $totCash += $effectiveAmt;
-            } elseif ($bill->payment_type === 'Paytm') {
-                $totPaytm += $effectiveAmt;
-            } elseif ($bill->payment_type === 'Check') {
-                $totCheck += $effectiveAmt;
-            } elseif ($bill->payment_type === 'Credit') {
-                $totCredit += $effectiveAmt;
-            } elseif ($bill->payment_type === 'Cancelled') {
-                $totCancelled += (float) $bill->amount;
-            }
-
-            // PSO breakdown (Only if non-missing)
-            $psoAmt = ($bill->status === 'Missing') ? 0 : (float) $bill->net_amount;
-            $psoCollection += $psoAmt;
-
-            // Explicit breakdown for the standard PSO-1/2/3 counters
-            if ($bill->pso_code === 'PSO-1') {
-                $pso1Total += $psoAmt;
-            } elseif ($bill->pso_code === 'PSO-2') {
-                $pso2Total += $psoAmt;
-            } elseif ($bill->pso_code === 'PSO-3') {
-                $pso3Total += $psoAmt;
-            }
+        } catch (\Throwable $e) {
+            // Graceful fallback during migration/setup
         }
 
         $expectedCollection = $tallyTotal - ($totCd + $totRefund + $totCancelled);
@@ -99,20 +112,70 @@ class ReconciliationService
         $isReconciled = ($hasBills && $difference == 0 && $missingCount === 0);
 
         // Check daily seal state
-        $seal = PsoDailySeal::whereDate('business_date', $date)->first();
-        $isSealed = $seal ? (bool) $seal->is_sealed : false;
+        $seal = null;
+        $isSealed = false;
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('pso_daily_seals')) {
+                $seal = PsoDailySeal::whereDate('business_date', $date)->first();
+                $isSealed = $seal ? (bool) $seal->is_sealed : false;
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
 
         // Dynamic database counts
-        $activePsoCount = PsoConfig::where('is_active', true)->count();
-        $totalPsoCount = PsoConfig::count();
-        $correctionsCount = Correction::count();
-        $creditRecordsCount = CreditCollection::where('outstanding_amount', '>', 0)->count();
-        $totalUsersCount = User::count();
+        $activePsoCount = 0;
+        $totalPsoCount = 0;
+        $correctionsCount = 0;
+        $creditRecordsCount = 0;
+        $totalUsersCount = 0;
+        $creditPending = 0;
 
-        // Pending credit calculation
-        $creditPending = CreditCollection::whereDate('bill_date', $date)
-            ->where('outstanding_amount', '>', 0)
-            ->sum('outstanding_amount');
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('pso_configs')) {
+                $activePsoCount = PsoConfig::where('is_active', true)->count();
+                $totalPsoCount = PsoConfig::count();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('corrections')) {
+                $correctionsCount = Correction::count();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('credit_collections')) {
+                $creditRecordsCount = CreditCollection::where('outstanding_amount', '>', 0)->count();
+                $creditPending = CreditCollection::whereDate('bill_date', $date)
+                    ->where('outstanding_amount', '>', 0)
+                    ->sum('outstanding_amount');
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                $totalUsersCount = User::count();
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        // Cash Denominations Aggregates
+        $totalPhysicalCash = 0;
+        $totalKmCompleted = 0;
+        $totalKmAllowance = 0;
+        $totalShortCash = 0;
+        $totalExcessCash = 0;
+        $denominationCount = 0;
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('cash_denominations')) {
+                $denominations = CashDenomination::whereDate('business_date', $date)->get();
+                $totalPhysicalCash = (float) $denominations->sum('total_physical_cash');
+                $totalKmCompleted = (float) $denominations->sum('total_km');
+                $totalKmAllowance = (float) $denominations->sum('km_allowance_amount');
+                $totalShortCash = (float) $denominations->sum('short_cash_amount');
+                $totalExcessCash = (float) $denominations->sum('excess_cash_amount');
+                $denominationCount = $denominations->count();
+            }
+        } catch (\Throwable $e) {
+            // Graceful fallback during migration
+        }
+
+        // If no denominations recorded yet, calculate theoretical variance from book cash
+        $cashVariance = $totalPhysicalCash > 0 ? ($totCash - $totalKmAllowance - $totalPhysicalCash) : 0;
 
         return [
             'businessDate' => $date,
@@ -143,6 +206,14 @@ class ReconciliationService
             'creditRecordsCount' => $creditRecordsCount,
             'totalUsersCount' => $totalUsersCount,
             'creditPending' => (float) $creditPending,
+            // Denomination & KM metrics
+            'totalPhysicalCash' => $totalPhysicalCash,
+            'totalKmCompleted' => $totalKmCompleted,
+            'totalKmAllowance' => $totalKmAllowance,
+            'totalShortCash' => $totalShortCash,
+            'totalExcessCash' => $totalExcessCash,
+            'denominationCount' => $denominationCount,
+            'cashVariance' => $cashVariance,
         ];
     }
 }

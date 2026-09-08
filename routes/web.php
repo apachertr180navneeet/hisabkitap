@@ -22,6 +22,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\DatabaseMigrationController;
 use App\Http\Controllers\PrefixMasterController;
 use App\Http\Controllers\SalespersonController;
+use App\Http\Controllers\CashDenominationController;
 
 // ==========================================
 // 1. PUBLIC HOME LANDING PAGE
@@ -92,6 +93,11 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.resolve');
     Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.auto_verify');
     Route::get('/verification/export', [BillVerificationController::class, 'exportCsv'])->name('admin.verification.export');
+
+    // 3.5 Cash Denomination & Driver Handover
+    Route::get('/cash-denomination', [CashDenominationController::class, 'index'])->name('admin.denomination.index');
+    Route::post('/cash-denomination/store', [CashDenominationController::class, 'store'])->middleware('read.only')->name('admin.denomination.store');
+    Route::delete('/cash-denomination/{id}', [CashDenominationController::class, 'destroy'])->middleware('read.only')->name('admin.denomination.delete');
 
     // 4. Payment Classification
     Route::get('/payment-classification', [PaymentClassificationController::class, 'index'])->name('admin.payment.index');
@@ -189,6 +195,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware('read.only')->name('verification.resolve');
     Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->middleware('read.only')->name('verification.auto_verify');
     Route::get('/verification/export', [BillVerificationController::class, 'exportCsv'])->name('verification.export');
+    Route::get('/cash-denomination', [CashDenominationController::class, 'index'])->name('denomination.index');
+    Route::post('/cash-denomination/store', [CashDenominationController::class, 'store'])->middleware('read.only')->name('denomination.store');
+    Route::delete('/cash-denomination/{id}', [CashDenominationController::class, 'destroy'])->middleware('read.only')->name('denomination.delete');
     Route::get('/payment-classification', [PaymentClassificationController::class, 'index'])->name('payment.index');
     Route::get('/corrections', [CorrectionsController::class, 'index'])->name('corrections.index');
     Route::post('/corrections/store', [CorrectionsController::class, 'store'])->middleware('read.only')->name('corrections.store');

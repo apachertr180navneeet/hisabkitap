@@ -136,6 +136,100 @@
   </div>
 </div>
 
+<!-- 7-Metric Cash & Multi-Mode Reconciliation Matrix -->
+<div class="card border p-4 bg-white shadow-sm mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="fw-bold mb-1"><i class="bi bi-wallet2 text-primary me-2"></i>Cash vs Paytm Split & Driver Reconciliation Matrix</h5>
+      <p class="text-muted small mb-0">Separate tracking of physical cash, Paytm QR settlements, driver travel deductions, and pending cash shortages.</p>
+    </div>
+    <a href="{{ route('admin.denomination.index', ['date' => $metrics['businessDate']]) }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-calculator me-1"></i> Open Cash Denomination Counter
+    </a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-middle text-center mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th class="text-start">Reconciliation Parameter</th>
+          <th class="text-end">Amount (₹)</th>
+          <th class="text-start">Accounting Treatment & Ledger Destination</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fw-bold">1</td>
+          <td class="text-start fw-semibold">Total Bill Amount (DayBook Gross)</td>
+          <td class="text-end font-mono fw-bold text-dark">₹{{ number_format($metrics['tallyTotal'], 2) }}</td>
+          <td class="text-start small text-muted">Primary invoice / DayBook total imported from Tally ERP</td>
+        </tr>
+        <tr>
+          <td class="fw-bold text-success">2</td>
+          <td class="text-start fw-semibold text-success">Cash Received / Book Cash</td>
+          <td class="text-end font-mono fw-bold text-success">₹{{ number_format($metrics['totCash'], 2) }}</td>
+          <td class="text-start small text-muted">Gross cash portion collected across single & split bills</td>
+        </tr>
+        <tr>
+          <td class="fw-bold text-info">3</td>
+          <td class="text-start fw-semibold text-info">Paytm / Digital UPI Received</td>
+          <td class="text-end font-mono fw-bold text-info">₹{{ number_format($metrics['totPaytm'], 2) }}</td>
+          <td class="text-start small text-muted">Direct digital settlement routed straight to bank clearing ledger</td>
+        </tr>
+        <tr>
+          <td class="fw-bold text-primary">4</td>
+          <td class="text-start fw-semibold text-primary">Total Collections (Cash + Paytm)</td>
+          <td class="text-end font-mono fw-bold text-primary">₹{{ number_format($metrics['totCash'] + $metrics['totPaytm'], 2) }}</td>
+          <td class="text-start small text-muted">Combined realized receipts against daily turnover</td>
+        </tr>
+        <tr>
+          <td class="fw-bold text-danger">5</td>
+          <td class="text-start fw-semibold text-danger">Pending / Short Cash Variance</td>
+          <td class="text-end font-mono fw-bold {{ $metrics['totalShortCash'] > 0 ? 'text-danger' : 'text-success' }}">
+            {{ $metrics['totalShortCash'] > 0 ? ('₹' . number_format($metrics['totalShortCash'], 2) . ' (Short)') : '₹0.00 (Zero Shortage)' }}
+          </td>
+          <td class="text-start small text-muted">
+            @if($metrics['totalShortCash'] > 0)
+              <span class="badge bg-danger">Pending Recoveries</span> Cash discrepancy between driver deposit & bill book
+            @else
+              <span class="badge bg-success">Balanced</span> All driver cash handovers fully accounted
+            @endif
+          </td>
+        </tr>
+        <tr>
+          <td class="fw-bold text-secondary">6</td>
+          <td class="text-start fw-semibold text-secondary">KM / Driver Travel Allowance</td>
+          <td class="text-end font-mono fw-bold text-info">
+            {{ $metrics['totalKmAllowance'] > 0 ? ('-₹' . number_format($metrics['totalKmAllowance'], 2)) : '₹0.00' }}
+          </td>
+          <td class="text-start small text-muted">
+            @if($metrics['totalKmCompleted'] > 0)
+              <span class="badge bg-info text-dark font-mono">{{ $metrics['totalKmCompleted'] }} KM</span> Authorized driver fuel / travel deduction
+            @else
+              No travel mileage deductions entered for this business date
+            @endif
+          </td>
+        </tr>
+        <tr class="table-dark">
+          <td class="fw-bold">7</td>
+          <td class="text-start fw-bold fs-6">Final Master Reconciliation Balance</td>
+          <td class="text-end font-mono fw-bold fs-6 {{ $metrics['difference'] == 0 ? 'text-success' : 'text-danger' }}">
+            ₹{{ number_format($metrics['difference'], 2) }}
+          </td>
+          <td class="text-start small">
+            @if($metrics['isReconciled'])
+              <span class="badge bg-success">100% RECONCILED</span> Ready for approval and immutable sealing
+            @else
+              <span class="badge bg-danger">VARIANCE DETECTED</span> Resolve missing bills or discrepancies to seal
+            @endif
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <!-- Difference Breakdown Card -->
 <div class="card border p-4 bg-white shadow-sm">
   <h5 class="fw-bold mb-3">Discrepancy Breakdown & Resolution Checklist</h5>
@@ -159,7 +253,7 @@
         @else
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-check-circle-fill text-success"></i>
-            <span><strong>All Physical Serials Accounted:</strong> 32/32 bills verified in counter bundles.</span>
+            <span><strong>All Physical Serials Accounted:</strong> Verified in counter bundles.</span>
           </div>
         @endif
         <div class="d-flex align-items-center gap-2">
@@ -169,6 +263,10 @@
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-check-circle-fill text-success"></i>
           <span><strong>Goods Returns & Refunds:</strong> Total ₹{{ number_format($metrics['totRefund'], 2) }} adjusted with customer slips.</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-check-circle-fill {{ $metrics['totalShortCash'] > 0 ? 'text-danger' : 'text-success' }}"></i>
+          <span><strong>Physical Cash Count:</strong> Total ₹{{ number_format($metrics['totalPhysicalCash'], 2) }} counted in denomination registers.</span>
         </div>
       </div>
     </div>

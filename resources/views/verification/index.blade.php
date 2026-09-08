@@ -225,9 +225,16 @@
 
             <!-- Payment Type (View / Edit) -->
             <td>
-              <span class="payment-badge-display badge {{ $bill->payment_type === 'Cash' ? 'bg-success' : ($bill->payment_type === 'Paytm' ? 'bg-info text-dark' : ($bill->payment_type === 'Check' ? 'bg-primary' : ($bill->payment_type === 'Credit' ? 'bg-warning text-dark' : 'bg-secondary'))) }}">
-                {{ $bill->payment_type }}
-              </span>
+              @if($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0))
+                <div class="payment-badge-display">
+                  <span class="badge bg-success mb-1 d-block"><i class="bi bi-cash me-1"></i>Cash: ₹{{ number_format($bill->cash_amount, 2) }}</span>
+                  <span class="badge bg-info text-dark d-block"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹{{ number_format($bill->paytm_amount, 2) }}</span>
+                </div>
+              @else
+                <span class="payment-badge-display badge {{ $bill->payment_type === 'Cash' ? 'bg-success' : ($bill->payment_type === 'Paytm' ? 'bg-info text-dark' : ($bill->payment_type === 'Check' ? 'bg-primary' : ($bill->payment_type === 'Credit' ? 'bg-warning text-dark' : 'bg-secondary'))) }}">
+                  {{ $bill->payment_type }}
+                </span>
+              @endif
               <select class="form-select form-select-sm inline-payment-select d-none" style="min-width: 120px;">
                 <option value="Cash" {{ $bill->payment_type === 'Cash' ? 'selected' : '' }}>Cash</option>
                 <option value="Paytm" {{ $bill->payment_type === 'Paytm' ? 'selected' : '' }}>Paytm / UPI</option>
@@ -280,12 +287,23 @@
             <!-- Remark -->
             <td class="small text-muted">{{ $bill->remark }}</td>
 
-            <!-- Actions (Edit button / Save & Cancel / Resolve) -->
+            <!-- Actions (Edit button / Save & Cancel / Resolve / Split) -->
             <td class="text-end text-nowrap">
               <!-- View Mode Action Buttons -->
               <div class="btn-group-view">
                 <button type="button" class="btn btn-sm btn-outline-primary btn-edit-row" title="Edit row details">
                   <i class="bi bi-pencil me-1"></i> Edit
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-info btn-split-pay ms-1" 
+                        data-id="{{ $bill->id }}" 
+                        data-bill-no="{{ $bill->bill_no }}" 
+                        data-customer="{{ $bill->customer_name }}" 
+                        data-net="{{ (float)($bill->net_amount > 0 ? $bill->net_amount : $bill->amount) }}" 
+                        data-cash="{{ (float)$bill->cash_amount }}" 
+                        data-paytm="{{ (float)$bill->paytm_amount }}"
+                        data-is-split="{{ $bill->is_split_payment ? '1' : '0' }}"
+                        title="Split payment between Cash and Paytm">
+                  <i class="bi bi-pie-chart-fill me-1"></i> Split
                 </button>
                 @if($bill->status === 'Missing')
                   <button type="button" class="btn btn-sm btn-danger btn-open-investigate ms-1" data-bill-no="{{ $bill->bill_no }}" data-customer="{{ $bill->customer_name }}" data-amount="₹{{ number_format($bill->amount, 2) }}" data-pso="{{ $bill->pso_code }}">
@@ -802,21 +820,135 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // Bulk Apply Payment Type
-  document.getElementById('btnApplyBulkPayment')?.addEventListener('click', async function () {
-    const paySelect = document.getElementById('bulkPaymentSelect');
-    const paymentType = paySelect?.value;
-    if (!paymentType) {
-      alert('Please select a Payment Type.');
-      return;
+  // ==========================================
+  // Split Payment (Cash + Paytm) Modal Handlers
+  // ==========================================
+  let currentSplitRow = null;
+  const splitModalEl = document.getElementById('modal-split-pay');
+  const splitModal = splitModalEl ? new bootstrap.Modal(splitModalEl) : null;
+
+  const splitBillNo = document.getElementById('split-modal-bill-no');
+  const splitCustomer = document.getElementById('split-modal-customer');
+  const splitNet = document.getElementById('split-modal-net');
+  const splitCashInput = document.getElementById('split-modal-cash');
+  const splitPaytmInput = document.getElementById('split-modal-paytm');
+  const splitRemainingDisplay = document.getElementById('split-modal-remaining');
+  const splitStatusBadge = document.getElementById('split-modal-status-badge');
+  const btnSaveSplit = document.getElementById('btnSaveSplitPayment');
+
+  function updateSplitBalance() {
+    const net = parseFloat(splitModalEl.dataset.net || 0);
+    const cash = parseFloat(splitCashInput.value || 0);
+    const paytm = parseFloat(splitPaytmInput.value || 0);
+    const totalAllocated = cash + paytm;
+    const diff = net - totalAllocated;
+
+    if (Math.abs(diff) < 0.01) {
+      splitStatusBadge.className = 'badge bg-success';
+      splitStatusBadge.innerHTML = '<i class="bi bi-check-circle me-1"></i> 100% Balanced';
+      splitRemainingDisplay.textContent = '₹0.00 Remaining';
+      splitRemainingDisplay.className = 'font-mono fw-bold text-success';
+      if (btnSaveSplit) btnSaveSplit.disabled = false;
+    } else if (diff > 0) {
+      splitStatusBadge.className = 'badge bg-warning text-dark';
+      splitStatusBadge.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Under-Allocated';
+      splitRemainingDisplay.textContent = '₹' + diff.toLocaleString('en-IN', { minimumFractionDigits: 2 }) + ' Remaining to allocate';
+      splitRemainingDisplay.className = 'font-mono fw-bold text-warning';
+      if (btnSaveSplit) btnSaveSplit.disabled = false;
+    } else {
+      splitStatusBadge.className = 'badge bg-danger';
+      splitStatusBadge.innerHTML = '<i class="bi bi-x-circle me-1"></i> Over-Allocated';
+      splitRemainingDisplay.textContent = '₹' + Math.abs(diff).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + ' Exceeds Total';
+      splitRemainingDisplay.className = 'font-mono fw-bold text-danger';
+      if (btnSaveSplit) btnSaveSplit.disabled = true;
+    }
+  }
+
+  // Open modal on Split button click
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-split-pay');
+    if (!btn) return;
+
+    currentSplitRow = btn.closest('.bill-row');
+    const billId = btn.dataset.id;
+    const billNo = btn.dataset.billNo;
+    const customer = btn.dataset.customer;
+    const net = parseFloat(btn.dataset.net || 0);
+    let cash = parseFloat(btn.dataset.cash || 0);
+    let paytm = parseFloat(btn.dataset.paytm || 0);
+
+    if (cash === 0 && paytm === 0) {
+      cash = net;
+      paytm = 0;
     }
 
-    const checkedBoxes = document.querySelectorAll('.bill-select-cb:checked');
-    const billIds = Array.from(checkedBoxes).map(cb => cb.value);
-    if (billIds.length === 0) return;
+    splitModalEl.dataset.billId = billId;
+    splitModalEl.dataset.net = net;
+
+    splitBillNo.textContent = billNo;
+    splitCustomer.textContent = customer;
+    splitNet.textContent = '₹' + net.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+    splitCashInput.value = cash;
+    splitPaytmInput.value = paytm;
+
+    updateSplitBalance();
+    splitModal.show();
+  });
+
+  // Auto calculate Paytm when Cash changes
+  splitCashInput?.addEventListener('input', function() {
+    const net = parseFloat(splitModalEl.dataset.net || 0);
+    const cash = parseFloat(this.value || 0);
+    if (cash <= net && cash >= 0) {
+      splitPaytmInput.value = (net - cash).toFixed(2);
+    }
+    updateSplitBalance();
+  });
+
+  // Auto calculate Cash when Paytm changes
+  splitPaytmInput?.addEventListener('input', function() {
+    const net = parseFloat(splitModalEl.dataset.net || 0);
+    const paytm = parseFloat(this.value || 0);
+    if (paytm <= net && paytm >= 0) {
+      splitCashInput.value = (net - paytm).toFixed(2);
+    }
+    updateSplitBalance();
+  });
+
+  // Quick allocation buttons
+  document.getElementById('btnSplitHalf')?.addEventListener('click', function() {
+    const net = parseFloat(splitModalEl.dataset.net || 0);
+    splitCashInput.value = (net / 2).toFixed(2);
+    splitPaytmInput.value = (net / 2).toFixed(2);
+    updateSplitBalance();
+  });
+
+  document.getElementById('btnSplitAllCash')?.addEventListener('click', function() {
+    const net = parseFloat(splitModalEl.dataset.net || 0);
+    splitCashInput.value = net.toFixed(2);
+    splitPaytmInput.value = '0.00';
+    updateSplitBalance();
+  });
+
+  document.getElementById('btnSplitAllPaytm')?.addEventListener('click', function() {
+    const net = parseFloat(splitModalEl.dataset.net || 0);
+    splitCashInput.value = '0.00';
+    splitPaytmInput.value = net.toFixed(2);
+    updateSplitBalance();
+  });
+
+  // Save Split Payment
+  btnSaveSplit?.addEventListener('click', async function() {
+    const billId = splitModalEl.dataset.billId;
+    const cash = parseFloat(splitCashInput.value || 0);
+    const paytm = parseFloat(splitPaytmInput.value || 0);
+
+    btnSaveSplit.disabled = true;
+    btnSaveSplit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
 
     try {
-      const res = await fetch(bulkUpdateRoute, {
+      const res = await fetch(updateRoute, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -824,39 +956,142 @@ document.addEventListener('DOMContentLoaded', function () {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          bill_ids: billIds,
-          payment_type: paymentType
+          bill_id: billId,
+          payment_type: 'Cash',
+          is_split_payment: (cash > 0 && paytm > 0) ? 1 : 0,
+          cash_amount: cash,
+          paytm_amount: paytm
         })
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        checkedBoxes.forEach(cb => {
-          const row = cb.closest('.bill-row');
-          if (row) {
-            row.dataset.paymentType = paymentType;
-            const payDisplay = row.querySelector('.payment-badge-display');
-            if (payDisplay) {
-              payDisplay.textContent = paymentType;
-              payDisplay.className = `payment-badge-display badge ${getPaymentBadgeClass(paymentType)}`;
-            }
-            const rowPaySelect = row.querySelector('.inline-payment-select');
-            if (rowPaySelect) rowPaySelect.value = paymentType;
-            row.classList.add('row-highlight-success');
+        splitModal.hide();
+        if (currentSplitRow) {
+          const splitBtn = currentSplitRow.querySelector('.btn-split-pay');
+          if (splitBtn) {
+            splitBtn.dataset.cash = cash;
+            splitBtn.dataset.paytm = paytm;
+            splitBtn.dataset.isSplit = (cash > 0 && paytm > 0) ? '1' : '0';
           }
-        });
+
+          const payContainer = currentSplitRow.querySelector('.payment-badge-display');
+            if (cash > 0 && paytm > 0) {
+              payContainer.innerHTML = `
+                <span class="badge bg-success mb-1 d-block"><i class="bi bi-cash me-1"></i>Cash: ₹${cash.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <span class="badge bg-info text-dark d-block"><i class="bi bi-bank me-1"></i>Paytm / RTGS: ₹${paytm.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              `;
+            } else if (paytm > 0) {
+              payContainer.innerHTML = `<span class="badge bg-info text-dark"><i class="bi bi-bank me-1"></i>Paytm / RTGS</span>`;
+            } else {
+              payContainer.innerHTML = `<span class="badge bg-success"><i class="bi bi-cash me-1"></i>Cash</span>`;
+            }
+          }
+
+          currentSplitRow.classList.add('row-highlight-success');
+        }
+
         if (typeof window.showErpToast === 'function') {
-          window.showErpToast(data.message, 'success');
+          window.showErpToast(`Split payment saved: Cash ₹${cash} + Online/RTGS/Paytm ₹${paytm}`, 'success');
         }
       } else {
-        alert(data.message || 'Failed to bulk update payment types.');
+        alert(data.message || 'Error saving split payment.');
       }
     } catch (e) {
       console.error(e);
-      alert('Error updating bills.');
+      alert('Error updating split payment.');
+    } finally {
+      btnSaveSplit.disabled = false;
+      btnSaveSplit.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Save Split Allocation';
     }
   });
 
 });
 </script>
+
+<!-- Modal: Split Payment (Cash + Paytm / RTGS / Bank) Adjustment -->
+<div class="modal fade" id="modal-split-pay" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-pie-chart-fill text-info me-2"></i>Split Bill Payment (Cash + Paytm / RTGS)
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- Bill Overview Header -->
+        <div class="p-3 bg-light rounded border mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">Bill Serial:</span>
+            <strong class="font-mono fs-6 text-primary" id="split-modal-bill-no">CB 01</strong>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">Customer Name:</span>
+            <strong id="split-modal-customer">Apex Wholesale</strong>
+          </div>
+          <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+            <span class="fw-bold">Total Net Amount:</span>
+            <span class="fs-5 font-mono fw-bold text-success" id="split-modal-net">₹25,000.00</span>
+          </div>
+        </div>
+
+        <!-- Quick Split Helper Buttons -->
+        <div class="d-flex gap-2 mb-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" id="btnSplitHalf">
+            <i class="bi bi-percent me-1"></i> 50% - 50%
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success flex-fill" id="btnSplitAllCash">
+            <i class="bi bi-cash me-1"></i> 100% Cash
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-info flex-fill" id="btnSplitAllPaytm">
+            <i class="bi bi-bank me-1"></i> 100% Paytm / RTGS
+          </button>
+        </div>
+
+        <!-- 1. Cash Input -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold text-success d-flex justify-content-between">
+            <span><i class="bi bi-cash-stack me-1"></i> Cash Amount (Physically Deposited)</span>
+          </label>
+          <div class="input-group">
+            <span class="input-group-text bg-success text-white fw-bold">₹</span>
+            <input type="number" step="0.01" min="0" id="split-modal-cash" class="form-control form-control-lg font-mono text-end fw-bold" placeholder="0.00">
+          </div>
+          <div class="form-text">Physically counted in cashier register / driver deposit.</div>
+        </div>
+
+        <!-- 2. Paytm / RTGS / Bank Input -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label fw-semibold text-info mb-0">
+              <i class="bi bi-bank me-1"></i> Paytm / RTGS / UPI / NEFT Amount
+            </label>
+            <span class="badge bg-light text-dark border font-mono">Bank Settlement</span>
+          </div>
+          <div class="input-group">
+            <span class="input-group-text bg-info text-white fw-bold">₹</span>
+            <input type="number" step="0.01" min="0" id="split-modal-paytm" class="form-control form-control-lg font-mono text-end fw-bold" placeholder="0.00">
+          </div>
+          <div class="form-text">Direct digital transaction transferred via Paytm QR, RTGS, NEFT or IMPS to bank.</div>
+        </div>
+
+        <!-- Balance Status Bar -->
+        <div class="p-3 bg-light rounded border d-flex justify-content-between align-items-center">
+          <div>
+            <span class="d-block small text-muted">Allocation Status</span>
+            <span id="split-modal-remaining" class="font-mono fw-bold text-success">₹0.00 Remaining</span>
+          </div>
+          <span id="split-modal-status-badge" class="badge bg-success">100% Balanced</span>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success fw-bold" id="btnSaveSplitPayment">
+          <i class="bi bi-check-circle-fill me-1"></i> Save Split Allocation
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 @endsection

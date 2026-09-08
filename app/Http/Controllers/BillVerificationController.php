@@ -109,6 +109,9 @@ class BillVerificationController extends Controller
             'refund_amount' => 'nullable|numeric|min:0',
             'salesperson_id' => 'nullable',
             'salesman_name' => 'nullable|string',
+            'cash_amount' => 'nullable|numeric|min:0',
+            'paytm_amount' => 'nullable|numeric|min:0',
+            'is_split_payment' => 'nullable|boolean',
         ]);
 
         $businessDate = $this->reconService->getBusinessDate();
@@ -118,6 +121,22 @@ class BillVerificationController extends Controller
         $bill->cd_amount = floatval($request->input('cd_amount', 0));
         $bill->refund_amount = floatval($request->input('refund_amount', 0));
         $bill->net_amount = max(0, floatval($bill->amount) - $bill->cd_amount - $bill->refund_amount);
+
+        // Handle Split Payment (Cash + Paytm)
+        $isSplit = (bool) $request->input('is_split_payment', false);
+        $cashAmt = floatval($request->input('cash_amount', 0));
+        $paytmAmt = floatval($request->input('paytm_amount', 0));
+
+        if ($isSplit || ($cashAmt > 0 && $paytmAmt > 0)) {
+            $bill->is_split_payment = true;
+            $bill->cash_amount = $cashAmt;
+            $bill->paytm_amount = $paytmAmt;
+            $bill->payment_type = 'Cash'; // Primary accounting bucket
+        } else {
+            $bill->is_split_payment = false;
+            $bill->cash_amount = ($bill->payment_type === 'Cash') ? ($cashAmt > 0 ? $cashAmt : $bill->net_amount) : 0;
+            $bill->paytm_amount = ($bill->payment_type === 'Paytm') ? ($paytmAmt > 0 ? $paytmAmt : $bill->net_amount) : 0;
+        }
 
         // Update Salesperson
         if ($request->filled('salesperson_id') && $request->salesperson_id !== '') {

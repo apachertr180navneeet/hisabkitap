@@ -78,6 +78,15 @@
 
         <li class="menu-category">Financial Workflow</li>
         <li>
+          <a href="{{ route('admin.denomination.index') }}" class="nav-item-custom {{ request()->routeIs('*.denomination.*') || request()->routeIs('denomination.*') ? 'active' : '' }}">
+            <i class="bi bi-calculator"></i>
+            <span>Cash Denomination</span>
+            @if(($globalMetrics['totalShortCash'] ?? 0) > 0)
+              <span class="badge bg-danger">SHORT</span>
+            @endif
+          </a>
+        </li>
+        <li>
           <a href="{{ route('admin.payment.index') }}" class="nav-item-custom {{ request()->routeIs('*.payment.*') || request()->routeIs('payment.*') ? 'active' : '' }}">
             <i class="bi bi-wallet2"></i>
             <span>Payment Classification</span>
