@@ -244,4 +244,18 @@ class HisabKitapErpTest extends TestCase
         $delRes->assertRedirect('/admin/users');
         $this->assertEquals(1, User::count());
     }
+
+    public function test_import_page_loads_properly(): void
+    {
+        $this->post('/admin/login', [
+            'email' => 'admin@hisabkitap.in',
+            'password' => 'password',
+        ]);
+
+        $response = $this->get('/admin/import');
+        $response->assertStatus(200);
+        $response->assertSee('Tally Excel Import & Bill Ingestion', false);
+        $response->assertSee('Import Configuration');
+        $response->assertSee('Ingest & Process Import', false);
+    }
 }

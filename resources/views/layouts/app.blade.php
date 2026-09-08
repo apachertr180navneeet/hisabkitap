@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="{{ asset('css/custom.css') }}">
   @yield('styles')
 </head>
-<body class="{{ $isSealed ? 'is-sealed' : '' }}">
+<body class="{{ (!empty($isSealed)) ? 'is-sealed' : '' }}">
 
   <!-- App Wrapper -->
   <div id="app-container">
@@ -47,7 +47,7 @@
             <span>Dashboard</span>
           </a>
         </li>
-        @if($currentUser->hasPermission('can_configure_pso'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_configure_pso'))
         <li>
           <a href="{{ route('admin.pso.index') }}" class="nav-item-custom {{ request()->routeIs('*.pso.*') || request()->routeIs('pso.*') ? 'active' : '' }}">
             <i class="bi bi-diagram-3-fill"></i>
@@ -56,7 +56,7 @@
           </a>
         </li>
         @endif
-        @if($currentUser->hasPermission('can_import_excel'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_import_excel'))
         <li>
           <a href="{{ route('admin.import.index') }}" class="nav-item-custom {{ request()->routeIs('*.import.*') || request()->routeIs('import.*') ? 'active' : '' }}">
             <i class="bi bi-file-earmark-spreadsheet-fill"></i>
@@ -83,7 +83,7 @@
             <span>Payment Classification</span>
           </a>
         </li>
-        @if($currentUser->hasPermission('can_record_corrections'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_record_corrections'))
         <li>
           <a href="{{ route('admin.corrections.index') }}" class="nav-item-custom {{ request()->routeIs('*.corrections.*') || request()->routeIs('corrections.*') ? 'active' : '' }}">
             <i class="bi bi-arrow-left-right"></i>
@@ -92,7 +92,7 @@
           </a>
         </li>
         @endif
-        @if($currentUser->hasPermission('can_record_credit'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_record_credit'))
         <li>
           <a href="{{ route('admin.credit.index') }}" class="nav-item-custom {{ request()->routeIs('*.credit.*') || request()->routeIs('credit.*') ? 'active' : '' }}">
             <i class="bi bi-cash-coin"></i>
@@ -113,18 +113,18 @@
           <a href="{{ route('admin.reconciliation.index') }}" class="nav-item-custom {{ request()->routeIs('*.reconciliation.*') || request()->routeIs('reconciliation.*') ? 'active' : '' }}">
             <i class="bi bi-check2-all"></i>
             <span>Master Reconciliation</span>
-            @if($isSealed)
+            @if(!empty($isSealed))
               <span class="badge bg-success">SEALED</span>
             @elseif(!($globalMetrics['hasBills'] ?? false))
               <span class="badge bg-secondary">NO BILLS</span>
-            @elseif($globalMetrics['isReconciled'])
+            @elseif($globalMetrics['isReconciled'] ?? false)
               <span class="badge bg-success">PASS</span>
             @else
               <span class="badge bg-danger">FAIL</span>
             @endif
           </a>
         </li>
-        @if($currentUser->hasPermission('can_approve_sealing'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_approve_sealing'))
         <li>
           <a href="{{ route('admin.approval.index') }}" class="nav-item-custom {{ request()->routeIs('*.approval.*') || request()->routeIs('approval.*') ? 'active' : '' }}">
             <i class="bi bi-lock-fill"></i>
@@ -145,9 +145,9 @@
           </a>
         </li>
 
-        @if($currentUser->hasPermission('can_manage_users') || $currentUser->hasPermission('can_edit_cutoff'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users') || $currentUser->hasPermission('can_edit_cutoff'))
         <li class="menu-category">System & Administration</li>
-        @if($currentUser->hasPermission('can_manage_users'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users'))
         <li>
           <a href="{{ route('admin.users.index') }}" class="nav-item-custom {{ request()->routeIs('*.users.*') || request()->routeIs('users.*') ? 'active' : '' }}">
             <i class="bi bi-people-fill"></i>
@@ -156,7 +156,7 @@
           </a>
         </li>
         @endif
-        @if($currentUser->hasPermission('can_edit_cutoff'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_edit_cutoff'))
         <li>
           <a href="{{ route('admin.settings.index') }}" class="nav-item-custom {{ request()->routeIs('*.settings.*') || request()->routeIs('settings.*') ? 'active' : '' }}">
             <i class="bi bi-gear-fill"></i>
@@ -164,7 +164,7 @@
           </a>
         </li>
         @endif
-        @if($currentUser->hasPermission('can_configure_pso'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_configure_pso'))
         <li>
           <a href="{{ route('admin.prefix.index') }}" class="nav-item-custom {{ request()->routeIs('*.prefix.*') || request()->routeIs('prefix.*') ? 'active' : '' }}">
             <i class="bi bi-tag-fill"></i>
