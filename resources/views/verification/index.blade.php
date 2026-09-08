@@ -9,11 +9,12 @@
     <p class="text-muted mb-0">Cross-match physical bills against Tally DayBook. Edit payment classifications, cash discounts, refunds, and assigned salespersons in real time.</p>
   </div>
   <div class="d-flex gap-2 align-items-center">
-    <a href="{{ route('admin.verification.export') }}" class="btn btn-outline-secondary btn-sm">
+    <a href="{{ route('admin.verification.export', ['date' => $businessDate]) }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-file-earmark-arrow-down me-1"></i> Export Verification
     </a>
     <form action="{{ route('admin.verification.auto_verify') }}" method="POST" class="d-inline">
       @csrf
+      <input type="hidden" name="date" value="{{ $businessDate }}">
       <button type="submit" class="btn btn-primary btn-sm">
         <i class="bi bi-check2-all me-1"></i> Auto-Verify Slips
       </button>
@@ -24,6 +25,12 @@
 <!-- Filters Bar -->
 <div class="card border p-3 mb-3 bg-white shadow-sm">
   <form method="GET" action="{{ route('admin.verification.index') }}" class="row g-2 align-items-center">
+    <div class="col-md-2">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
+        <input type="date" name="date" class="form-control font-mono" value="{{ $businessDate !== 'ALL' ? $businessDate : '' }}" placeholder="YYYY-MM-DD" onchange="this.form.submit()" title="Select Business Date">
+      </div>
+    </div>
     <div class="col-md-3">
       <div class="input-group input-group-sm">
         <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
@@ -46,19 +53,17 @@
         @endforeach
       </select>
     </div>
-    <div class="col-md-2">
+    <div class="col-md-3 d-flex gap-1">
       <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="ALL">All Statuses</option>
         <option value="Matched" {{ request('status') === 'Matched' ? 'selected' : '' }}>Matched</option>
         <option value="Missing" {{ request('status') === 'Missing' ? 'selected' : '' }}>Missing</option>
         <option value="Cancelled" {{ request('status') === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
       </select>
-    </div>
-    <div class="col-md-3 d-flex gap-2">
       <select name="payment_type" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="ALL">All Payment Types</option>
+        <option value="ALL">All Payments</option>
         <option value="Cash" {{ request('payment_type') === 'Cash' ? 'selected' : '' }}>Cash</option>
-        <option value="Paytm" {{ request('payment_type') === 'Paytm' ? 'selected' : '' }}>Paytm / UPI</option>
+        <option value="Paytm" {{ request('payment_type') === 'Paytm' ? 'selected' : '' }}>Paytm</option>
         <option value="Check" {{ request('payment_type') === 'Check' ? 'selected' : '' }}>Cheque</option>
         <option value="Credit" {{ request('payment_type') === 'Credit' ? 'selected' : '' }}>Credit</option>
         <option value="Cancelled" {{ request('payment_type') === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
@@ -66,6 +71,22 @@
       <a href="{{ route('admin.verification.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
     </div>
   </form>
+
+  @if(!empty($availableDates) && count($availableDates) > 0)
+    <div class="mt-2 pt-2 border-top d-flex flex-wrap align-items-center gap-2 small text-muted">
+      <span class="fw-semibold"><i class="bi bi-clock-history me-1"></i> Dates in Database:</span>
+      <div class="d-flex flex-wrap gap-1">
+        <a href="{{ route('admin.verification.index', array_merge(request()->except('date'), ['date' => 'ALL'])) }}" class="badge {{ $businessDate === 'ALL' ? 'bg-dark text-white' : 'bg-light text-dark border text-decoration-none' }}">
+          All Dates
+        </a>
+        @foreach($availableDates as $ad)
+          <a href="{{ route('admin.verification.index', array_merge(request()->except('date'), ['date' => $ad])) }}" class="badge {{ $businessDate === $ad ? 'bg-primary text-white' : 'bg-light text-dark border text-decoration-none' }}">
+            {{ date('d M Y', strtotime($ad)) }}
+          </a>
+        @endforeach
+      </div>
+    </div>
+  @endif
 </div>
 
 <!-- Bulk Actions Toolbar (Visible when rows are selected) -->
@@ -287,9 +308,19 @@
         @empty
           <tr>
             <td colspan="16" class="text-center text-muted py-5">
-              <i class="bi bi-receipt-cutoff fs-3 d-block mb-1 text-primary"></i>
-              No bill records found for this business date.
-              <a href="{{ route('admin.import.index') }}" class="btn btn-sm btn-primary ms-2">Import Tally DayBook</a>
+              <i class="bi bi-receipt-cutoff fs-2 d-block mb-2 text-primary opacity-75"></i>
+              <div class="fw-semibold fs-6 text-dark mb-1">No bill records found for {{ $businessDate === 'ALL' ? 'the selected filters' : ($businessDate ? 'date ' . date('d/m/Y', strtotime($businessDate)) : 'the current business date') }}</div>
+              <p class="small text-muted mb-3">Try adjusting your date/PSO filters, or import the latest Tally DayBook.</p>
+              <div class="d-flex justify-content-center gap-2">
+                @if($businessDate !== 'ALL')
+                  <a href="{{ route('admin.verification.index', ['date' => 'ALL']) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-calendar-range me-1"></i> View All Dates
+                  </a>
+                @endif
+                <a href="{{ route('admin.import.index') }}" class="btn btn-sm btn-primary">
+                  <i class="bi bi-cloud-arrow-up me-1"></i> Import Tally DayBook
+                </a>
+              </div>
             </td>
           </tr>
         @endforelse

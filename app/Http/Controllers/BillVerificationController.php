@@ -23,12 +23,46 @@ class BillVerificationController extends Controller
 
     public function index(Request $request)
     {
-        $businessDate = $this->reconService->getBusinessDate();
+        $businessDate = $request->input('date');
+        if (!$businessDate) {
+            $defaultDate = $this->reconService->getBusinessDate();
+            if (Bill::whereDate('business_date', $defaultDate)->exists()) {
+                $businessDate = $defaultDate;
+            } else {
+                $latestBillDate = Bill::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+                $businessDate = $latestBillDate ? date('Y-m-d', strtotime($latestBillDate)) : $defaultDate;
+            }
+        }
+
         $psoList = PsoConfig::where('is_active', true)->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
 
-        $query = Bill::whereDate('business_date', $businessDate)
-            ->where('is_post_cutoff', false);
+        $availableDates = Bill::selectRaw('DATE(business_date) as b_date')
+            ->whereNotNull('business_date')
+            ->distinct()
+            ->orderBy('b_date', 'desc')
+            ->pluck('b_date')
+            ->toArray();
+
+        $query = Bill::query();
+
+        if ($businessDate && $businessDate !== 'ALL') {
+            $query->whereDate('business_date', $businessDate);
+        }
+
+        if ($request->input('cutoff') === 'post') {
+            $query->where('is_post_cutoff', true);
+        } elseif ($request->input('cutoff') === 'regular') {
+            $query->where('is_post_cutoff', false);
+        } elseif ($request->input('cutoff') === 'all') {
+            // no filter
+        } else {
+            // By default, only hide post cutoff if regular bills exist for this query
+            $hasRegular = (clone $query)->where('is_post_cutoff', false)->exists();
+            if ($hasRegular) {
+                $query->where('is_post_cutoff', false);
+            }
+        }
 
         if ($request->filled('pso') && $request->pso !== 'ALL') {
             $query->where('pso_code', $request->pso);
@@ -61,9 +95,9 @@ class BillVerificationController extends Controller
         }
 
         $bills = $query->orderBy('id', 'asc')->get();
-        $metrics = $this->reconService->getMetrics($businessDate);
+        $metrics = $this->reconService->getMetrics($businessDate !== 'ALL' ? $businessDate : null);
 
-        return view('verification.index', compact('bills', 'psoList', 'metrics', 'salespersons'));
+        return view('verification.index', compact('bills', 'psoList', 'metrics', 'salespersons', 'businessDate', 'availableDates'));
     }
 
     public function updateBill(Request $request)
@@ -275,13 +309,18 @@ class BillVerificationController extends Controller
         ]);
     }
 
-    public function autoVerifyAll()
+    public function autoVerifyAll(Request $request)
     {
-        $businessDate = $this->reconService->getBusinessDate();
-        $bills = Bill::whereDate('business_date', $businessDate)
-            ->where('is_post_cutoff', false)
-            ->where('status', '!=', 'Cancelled')
-            ->get();
+        $businessDate = $request->input('date');
+        if (!$businessDate) {
+            $businessDate = $this->reconService->getBusinessDate();
+        }
+
+        $query = Bill::where('status', '!=', 'Cancelled');
+        if ($businessDate && $businessDate !== 'ALL') {
+            $query->whereDate('business_date', $businessDate);
+        }
+        $bills = $query->get();
 
         foreach ($bills as $bill) {
             $bill->status = 'Matched';
@@ -290,14 +329,16 @@ class BillVerificationController extends Controller
             $bill->save();
         }
 
-        $metrics = $this->reconService->getMetrics($businessDate);
-        $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
-        if ($seal) {
-            $seal->tally_total = $metrics['tallyTotal'];
-            $seal->pso_total = $metrics['psoCollection'];
-            $seal->difference = $metrics['difference'];
-            $seal->is_reconciled = $metrics['isReconciled'];
-            $seal->save();
+        $metrics = $this->reconService->getMetrics($businessDate !== 'ALL' ? $businessDate : null);
+        if ($businessDate && $businessDate !== 'ALL') {
+            $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
+            if ($seal) {
+                $seal->tally_total = $metrics['tallyTotal'];
+                $seal->pso_total = $metrics['psoCollection'];
+                $seal->difference = $metrics['difference'];
+                $seal->is_reconciled = $metrics['isReconciled'];
+                $seal->save();
+            }
         }
 
         AuditLog::log('AUTO_VERIFY', "Auto-verified all physical bill slips for date {$businessDate}.");
@@ -305,14 +346,23 @@ class BillVerificationController extends Controller
         return redirect()->back()->with('success', 'All bills successfully auto-verified against physical bundles.');
     }
 
-    public function exportCsv(): StreamedResponse
+    public function exportCsv(Request $request): StreamedResponse
     {
-        $businessDate = $this->reconService->getBusinessDate();
-        $bills = Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false)->get();
+        $businessDate = $request->input('date');
+        if (!$businessDate) {
+            $businessDate = $this->reconService->getBusinessDate();
+        }
 
+        $query = Bill::query();
+        if ($businessDate && $businessDate !== 'ALL') {
+            $query->whereDate('business_date', $businessDate);
+        }
+        $bills = $query->get();
+
+        $filenameDate = $businessDate ?: 'All';
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"Bill_Verification_{$businessDate}.csv\"",
+            'Content-Disposition' => "attachment; filename=\"Bill_Verification_{$filenameDate}.csv\"",
         ];
 
         return response()->stream(function () use ($bills) {
