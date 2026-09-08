@@ -63,7 +63,8 @@
       <select name="payment_type" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="ALL">All Payments</option>
         <option value="Cash" {{ request('payment_type') === 'Cash' ? 'selected' : '' }}>Cash</option>
-        <option value="Paytm" {{ request('payment_type') === 'Paytm' ? 'selected' : '' }}>Paytm</option>
+        <option value="Paytm" {{ request('payment_type') === 'Paytm' ? 'selected' : '' }}>Paytm / RTGS</option>
+        <option value="Split" {{ request('payment_type') === 'Split' ? 'selected' : '' }}>Split (Cash + Paytm/RTGS)</option>
         <option value="Check" {{ request('payment_type') === 'Check' ? 'selected' : '' }}>Cheque</option>
         <option value="Credit" {{ request('payment_type') === 'Credit' ? 'selected' : '' }}>Credit</option>
         <option value="Cancelled" {{ request('payment_type') === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
@@ -235,9 +236,10 @@
                   {{ $bill->payment_type }}
                 </span>
               @endif
-              <select class="form-select form-select-sm inline-payment-select d-none" style="min-width: 120px;">
-                <option value="Cash" {{ $bill->payment_type === 'Cash' ? 'selected' : '' }}>Cash</option>
-                <option value="Paytm" {{ $bill->payment_type === 'Paytm' ? 'selected' : '' }}>Paytm / UPI</option>
+              <select class="form-select form-select-sm inline-payment-select d-none" style="min-width: 140px;">
+                <option value="Cash" {{ (!$bill->is_split_payment && $bill->payment_type === 'Cash') ? 'selected' : '' }}>Cash</option>
+                <option value="Paytm" {{ (!$bill->is_split_payment && $bill->payment_type === 'Paytm') ? 'selected' : '' }}>Paytm / RTGS</option>
+                <option value="Split" {{ ($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0)) ? 'selected' : '' }}>Split (Cash + Paytm)</option>
                 <option value="Check" {{ $bill->payment_type === 'Check' ? 'selected' : '' }}>Cheque</option>
                 <option value="Credit" {{ $bill->payment_type === 'Credit' ? 'selected' : '' }}>Credit</option>
                 <option value="Cancelled" {{ $bill->payment_type === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
@@ -543,6 +545,19 @@ document.addEventListener('DOMContentLoaded', function () {
     input.addEventListener('input', function () {
       const row = this.closest('.bill-row');
       if (row) calculateRowNet(row);
+    });
+  });
+
+  // Auto-trigger Split modal when "Split" is selected in payment dropdown
+  document.querySelectorAll('.inline-payment-select').forEach(sel => {
+    sel.addEventListener('change', function () {
+      if (this.value === 'Split') {
+        const row = this.closest('.bill-row');
+        const splitBtn = row?.querySelector('.btn-split-pay');
+        if (splitBtn) {
+          splitBtn.click();
+        }
+      }
     });
   });
 

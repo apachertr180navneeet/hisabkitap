@@ -73,7 +73,16 @@ class BillVerificationController extends Controller
         }
 
         if ($request->filled('payment_type') && $request->payment_type !== 'ALL') {
-            $query->where('payment_type', $request->payment_type);
+            if ($request->payment_type === 'Split') {
+                $query->where(function ($q) {
+                    $q->where('is_split_payment', true)
+                      ->orWhere(function ($sub) {
+                          $sub->where('cash_amount', '>', 0)->where('paytm_amount', '>', 0);
+                      });
+                });
+            } else {
+                $query->where('payment_type', $request->payment_type);
+            }
         }
 
         if ($request->filled('salesperson') && $request->salesperson !== 'ALL') {
