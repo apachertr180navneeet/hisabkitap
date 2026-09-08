@@ -219,6 +219,116 @@ class BillVerificationController extends Controller
         ]);
     }
 
+    /**
+     * Manually record a new bill / payment entry
+     */
+    public function storeManualBill(Request $request)
+    {
+        $request->validate([
+            'bill_no' => 'required|string|max:50',
+            'pso_code' => 'required|string|max:50',
+            'business_date' => 'required|date',
+            'customer_name' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0.01',
+            'payment_type' => 'required|string',
+            'cash_amount' => 'nullable|numeric|min:0',
+            'paytm_amount' => 'nullable|numeric|min:0',
+            'cd_amount' => 'nullable|numeric|min:0',
+            'refund_amount' => 'nullable|numeric|min:0',
+            'salesperson_id' => 'nullable',
+            'salesman_name' => 'nullable|string|max:255',
+            'remark' => 'nullable|string',
+        ]);
+
+        $pso = PsoConfig::where('code', $request->pso_code)->first();
+        $amount = floatval($request->amount);
+        $cdAmount = floatval($request->input('cd_amount', 0));
+        $refundAmount = floatval($request->input('refund_amount', 0));
+        $netAmount = max(0, $amount - $cdAmount - $refundAmount);
+
+        $paymentType = $request->payment_type;
+        $isSplit = ($paymentType === 'Split') || ($request->filled('cash_amount') && $request->filled('paytm_amount') && floatval($request->cash_amount) > 0 && floatval($request->paytm_amount) > 0);
+        $cashAmount = 0;
+        $paytmAmount = 0;
+
+        if ($isSplit) {
+            $isSplit = true;
+            $paymentType = 'Cash';
+            $cashAmount = floatval($request->input('cash_amount', 0));
+            $paytmAmount = floatval($request->input('paytm_amount', 0));
+            if ($cashAmount == 0 && $paytmAmount == 0) {
+                $cashAmount = $netAmount;
+            }
+        } elseif ($paymentType === 'Cash') {
+            $cashAmount = $netAmount;
+        } elseif ($paymentType === 'Paytm') {
+            $paytmAmount = $netAmount;
+        }
+
+        $salespersonId = null;
+        $salesmanName = null;
+
+        if ($request->filled('salesperson_id')) {
+            $sp = Salesperson::find($request->salesperson_id);
+            if ($sp) {
+                $salespersonId = $sp->id;
+                $salesmanName = $sp->name;
+            }
+        } elseif ($request->filled('salesman_name')) {
+            $salesmanName = $request->salesman_name;
+            $sp = Salesperson::where('name', $request->salesman_name)->first();
+            $salespersonId = $sp ? $sp->id : null;
+        }
+
+        $bill = Bill::create([
+            'bill_no' => $request->bill_no,
+            'pso_config_id' => $pso ? $pso->id : null,
+            'pso_code' => $request->pso_code,
+            'business_date' => $request->business_date,
+            'bill_time' => $request->input('bill_time', date('H:i')),
+            'customer_name' => $request->customer_name,
+            'amount' => $amount,
+            'payment_type' => $paymentType,
+            'voucher_type' => 'Sales',
+            'salesperson_id' => $salespersonId,
+            'salesman_name' => $salesmanName,
+            'cd_amount' => $cdAmount,
+            'refund_amount' => $refundAmount,
+            'net_amount' => $netAmount,
+            'cash_amount' => $cashAmount,
+            'paytm_amount' => $paytmAmount,
+            'is_split_payment' => $isSplit,
+            'status' => 'Matched',
+            'is_expected' => true,
+            'tally_found' => true,
+            'is_post_cutoff' => false,
+            'remark' => $request->input('remark', 'Manual bill entry added via ERP'),
+            'verified_by' => session('active_user.name', 'Pooja Verma'),
+            'verified_at' => now(),
+        ]);
+
+        if ($paymentType === 'Credit') {
+            CreditCollection::create([
+                'bill_id' => $bill->id,
+                'bill_no' => $bill->bill_no,
+                'customer_name' => $bill->customer_name,
+                'salesman_name' => $salesmanName ?: 'Field Representative',
+                'bill_date' => $bill->business_date,
+                'due_date' => date('Y-m-d', strtotime($bill->business_date . ' +7 days')),
+                'bill_amount' => $netAmount,
+                'paid_amount' => 0,
+                'outstanding_amount' => $netAmount,
+                'collection_status' => 'Pending',
+                'payment_mode' => 'Credit Pending',
+                'remark' => $bill->remark,
+            ]);
+        }
+
+        AuditLog::log('MANUAL_BILL_CREATED', "Added manual bill {$bill->bill_no} for ₹{$bill->amount} ({$paymentType}) on {$bill->business_date}");
+
+        return redirect()->back()->with('success', "Manual bill {$bill->bill_no} added successfully!");
+    }
+
     public function bulkUpdate(Request $request)
     {
         $request->validate([

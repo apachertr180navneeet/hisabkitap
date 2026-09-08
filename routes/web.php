@@ -88,6 +88,7 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     // 3. Bill Verification
     Route::get('/verification', [BillVerificationController::class, 'index'])->name('admin.verification.index');
+    Route::post('/verification/store-manual', [BillVerificationController::class, 'storeManualBill'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.store_manual');
     Route::post('/verification/update-row', [BillVerificationController::class, 'updateBill'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.update');
     Route::post('/verification/bulk-update', [BillVerificationController::class, 'bulkUpdate'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.bulk_update');
     Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.resolve');
@@ -190,6 +191,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/import', [ExcelImportController::class, 'import'])->middleware('read.only')->name('import.process');
     Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('import.sample');
     Route::get('/verification', [BillVerificationController::class, 'index'])->name('verification.index');
+    Route::post('/verification/store-manual', [BillVerificationController::class, 'storeManualBill'])->middleware('read.only')->name('verification.store_manual');
     Route::post('/verification/update-row', [BillVerificationController::class, 'updateBill'])->middleware('read.only')->name('verification.update');
     Route::post('/verification/bulk-update', [BillVerificationController::class, 'bulkUpdate'])->middleware('read.only')->name('verification.bulk_update');
     Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware('read.only')->name('verification.resolve');

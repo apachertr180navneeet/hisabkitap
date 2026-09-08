@@ -8,7 +8,10 @@
     <h4 class="fw-bold mb-1">Bill Sequence Verification</h4>
     <p class="text-muted mb-0">Cross-match physical bills against Tally DayBook. Edit payment classifications, cash discounts, refunds, and assigned salespersons in real time.</p>
   </div>
-  <div class="d-flex gap-2 align-items-center">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-manual-bill">
+      <i class="bi bi-plus-circle-fill me-1"></i> Add Manual Bill / Payment
+    </button>
     <a href="{{ route('admin.verification.export', ['date' => $businessDate]) }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-file-earmark-arrow-down me-1"></i> Export Verification
     </a>
@@ -931,28 +934,6 @@ document.addEventListener('DOMContentLoaded', function () {
     updateSplitBalance();
   });
 
-  // Quick allocation buttons
-  document.getElementById('btnSplitHalf')?.addEventListener('click', function() {
-    const net = parseFloat(splitModalEl.dataset.net || 0);
-    splitCashInput.value = (net / 2).toFixed(2);
-    splitPaytmInput.value = (net / 2).toFixed(2);
-    updateSplitBalance();
-  });
-
-  document.getElementById('btnSplitAllCash')?.addEventListener('click', function() {
-    const net = parseFloat(splitModalEl.dataset.net || 0);
-    splitCashInput.value = net.toFixed(2);
-    splitPaytmInput.value = '0.00';
-    updateSplitBalance();
-  });
-
-  document.getElementById('btnSplitAllPaytm')?.addEventListener('click', function() {
-    const net = parseFloat(splitModalEl.dataset.net || 0);
-    splitCashInput.value = '0.00';
-    splitPaytmInput.value = net.toFixed(2);
-    updateSplitBalance();
-  });
-
   // Save Split Payment
   btnSaveSplit?.addEventListener('click', async function() {
     const billId = splitModalEl.dataset.billId;
@@ -991,6 +972,7 @@ document.addEventListener('DOMContentLoaded', function () {
           }
 
           const payContainer = currentSplitRow.querySelector('.payment-badge-display');
+          if (payContainer) {
             if (cash > 0 && paytm > 0) {
               payContainer.innerHTML = `
                 <span class="badge bg-success mb-1 d-block"><i class="bi bi-cash me-1"></i>Cash: ₹${cash.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
@@ -1051,19 +1033,6 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
         </div>
 
-        <!-- Quick Split Helper Buttons -->
-        <div class="d-flex gap-2 mb-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" id="btnSplitHalf">
-            <i class="bi bi-percent me-1"></i> 50% - 50%
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-success flex-fill" id="btnSplitAllCash">
-            <i class="bi bi-cash me-1"></i> 100% Cash
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-info flex-fill" id="btnSplitAllPaytm">
-            <i class="bi bi-bank me-1"></i> 100% Paytm / RTGS
-          </button>
-        </div>
-
         <!-- 1. Cash Input -->
         <div class="mb-3">
           <label class="form-label fw-semibold text-success d-flex justify-content-between">
@@ -1109,4 +1078,197 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
   </div>
 </div>
+
+<!-- Modal: Add Manual Bill / Payment Entry -->
+<div class="modal fade" id="modal-add-manual-bill" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-plus-circle-fill text-success me-2"></i>Add Manual Bill / Payment Entry
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ route('admin.verification.store_manual') }}" method="POST" id="formAddManualBill">
+        @csrf
+        <div class="modal-body p-4">
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">PSO Counter / Series <span class="text-danger">*</span></label>
+              <select name="pso_code" id="manual_pso_code" class="form-select" required onchange="updateManualBillPrefix(this)">
+                @foreach($psoList as $pso)
+                  <option value="{{ $pso->code }}" data-prefix="{{ $pso->prefix }}" data-driver="{{ $pso->driver_name }}">
+                    {{ $pso->code }} ({{ $pso->prefix }} - {{ $pso->operator_name }})
+                  </option>
+                @endforeach
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Bill Serial No. <span class="text-danger">*</span></label>
+              <input type="text" name="bill_no" id="manual_bill_no" class="form-control font-mono fw-bold" placeholder="e.g. CB 01" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Business Date <span class="text-danger">*</span></label>
+              <input type="date" name="business_date" class="form-control font-mono" value="{{ $businessDate !== 'ALL' ? $businessDate : date('Y-m-d') }}" required>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Customer Name <span class="text-danger">*</span></label>
+              <input type="text" name="customer_name" class="form-control" placeholder="e.g. Jodhpur Sweet Corner" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Bill Time</label>
+              <input type="time" name="bill_time" class="form-control font-mono" value="{{ date('H:i') }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Sales Person / Driver</label>
+              <select name="salesperson_id" class="form-select">
+                <option value="">-- Unassigned --</option>
+                @foreach($salespersons as $sp)
+                  <option value="{{ $sp->id }}">{{ $sp->name }} ({{ $sp->code }})</option>
+                @endforeach
+              </select>
+            </div>
+          </div>
+
+          <!-- Amount and Adjustments Row -->
+          <div class="row g-3 mb-3 p-3 bg-light rounded border">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold text-primary">Gross Amount (₹) <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-primary text-white fw-bold">₹</span>
+                <input type="number" step="0.01" min="0.01" name="amount" id="manual_gross_amount" class="form-control font-mono fw-bold text-end" placeholder="0.00" required oninput="calculateManualNet()">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold text-muted">Cash Discount (CD)</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light">₹</span>
+                <input type="number" step="0.01" min="0" name="cd_amount" id="manual_cd_amount" class="form-control font-mono text-end" value="0.00" oninput="calculateManualNet()">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold text-muted">Refund / Goods Return</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light">₹</span>
+                <input type="number" step="0.01" min="0" name="refund_amount" id="manual_refund_amount" class="form-control font-mono text-end" value="0.00" oninput="calculateManualNet()">
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Mode Selection -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Payment Mode <span class="text-danger">*</span></label>
+            <select name="payment_type" id="manual_payment_type" class="form-select form-select-lg fw-semibold" onchange="toggleManualSplitInputs(this)">
+              <option value="Cash">Cash (Physical Currency Deposit)</option>
+              <option value="Paytm">Paytm / RTGS / UPI (Direct Bank Settlement)</option>
+              <option value="Split">✂️ Split Payment (Both Cash + Paytm / RTGS)</option>
+              <option value="Check">Cheque / Demand Draft</option>
+              <option value="Credit">Credit (Salesman Collection Register)</option>
+            </select>
+          </div>
+
+          <!-- Conditional Split Inputs (Shown when Split is selected) -->
+          <div id="manual_split_container" class="p-3 bg-light rounded border mb-3 d-none">
+            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-pie-chart-fill text-info me-1"></i>Split Payment Allocation</h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold text-success"><i class="bi bi-cash me-1"></i>Cash Portion (₹)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-success text-white fw-bold">₹</span>
+                  <input type="number" step="0.01" min="0" name="cash_amount" id="manual_cash_amount" class="form-control font-mono fw-bold text-end" value="0.00" oninput="syncManualSplitFromCash()">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold text-info"><i class="bi bi-bank me-1"></i>Paytm / RTGS Portion (₹)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-info text-white fw-bold">₹</span>
+                  <input type="number" step="0.01" min="0" name="paytm_amount" id="manual_paytm_amount" class="form-control font-mono fw-bold text-end" value="0.00">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Remarks -->
+          <div class="mb-2">
+            <label class="form-label small fw-semibold text-muted">Remarks / Note</label>
+            <input type="text" name="remark" class="form-control" placeholder="e.g. Counter manual invoice / cash & RTGS bill">
+          </div>
+        </div>
+        <div class="modal-footer bg-light d-flex justify-content-between">
+          <div class="fw-bold fs-6">
+            <span class="text-muted">Net Receivable:</span>
+            <span class="text-success font-mono ms-1" id="manual_net_display">₹0.00</span>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success fw-bold">
+              <i class="bi bi-check-circle-fill me-1"></i> Save Manual Bill Entry
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function calculateManualNet() {
+  const gross = parseFloat(document.getElementById('manual_gross_amount')?.value || 0);
+  const cd = parseFloat(document.getElementById('manual_cd_amount')?.value || 0);
+  const refund = parseFloat(document.getElementById('manual_refund_amount')?.value || 0);
+  const net = Math.max(0, gross - cd - refund);
+
+  const netDisplay = document.getElementById('manual_net_display');
+  if (netDisplay) {
+    netDisplay.textContent = '₹' + net.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  const payType = document.getElementById('manual_payment_type')?.value;
+  if (payType === 'Split') {
+    const cashInput = document.getElementById('manual_cash_amount');
+    const paytmInput = document.getElementById('manual_paytm_amount');
+    if (cashInput && paytmInput) {
+      const currentCash = parseFloat(cashInput.value || 0);
+      if (currentCash <= net) {
+        paytmInput.value = (net - currentCash).toFixed(2);
+      }
+    }
+  }
+}
+
+function toggleManualSplitInputs(selectEl) {
+  const container = document.getElementById('manual_split_container');
+  if (selectEl.value === 'Split') {
+    container?.classList.remove('d-none');
+    calculateManualNet();
+  } else {
+    container?.classList.add('d-none');
+  }
+}
+
+function syncManualSplitFromCash() {
+  const gross = parseFloat(document.getElementById('manual_gross_amount')?.value || 0);
+  const cd = parseFloat(document.getElementById('manual_cd_amount')?.value || 0);
+  const refund = parseFloat(document.getElementById('manual_refund_amount')?.value || 0);
+  const net = Math.max(0, gross - cd - refund);
+
+  const cash = parseFloat(document.getElementById('manual_cash_amount')?.value || 0);
+  const paytmInput = document.getElementById('manual_paytm_amount');
+  if (paytmInput && cash <= net) {
+    paytmInput.value = (net - cash).toFixed(2);
+  }
+}
+
+function updateManualBillPrefix(selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  const prefix = opt?.getAttribute('data-prefix');
+  const billNoInput = document.getElementById('manual_bill_no');
+  if (prefix && billNoInput && !billNoInput.value) {
+    billNoInput.value = prefix + ' ';
+  }
+}
+</script>
 @endsection

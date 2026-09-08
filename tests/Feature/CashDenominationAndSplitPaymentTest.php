@@ -136,4 +136,43 @@ class CashDenominationAndSplitPaymentTest extends TestCase
         $response->assertSee('Pending / Short Cash Variance');
         $response->assertSee('KM / Driver Travel Allowance');
     }
+
+    public function test_store_manual_bill_with_split_payment(): void
+    {
+        $pso = PsoConfig::create([
+            'code' => 'PSO-1',
+            'name' => 'Main Wholesale Counter',
+            'prefix' => 'CB',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'Manoj Gupta',
+            'is_active' => true,
+        ]);
+
+        $response = $this->post('/admin/verification/store-manual', [
+            'bill_no' => 'CB 05',
+            'pso_code' => 'PSO-1',
+            'business_date' => '2026-08-14',
+            'customer_name' => 'Kailash Sweet Center',
+            'amount' => 12000,
+            'payment_type' => 'Split',
+            'cash_amount' => 7000,
+            'paytm_amount' => 5000,
+            'cd_amount' => 0,
+            'refund_amount' => 0,
+            'remark' => 'Manual counter split bill',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('bills', [
+            'bill_no' => 'CB 05',
+            'customer_name' => 'Kailash Sweet Center',
+            'amount' => 12000.00,
+            'cash_amount' => 7000.00,
+            'paytm_amount' => 5000.00,
+            'is_split_payment' => true,
+        ]);
+    }
 }
