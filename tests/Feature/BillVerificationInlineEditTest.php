@@ -215,4 +215,87 @@ class BillVerificationInlineEditTest extends TestCase
         $this->assertEquals('Credit', $bill2->payment_type);
         $this->assertEquals('Vikram Singh', $bill2->salesman_name);
     }
+
+    public function test_inline_update_with_split_and_cheque(): void
+    {
+        $bill = Bill::create([
+            'bill_no' => 'SPLIT-01',
+            'pso_code' => 'PSO-1',
+            'business_date' => '2026-08-14',
+            'bill_time' => '12:00',
+            'customer_name' => 'Split Customer',
+            'amount' => 5000.00,
+            'payment_type' => 'Cash',
+            'net_amount' => 5000.00,
+            'status' => 'Matched',
+        ]);
+
+        $response = $this->actingAs($this->adminUser)->postJson('/admin/verification/update-row', [
+            'bill_id' => $bill->id,
+            'payment_type' => 'Split',
+            'cash_amount' => 3000.00,
+            'paytm_amount' => 2000.00,
+            'is_split_payment' => 1,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $bill->refresh();
+        $this->assertTrue($bill->is_split_payment);
+        $this->assertEquals(3000.00, $bill->cash_amount);
+        $this->assertEquals(2000.00, $bill->paytm_amount);
+
+        // Test Cheque alias
+        $response2 = $this->actingAs($this->adminUser)->postJson('/admin/verification/update-row', [
+            'bill_id' => $bill->id,
+            'payment_type' => 'Cheque',
+        ]);
+        $response2->assertStatus(200);
+        $bill->refresh();
+        $this->assertEquals('Check', $bill->payment_type);
+        $this->assertFalse($bill->is_split_payment);
+    }
+
+    public function test_bulk_update_payment_type_only(): void
+    {
+        $bill1 = Bill::create([
+            'bill_no' => 'B-01',
+            'pso_code' => 'PSO-1',
+            'business_date' => '2026-08-14',
+            'bill_time' => '10:00',
+            'customer_name' => 'C1',
+            'amount' => 1200.00,
+            'payment_type' => 'Cash',
+            'net_amount' => 1200.00,
+            'status' => 'Matched',
+        ]);
+
+        $bill2 = Bill::create([
+            'bill_no' => 'B-02',
+            'pso_code' => 'PSO-1',
+            'business_date' => '2026-08-14',
+            'bill_time' => '10:30',
+            'customer_name' => 'C2',
+            'amount' => 2500.00,
+            'payment_type' => 'Cash',
+            'net_amount' => 2500.00,
+            'status' => 'Matched',
+        ]);
+
+        $response = $this->actingAs($this->adminUser)->postJson('/admin/verification/bulk-update', [
+            'bill_ids' => [$bill1->id, $bill2->id],
+            'payment_type' => 'Paytm',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $bill1->refresh();
+        $bill2->refresh();
+        $this->assertEquals('Paytm', $bill1->payment_type);
+        $this->assertEquals(1200.00, $bill1->paytm_amount);
+        $this->assertEquals('Paytm', $bill2->payment_type);
+        $this->assertEquals(2500.00, $bill2->paytm_amount);
+    }
 }

@@ -838,6 +838,71 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // Bulk Apply Payment Type
+  document.getElementById('btnApplyBulkPayment')?.addEventListener('click', async function () {
+    const paySelect = document.getElementById('bulkPaymentSelect');
+    const payType = paySelect?.value;
+    if (!payType) {
+      alert('Please select a Payment Type to set.');
+      return;
+    }
+
+    const checkedBoxes = document.querySelectorAll('.bill-select-cb:checked');
+    const billIds = Array.from(checkedBoxes).map(cb => cb.value);
+    if (billIds.length === 0) {
+      alert('Please select at least one bill.');
+      return;
+    }
+
+    const origBtnHtml = this.innerHTML;
+    this.disabled = true;
+    this.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>`;
+
+    try {
+      const res = await fetch(bulkUpdateRoute, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          bill_ids: billIds,
+          payment_type: payType
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        checkedBoxes.forEach(cb => {
+          const row = cb.closest('.bill-row');
+          if (row) {
+            row.dataset.paymentType = payType;
+            const payDisplay = row.querySelector('.payment-badge-display');
+            if (payDisplay) {
+              payDisplay.textContent = payType;
+              payDisplay.className = `payment-badge-display badge ${getPaymentBadgeClass(payType)}`;
+            }
+            const rowPaySelect = row.querySelector('.inline-payment-select');
+            if (rowPaySelect) rowPaySelect.value = payType;
+            row.classList.add('row-highlight-success');
+          }
+        });
+        if (typeof window.showErpToast === 'function') {
+          window.showErpToast(data.message || `Payment type set to ${payType} for ${billIds.length} bills.`, 'success');
+        }
+      } else {
+        alert(data.message || 'Failed to bulk assign Payment Type.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error updating bills.');
+    } finally {
+      this.disabled = false;
+      this.innerHTML = origBtnHtml;
+    }
+  });
+
   // ==========================================
   // Split Payment (Cash + Paytm) Modal Handlers
   // ==========================================

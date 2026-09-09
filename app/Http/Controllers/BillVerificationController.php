@@ -113,7 +113,7 @@ class BillVerificationController extends Controller
     {
         $request->validate([
             'bill_id' => 'required|exists:bills,id',
-            'payment_type' => 'required|in:Cash,Paytm,Check,Credit,Cancelled',
+            'payment_type' => 'required|string',
             'cd_amount' => 'nullable|numeric|min:0',
             'refund_amount' => 'nullable|numeric|min:0',
             'salesperson_id' => 'nullable',
@@ -126,23 +126,34 @@ class BillVerificationController extends Controller
         $businessDate = $this->reconService->getBusinessDate();
         $bill = Bill::findOrFail($request->bill_id);
 
-        $bill->payment_type = $request->payment_type;
+        $rawType = strtolower(trim($request->payment_type));
+        $normalizedPaymentType = match($rawType) {
+            'cash' => 'Cash',
+            'paytm', 'upi', 'online', 'rtgs', 'bank' => 'Paytm',
+            'check', 'cheque', 'dd' => 'Check',
+            'credit' => 'Credit',
+            'cancelled' => 'Cancelled',
+            'split' => 'Split',
+            default => 'Cash'
+        };
+
         $bill->cd_amount = floatval($request->input('cd_amount', 0));
         $bill->refund_amount = floatval($request->input('refund_amount', 0));
         $bill->net_amount = max(0, floatval($bill->amount) - $bill->cd_amount - $bill->refund_amount);
 
         // Handle Split Payment (Cash + Paytm)
-        $isSplit = (bool) $request->input('is_split_payment', false);
+        $isSplit = (bool) $request->input('is_split_payment', false) || ($normalizedPaymentType === 'Split');
         $cashAmt = floatval($request->input('cash_amount', 0));
         $paytmAmt = floatval($request->input('paytm_amount', 0));
 
         if ($isSplit || ($cashAmt > 0 && $paytmAmt > 0)) {
             $bill->is_split_payment = true;
-            $bill->cash_amount = $cashAmt;
+            $bill->cash_amount = $cashAmt > 0 ? $cashAmt : ($bill->net_amount > 0 ? $bill->net_amount : $bill->amount);
             $bill->paytm_amount = $paytmAmt;
             $bill->payment_type = 'Cash'; // Primary accounting bucket
         } else {
             $bill->is_split_payment = false;
+            $bill->payment_type = $normalizedPaymentType === 'Split' ? 'Cash' : $normalizedPaymentType;
             $bill->cash_amount = ($bill->payment_type === 'Cash') ? ($cashAmt > 0 ? $cashAmt : $bill->net_amount) : 0;
             $bill->paytm_amount = ($bill->payment_type === 'Paytm') ? ($paytmAmt > 0 ? $paytmAmt : $bill->net_amount) : 0;
         }
@@ -334,7 +345,7 @@ class BillVerificationController extends Controller
         $request->validate([
             'bill_ids' => 'required|array|min:1',
             'bill_ids.*' => 'exists:bills,id',
-            'payment_type' => 'nullable|in:Cash,Paytm,Check,Credit,Cancelled',
+            'payment_type' => 'nullable|string',
             'salesperson_id' => 'nullable',
             'salesman_name' => 'nullable|string',
         ]);
@@ -347,10 +358,41 @@ class BillVerificationController extends Controller
             $sp = Salesperson::find($request->salesperson_id);
         }
 
+        $normalizedPaymentType = null;
+        if ($request->filled('payment_type')) {
+            $rawType = strtolower(trim($request->payment_type));
+            $normalizedPaymentType = match($rawType) {
+                'cash' => 'Cash',
+                'paytm', 'upi', 'online', 'rtgs', 'bank' => 'Paytm',
+                'check', 'cheque', 'dd' => 'Check',
+                'credit' => 'Credit',
+                'cancelled' => 'Cancelled',
+                'split' => 'Split',
+                default => 'Cash'
+            };
+        }
+
         $updatedCount = 0;
         foreach ($bills as $bill) {
-            if ($request->filled('payment_type')) {
-                $bill->payment_type = $request->payment_type;
+            if ($normalizedPaymentType !== null) {
+                if ($normalizedPaymentType === 'Split') {
+                    $bill->is_split_payment = true;
+                    $bill->payment_type = 'Cash';
+                } else {
+                    $bill->is_split_payment = false;
+                    $bill->payment_type = $normalizedPaymentType;
+                    $effectiveNet = $bill->net_amount > 0 ? $bill->net_amount : $bill->amount;
+                    if ($normalizedPaymentType === 'Cash') {
+                        $bill->cash_amount = $effectiveNet;
+                        $bill->paytm_amount = 0;
+                    } elseif ($normalizedPaymentType === 'Paytm') {
+                        $bill->paytm_amount = $effectiveNet;
+                        $bill->cash_amount = 0;
+                    } else {
+                        $bill->cash_amount = 0;
+                        $bill->paytm_amount = 0;
+                    }
+                }
             }
 
             if ($request->filled('salesperson_id') && $request->salesperson_id !== '') {
