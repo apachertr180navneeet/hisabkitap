@@ -138,11 +138,27 @@ class User extends Authenticatable
         }
 
         if ($permission === 'can_manage_prefixes') {
-            return (bool) ($this->can_manage_prefixes ?? false);
+            return (bool) ($this->can_manage_prefixes ?? $this->isApprover() ?? false);
         }
 
         if ($permission === 'can_manage_salespersons') {
-            return (bool) ($this->can_manage_salespersons ?? false);
+            return (bool) ($this->can_manage_salespersons ?? $this->isApprover() ?? false);
+        }
+
+        if ($permission === 'can_import_excel') {
+            return (bool) ($this->can_import_excel || $this->isApprover());
+        }
+
+        if ($permission === 'can_edit_bills') {
+            return (bool) ($this->can_edit_bills || $this->isApprover());
+        }
+
+        if ($permission === 'can_record_corrections') {
+            return (bool) ($this->can_record_corrections || $this->isApprover());
+        }
+
+        if ($permission === 'can_record_credit') {
+            return (bool) ($this->can_record_credit || $this->isApprover());
         }
 
         if ($permission === 'can_create_pso') {

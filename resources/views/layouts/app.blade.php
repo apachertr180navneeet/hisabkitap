@@ -58,14 +58,12 @@
         @endif
 
         @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
-        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_import_excel'))
         <li>
           <a href="{{ route('admin.import.index') }}" class="nav-item-custom {{ request()->routeIs('*.import.*') || request()->routeIs('import.*') ? 'active' : '' }}">
             <i class="bi bi-file-earmark-spreadsheet-fill"></i>
             <span>Tally Excel Import</span>
           </a>
         </li>
-        @endif
         <li>
           <a href="{{ route('admin.verification.index') }}" class="nav-item-custom {{ request()->routeIs('*.verification.*') || request()->routeIs('verification.*') ? 'active' : '' }}">
             <i class="bi bi-receipt-cutoff"></i>
@@ -94,7 +92,7 @@
             <span>Payment Classification</span>
           </a>
         </li>
-        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_record_corrections'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_record_corrections') || $currentUser->isApprover())
         <li>
           <a href="{{ route('admin.corrections.index') }}" class="nav-item-custom {{ request()->routeIs('*.corrections.*') || request()->routeIs('corrections.*') ? 'active' : '' }}">
             <i class="bi bi-arrow-left-right"></i>
@@ -103,7 +101,7 @@
           </a>
         </li>
         @endif
-        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_record_credit'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_record_credit') || $currentUser->isApprover())
         <li>
           <a href="{{ route('admin.credit.index') }}" class="nav-item-custom {{ request()->routeIs('*.credit.*') || request()->routeIs('credit.*') ? 'active' : '' }}">
             <i class="bi bi-cash-coin"></i>
