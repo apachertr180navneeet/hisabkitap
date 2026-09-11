@@ -282,9 +282,7 @@ class ExcelImportController extends Controller
                 'total_amount' => $totalAmount,
             ]);
 
-            // Update active business date to imported date
-            SystemSetting::setVal('business_date', $businessDate);
-
+            // Redirect to verification
             AuditLog::log('EXCEL_IMPORT', "Imported {$filename} for date {$businessDate} with {$importedRows} records total ₹" . number_format($totalAmount, 2));
 
             $redirect = redirect()->route('admin.verification.index');

@@ -14,11 +14,11 @@ use App\Models\User;
 class ReconciliationService
 {
     /**
-     * Get active business date
+     * Get active business date (defaults to current date)
      */
     public function getBusinessDate(): string
     {
-        return SystemSetting::getVal('business_date', '2026-08-14');
+        return date('Y-m-d');
     }
 
     /**

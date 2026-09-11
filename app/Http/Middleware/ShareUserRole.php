@@ -43,7 +43,7 @@ class ShareUserRole
                 $allUsers = User::orderBy('id', 'asc')->get();
             }
 
-            $businessDate = SystemSetting::getVal('business_date', '2026-08-14');
+            $businessDate = date('Y-m-d');
             $formattedBusinessDate = date('d/m/Y', strtotime($businessDate));
             $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
 

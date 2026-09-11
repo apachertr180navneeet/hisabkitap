@@ -51,6 +51,22 @@ class HisabKitapErpTest extends TestCase
         // Verify alias /admin/dashoard
         $aliasResponse = $this->get('/admin/dashoard');
         $aliasResponse->assertStatus(200);
+
+        // Verify topbar shows today's date dynamically
+        $response->assertSee(date('d/m/Y'));
+    }
+
+    public function test_import_page_defaults_to_current_date(): void
+    {
+        $this->post('/admin/login', [
+            'email' => 'admin@hisabkitap.in',
+            'password' => 'password',
+        ]);
+
+        $response = $this->get('/admin/import');
+        $response->assertStatus(200);
+        $response->assertSee(date('d/m/Y'));
+        $response->assertSee(date('Y-m-d'));
     }
 
     public function test_pso_management_can_configure_new_series(): void
