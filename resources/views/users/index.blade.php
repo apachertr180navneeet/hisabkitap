@@ -71,12 +71,12 @@
       <p class="text-muted small mb-3">Variance Review & Master Reconciliation</p>
       
       <div class="p-2.5 bg-light rounded small text-secondary mb-3" style="font-size: 0.8rem;">
-        <i class="bi bi-lock-fill text-success me-1"></i> <strong>Approval Authority:</strong> Sign off on reconciliation differences, authorize cash discount deductions, and execute digital seals.
+        <i class="bi bi-shield-check text-success me-1"></i> <strong>Operational Access:</strong> Manage PSO Series (Add, Edit, Delete, Close/Goods Return) and audit Master Reconciliation.
       </div>
 
       <div class="d-flex align-items-center gap-1.5 flex-wrap">
+        <span class="badge bg-success-subtle text-success small">PSO (Add/Edit/Delete/Close)</span>
         <span class="badge bg-success-subtle text-success small">Master Recon</span>
-        <span class="badge bg-success-subtle text-success small">Corrections & Returns</span>
         <span class="badge bg-success-subtle text-success small">7-Day Retention</span>
       </div>
     </div>
@@ -550,17 +550,17 @@ document.addEventListener('DOMContentLoaded', function () {
       cbs.forEach(cb => { cb.checked = true; cb.disabled = true; });
     } else if (role === 'APPROVER') {
       cbs.forEach(cb => cb.disabled = false);
-      document.getElementById(`${prefix}_perm_pso_create`).checked = false;
-      document.getElementById(`${prefix}_perm_pso_edit`).checked = false;
-      document.getElementById(`${prefix}_perm_pso_delete`).checked = false;
+      document.getElementById(`${prefix}_perm_pso_create`).checked = true;
+      document.getElementById(`${prefix}_perm_pso_edit`).checked = true;
+      document.getElementById(`${prefix}_perm_pso_delete`).checked = true;
       document.getElementById(`${prefix}_perm_pso_close`).checked = true;
       document.getElementById(`${prefix}_perm_prefixes`).checked = false;
       document.getElementById(`${prefix}_perm_salespersons`).checked = false;
       document.getElementById(`${prefix}_perm_import`).checked = false;
       document.getElementById(`${prefix}_perm_bills`).checked = false;
-      document.getElementById(`${prefix}_perm_corrections`).checked = true;
+      document.getElementById(`${prefix}_perm_corrections`).checked = false;
       document.getElementById(`${prefix}_perm_credit`).checked = false;
-      document.getElementById(`${prefix}_perm_seal`).checked = true;
+      document.getElementById(`${prefix}_perm_seal`).checked = false;
       document.getElementById(`${prefix}_perm_cutoff`).checked = false;
       document.getElementById(`${prefix}_perm_users`).checked = false;
     } else { // OPERATOR
