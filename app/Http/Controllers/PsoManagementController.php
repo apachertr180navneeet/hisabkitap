@@ -170,8 +170,8 @@ class PsoManagementController extends Controller
 
     public function edit($id)
     {
-        if (auth()->check() && auth()->user()->isOperator()) {
-            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: PSO Operators can only view and create PSO series. Editing requires administrative privileges.');
+        if (auth()->check() && !auth()->user()->hasPermission('can_edit_pso')) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to edit PSO configurations.');
         }
 
         $pso = PsoConfig::withCount('bills')->findOrFail($id);
@@ -194,8 +194,8 @@ class PsoManagementController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (auth()->check() && auth()->user()->isOperator()) {
-            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: PSO Operators can only view and create PSO series. Editing requires administrative privileges.');
+        if (auth()->check() && !auth()->user()->hasPermission('can_edit_pso')) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to edit PSO configurations.');
         }
 
         $pso = PsoConfig::findOrFail($id);
@@ -344,8 +344,8 @@ class PsoManagementController extends Controller
 
     public function toggleStatus($id)
     {
-        if (auth()->check() && auth()->user()->isOperator()) {
-            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: PSO Operators cannot enable or disable PSO series.');
+        if (auth()->check() && !auth()->user()->hasPermission('can_edit_pso')) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to enable or disable PSO series.');
         }
 
         $pso = PsoConfig::findOrFail($id);
@@ -359,8 +359,8 @@ class PsoManagementController extends Controller
 
     public function destroy($id)
     {
-        if (auth()->check() && auth()->user()->isOperator()) {
-            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: PSO Operators cannot delete PSO configurations.');
+        if (auth()->check() && !auth()->user()->hasPermission('can_delete_pso')) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to delete PSO configurations.');
         }
 
         $pso = PsoConfig::findOrFail($id);

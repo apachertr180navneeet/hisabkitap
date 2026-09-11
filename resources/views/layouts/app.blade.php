@@ -135,14 +135,6 @@
             @endif
           </a>
         </li>
-        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_approve_sealing'))
-        <li>
-          <a href="{{ route('admin.approval.index') }}" class="nav-item-custom {{ request()->routeIs('*.approval.*') || request()->routeIs('approval.*') ? 'active' : '' }}">
-            <i class="bi bi-lock-fill"></i>
-            <span>Approval & Sealing</span>
-          </a>
-        </li>
-        @endif
         <li>
           <a href="{{ route('admin.retention.index') }}" class="nav-item-custom {{ request()->routeIs('*.retention.*') || request()->routeIs('retention.*') ? 'active' : '' }}">
             <i class="bi bi-clock-history"></i>
@@ -155,8 +147,9 @@
             <span>Reports & Exports</span>
           </a>
         </li>
+        @endif
 
-        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users') || $currentUser->hasPermission('can_edit_cutoff'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users') || $currentUser->hasPermission('can_edit_cutoff') || $currentUser->hasPermission('can_manage_prefixes') || $currentUser->hasPermission('can_manage_salespersons'))
         <li class="menu-category">System & Administration</li>
         @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users'))
         <li>
@@ -175,20 +168,21 @@
           </a>
         </li>
         @endif
-        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_configure_pso'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_prefixes'))
         <li>
           <a href="{{ route('admin.prefix.index') }}" class="nav-item-custom {{ request()->routeIs('*.prefix.*') || request()->routeIs('prefix.*') ? 'active' : '' }}">
             <i class="bi bi-tag-fill"></i>
             <span>Prefix Master</span>
           </a>
         </li>
+        @endif
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_salespersons'))
         <li>
           <a href="{{ route('admin.salespersons.index') }}" class="nav-item-custom {{ request()->routeIs('*.salespersons.*') || request()->routeIs('salespersons.*') ? 'active' : '' }}">
             <i class="bi bi-people-fill"></i>
             <span>Sales Persons</span>
           </a>
         </li>
-        @endif
         @endif
         @endif
       </ul>
@@ -387,28 +381,6 @@
                   </div>
                 </a>
               </li>
-
-              @if(isset($allUsers) && $allUsers->count() > 1)
-              <li><hr class="dropdown-divider my-2"></li>
-              <li class="px-3 py-1">
-                <small class="text-muted fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Switch Active Account</small>
-              </li>
-              @foreach($allUsers as $u)
-                @if($u->id !== ($currentUser->id ?? null) && $u->is_active)
-                <li>
-                  <a class="dropdown-item d-flex align-items-center py-1.5" href="{{ route('admin.switch_user', $u->id) }}">
-                    <div class="bg-{{ $u->badge_color }} text-white rounded-circle fw-bold d-flex align-items-center justify-content-center me-2" style="width: 22px; height: 22px; font-size: 0.65rem;">
-                      {{ $u->avatar }}
-                    </div>
-                    <div class="lh-sm">
-                      <div class="fw-semibold text-dark" style="font-size: 0.76rem;">{{ $u->name }}</div>
-                      <small class="text-muted" style="font-size: 0.65rem;">{{ $u->role_name }}</small>
-                    </div>
-                  </a>
-                </li>
-                @endif
-              @endforeach
-              @endif
 
               <li><hr class="dropdown-divider my-2"></li>
 

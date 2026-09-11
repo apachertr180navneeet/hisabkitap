@@ -46,15 +46,16 @@
         <span class="badge bg-primary-subtle text-primary fw-bold">{{ $stats['operators'] }} Active</span>
       </div>
       <h5 class="fw-bold text-dark mb-1">PSO Operator</h5>
-      <p class="text-muted small mb-3">Dashboard & PSO Management Only</p>
+      <p class="text-muted small mb-3">PSO Series, Prefix Master & Sales Persons</p>
       
       <div class="p-2.5 bg-light rounded small text-secondary mb-3" style="font-size: 0.8rem;">
-        <i class="bi bi-person-badge text-primary me-1"></i> <strong>PSO Management Access:</strong> Access to Dashboard and PSO Management only. Permitted to view PSO list and create/add new PSO series.
+        <i class="bi bi-person-badge text-primary me-1"></i> <strong>Operational Access:</strong> Manage PSO Series (Add, Edit, Delete, Close/Goods Return), Series Prefix Master, and Sales Persons directory.
       </div>
 
       <div class="d-flex align-items-center gap-1.5 flex-wrap">
-        <span class="badge bg-primary-subtle text-primary small">Dashboard</span>
-        <span class="badge bg-primary-subtle text-primary small">PSO Series (Create & View)</span>
+        <span class="badge bg-primary-subtle text-primary small">PSO (Add/Edit/Delete/Close)</span>
+        <span class="badge bg-primary-subtle text-primary small">Prefix Master</span>
+        <span class="badge bg-primary-subtle text-primary small">Sales Persons</span>
       </div>
     </div>
   </div>
@@ -67,15 +68,15 @@
         <span class="badge bg-success-subtle text-success fw-bold">{{ $stats['approvers'] }} Active</span>
       </div>
       <h5 class="fw-bold text-dark mb-1">Accounts Approver</h5>
-      <p class="text-muted small mb-3">Variance Review & Cryptographic Day Seal</p>
+      <p class="text-muted small mb-3">Variance Review & Master Reconciliation</p>
       
       <div class="p-2.5 bg-light rounded small text-secondary mb-3" style="font-size: 0.8rem;">
-        <i class="bi bi-lock-fill text-success me-1"></i> <strong>Approval Authority:</strong> Sign off on reconciliation differences, authorize cash discount deductions, and execute SHA-256 digital seals.
+        <i class="bi bi-lock-fill text-success me-1"></i> <strong>Approval Authority:</strong> Sign off on reconciliation differences, authorize cash discount deductions, and execute digital seals.
       </div>
 
       <div class="d-flex align-items-center gap-1.5 flex-wrap">
         <span class="badge bg-success-subtle text-success small">Master Recon</span>
-        <span class="badge bg-success-subtle text-success small">Approval & Seal</span>
+        <span class="badge bg-success-subtle text-success small">Corrections & Returns</span>
         <span class="badge bg-success-subtle text-success small">7-Day Retention</span>
       </div>
     </div>
@@ -121,18 +122,23 @@
               </span>
             </td>
             <td>
-              <div class="d-flex gap-1 flex-wrap" style="max-width: 380px;">
+              <div class="d-flex gap-1 flex-wrap" style="max-width: 420px;">
                 @if($u->isSuperAdmin())
                   <span class="badge bg-danger-subtle text-danger border border-danger small"><i class="bi bi-check-all"></i> ALL PERMISSIONS</span>
                 @else
-                  @if($u->can_configure_pso) <span class="badge bg-light text-dark border small">PSO Config</span> @endif
-                  @if($u->can_import_excel) <span class="badge bg-light text-dark border small">Tally Import</span> @endif
-                  @if($u->can_edit_bills) <span class="badge bg-light text-dark border small">Verify Bills</span> @endif
-                  @if($u->can_record_corrections) <span class="badge bg-light text-dark border small">Corrections</span> @endif
-                  @if($u->can_record_credit) <span class="badge bg-light text-dark border small">Credit</span> @endif
-                  @if($u->can_approve_sealing) <span class="badge bg-success-subtle text-success border border-success small">Seal Day</span> @endif
-                  @if($u->can_edit_cutoff) <span class="badge bg-warning-subtle text-dark border border-warning small">Cutoff Policy</span> @endif
-                  @if($u->can_manage_users) <span class="badge bg-danger-subtle text-danger border border-danger small">User Admin</span> @endif
+                  @if($u->hasPermission('can_create_pso')) <span class="badge bg-primary-subtle text-primary border border-primary-subtle small">+PSO Add</span> @endif
+                  @if($u->hasPermission('can_edit_pso')) <span class="badge bg-primary-subtle text-primary border border-primary-subtle small">PSO Edit</span> @endif
+                  @if($u->hasPermission('can_delete_pso')) <span class="badge bg-danger-subtle text-danger border border-danger-subtle small">PSO Del</span> @endif
+                  @if($u->hasPermission('can_close_pso')) <span class="badge bg-warning-subtle text-dark border border-warning-subtle small">PSO Close/Return</span> @endif
+                  @if($u->hasPermission('can_manage_prefixes')) <span class="badge bg-info-subtle text-info border border-info-subtle small">Prefix Master</span> @endif
+                  @if($u->hasPermission('can_manage_salespersons')) <span class="badge bg-info-subtle text-info border border-info-subtle small">Sales Persons</span> @endif
+                  @if($u->hasPermission('can_import_excel')) <span class="badge bg-light text-dark border small">Tally Import</span> @endif
+                  @if($u->hasPermission('can_edit_bills')) <span class="badge bg-light text-dark border small">Verify Bills</span> @endif
+                  @if($u->hasPermission('can_record_corrections')) <span class="badge bg-light text-dark border small">Corrections</span> @endif
+                  @if($u->hasPermission('can_record_credit')) <span class="badge bg-light text-dark border small">Credit</span> @endif
+                  @if($u->hasPermission('can_approve_sealing')) <span class="badge bg-success-subtle text-success border border-success small">Seal Day</span> @endif
+                  @if($u->hasPermission('can_edit_cutoff')) <span class="badge bg-warning-subtle text-dark border border-warning small">Cutoff Policy</span> @endif
+                  @if($u->hasPermission('can_manage_users')) <span class="badge bg-danger-subtle text-danger border border-danger small">User Admin</span> @endif
                 @endif
               </div>
             </td>
@@ -152,14 +158,19 @@
                   data-name="{{ $u->name }}"
                   data-email="{{ $u->email }}"
                   data-role="{{ $u->role_code }}"
-                  data-pso="{{ $u->can_configure_pso ? '1' : '0' }}"
-                  data-import="{{ $u->can_import_excel ? '1' : '0' }}"
-                  data-bills="{{ $u->can_edit_bills ? '1' : '0' }}"
-                  data-corrections="{{ $u->can_record_corrections ? '1' : '0' }}"
-                  data-credit="{{ $u->can_record_credit ? '1' : '0' }}"
-                  data-seal="{{ $u->can_approve_sealing ? '1' : '0' }}"
-                  data-cutoff="{{ $u->can_edit_cutoff ? '1' : '0' }}"
-                  data-users="{{ $u->can_manage_users ? '1' : '0' }}"
+                  data-pso-create="{{ $u->hasPermission('can_create_pso') ? '1' : '0' }}"
+                  data-pso-edit="{{ $u->hasPermission('can_edit_pso') ? '1' : '0' }}"
+                  data-pso-delete="{{ $u->hasPermission('can_delete_pso') ? '1' : '0' }}"
+                  data-pso-close="{{ $u->hasPermission('can_close_pso') ? '1' : '0' }}"
+                  data-prefixes="{{ $u->hasPermission('can_manage_prefixes') ? '1' : '0' }}"
+                  data-salespersons="{{ $u->hasPermission('can_manage_salespersons') ? '1' : '0' }}"
+                  data-import="{{ $u->hasPermission('can_import_excel') ? '1' : '0' }}"
+                  data-bills="{{ $u->hasPermission('can_edit_bills') ? '1' : '0' }}"
+                  data-corrections="{{ $u->hasPermission('can_record_corrections') ? '1' : '0' }}"
+                  data-credit="{{ $u->hasPermission('can_record_credit') ? '1' : '0' }}"
+                  data-seal="{{ $u->hasPermission('can_approve_sealing') ? '1' : '0' }}"
+                  data-cutoff="{{ $u->hasPermission('can_edit_cutoff') ? '1' : '0' }}"
+                  data-users="{{ $u->hasPermission('can_manage_users') ? '1' : '0' }}"
                   title="Edit User & Permissions">
                   <i class="bi bi-pencil-square"></i>
                 </button>
@@ -237,56 +248,106 @@
           </div>
 
           <div class="border rounded p-3 bg-light mt-3">
-            <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-sliders me-1"></i> Granular Module Permissions</h6>
+            <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-sliders me-1"></i> Granular Module Permissions</h6>
             <p class="text-muted small mb-3">Super Admin automatically receives all permissions. Customize permissions below for Operator or Approver roles.</p>
             
-            <div class="row g-2" id="add-permission-checkboxes">
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="can_configure_pso" id="add_perm_pso" checked>
-                  <label class="form-check-label small fw-semibold" for="add_perm_pso">Configure PSO Counter Series</label>
+            <div id="add-permission-checkboxes">
+              <!-- Section 1: PSO & Master Masters -->
+              <div class="fw-bold text-primary small text-uppercase mb-2 pb-1 border-bottom">
+                <i class="bi bi-diagram-3-fill me-1"></i> PSO, Prefix & Sales Persons
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_create_pso" id="add_perm_pso_create" checked>
+                    <label class="form-check-label small fw-semibold" for="add_perm_pso_create">Add New PSO Series</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_edit_pso" id="add_perm_pso_edit" checked>
+                    <label class="form-check-label small fw-semibold" for="add_perm_pso_edit">Edit PSO Configuration</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_delete_pso" id="add_perm_pso_delete" checked>
+                    <label class="form-check-label small fw-semibold text-danger" for="add_perm_pso_delete">Delete PSO Series</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_close_pso" id="add_perm_pso_close" checked>
+                    <label class="form-check-label small fw-semibold text-dark" for="add_perm_pso_close">Close PSO & Goods Return Access</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_manage_prefixes" id="add_perm_prefixes" checked>
+                    <label class="form-check-label small fw-semibold" for="add_perm_prefixes">Manage Prefix Master</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_manage_salespersons" id="add_perm_salespersons" checked>
+                    <label class="form-check-label small fw-semibold" for="add_perm_salespersons">Manage Sales Persons</label>
+                  </div>
                 </div>
               </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="can_import_excel" id="add_perm_import" checked>
-                  <label class="form-check-label small fw-semibold" for="add_perm_import">Import Tally DayBook Excel</label>
+
+              <!-- Section 2: Tally & Day Recon -->
+              <div class="fw-bold text-success small text-uppercase mb-2 pb-1 border-bottom">
+                <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Tally DayBook & Verification
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_import_excel" id="add_perm_import">
+                    <label class="form-check-label small fw-semibold" for="add_perm_import">Import Tally DayBook Excel</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_edit_bills" id="add_perm_bills">
+                    <label class="form-check-label small fw-semibold" for="add_perm_bills">Verify Sequential Bills & Resolve Missing</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_record_corrections" id="add_perm_corrections">
+                    <label class="form-check-label small fw-semibold" for="add_perm_corrections">Log Cash Discounts & Goods Returns</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_record_credit" id="add_perm_credit">
+                    <label class="form-check-label small fw-semibold" for="add_perm_credit">Track Salesman Credit Collections</label>
+                  </div>
                 </div>
               </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="can_edit_bills" id="add_perm_bills" checked>
-                  <label class="form-check-label small fw-semibold" for="add_perm_bills">Verify Sequential Bills & Resolve Missing</label>
-                </div>
+
+              <!-- Section 3: Admin & System Settings -->
+              <div class="fw-bold text-danger small text-uppercase mb-2 pb-1 border-bottom">
+                <i class="bi bi-shield-lock-fill me-1"></i> Administration & System Settings
               </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="can_record_corrections" id="add_perm_corrections" checked>
-                  <label class="form-check-label small fw-semibold" for="add_perm_corrections">Log Cash Discounts & Goods Returns</label>
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_approve_sealing" id="add_perm_seal">
+                    <label class="form-check-label small fw-semibold" for="add_perm_seal">Execute Cryptographic Day Seal</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="can_record_credit" id="add_perm_credit" checked>
-                  <label class="form-check-label small fw-semibold" for="add_perm_credit">Track Salesman Credit Collections</label>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_edit_cutoff" id="add_perm_cutoff">
+                    <label class="form-check-label small fw-semibold" for="add_perm_cutoff">Configure 19:00 Cutoff Policy</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="can_approve_sealing" id="add_perm_seal">
-                  <label class="form-check-label small fw-semibold" for="add_perm_seal">Execute Cryptographic Day Seal (Approve)</label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="can_edit_cutoff" id="add_perm_cutoff">
-                  <label class="form-check-label small fw-semibold" for="add_perm_cutoff">Configure 19:00 Cutoff Policy & Rollover</label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input perm-cb" type="checkbox" name="can_manage_users" id="add_perm_users">
-                  <label class="form-check-label small fw-semibold" for="add_perm_users">Manage System Users & Roles</label>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input perm-cb" type="checkbox" name="can_manage_users" id="add_perm_users">
+                    <label class="form-check-label small fw-semibold" for="add_perm_users">Manage System Users & Roles</label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -326,7 +387,7 @@
           <div class="mb-3">
             <label class="form-label fw-semibold">Role Classification <span class="text-danger">*</span></label>
             <select name="role_code" id="edit-role-select" class="form-select" required>
-              <option value="OPERATOR">PSO Operator (Counter Accountant)</option>
+              <option value="OPERATOR">PSO Operator (PSO, Prefix & Sales Persons)</option>
               <option value="APPROVER">Accounts Approver (Variance Signoff & Sealing)</option>
               <option value="SUPER_ADMIN">Super Administrator (All Permissions)</option>
             </select>
@@ -334,53 +395,103 @@
 
           <div class="border rounded p-3 bg-light mt-3">
             <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-sliders me-1"></i> Granted Permissions</h6>
-            <div class="row g-2" id="edit-permission-checkboxes">
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="can_configure_pso" id="edit_perm_pso">
-                  <label class="form-check-label small fw-semibold" for="edit_perm_pso">Configure PSO Counter Series</label>
+            <div id="edit-permission-checkboxes">
+              <!-- Section 1: PSO & Master Masters -->
+              <div class="fw-bold text-primary small text-uppercase mb-2 pb-1 border-bottom">
+                <i class="bi bi-diagram-3-fill me-1"></i> PSO, Prefix & Sales Persons
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_create_pso" id="edit_perm_pso_create">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_pso_create">Add New PSO Series</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_edit_pso" id="edit_perm_pso_edit">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_pso_edit">Edit PSO Configuration</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_delete_pso" id="edit_perm_pso_delete">
+                    <label class="form-check-label small fw-semibold text-danger" for="edit_perm_pso_delete">Delete PSO Series</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_close_pso" id="edit_perm_pso_close">
+                    <label class="form-check-label small fw-semibold text-dark" for="edit_perm_pso_close">Close PSO & Goods Return Access</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_manage_prefixes" id="edit_perm_prefixes">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_prefixes">Manage Prefix Master</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_manage_salespersons" id="edit_perm_salespersons">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_salespersons">Manage Sales Persons</label>
+                  </div>
                 </div>
               </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="can_import_excel" id="edit_perm_import">
-                  <label class="form-check-label small fw-semibold" for="edit_perm_import">Import Tally DayBook Excel</label>
+
+              <!-- Section 2: Tally & Day Recon -->
+              <div class="fw-bold text-success small text-uppercase mb-2 pb-1 border-bottom">
+                <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Tally DayBook & Verification
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_import_excel" id="edit_perm_import">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_import">Import Tally DayBook Excel</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_edit_bills" id="edit_perm_bills">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_bills">Verify Sequential Bills & Resolve Missing</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_record_corrections" id="edit_perm_corrections">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_corrections">Log Cash Discounts & Goods Returns</label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_record_credit" id="edit_perm_credit">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_credit">Track Salesman Credit Collections</label>
+                  </div>
                 </div>
               </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="can_edit_bills" id="edit_perm_bills">
-                  <label class="form-check-label small fw-semibold" for="edit_perm_bills">Verify Sequential Bills & Resolve Missing</label>
-                </div>
+
+              <!-- Section 3: Admin & System Settings -->
+              <div class="fw-bold text-danger small text-uppercase mb-2 pb-1 border-bottom">
+                <i class="bi bi-shield-lock-fill me-1"></i> Administration & System Settings
               </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="can_record_corrections" id="edit_perm_corrections">
-                  <label class="form-check-label small fw-semibold" for="edit_perm_corrections">Log Cash Discounts & Goods Returns</label>
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_approve_sealing" id="edit_perm_seal">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_seal">Execute Cryptographic Day Seal</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="can_record_credit" id="edit_perm_credit">
-                  <label class="form-check-label small fw-semibold" for="edit_perm_credit">Track Salesman Credit Collections</label>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_edit_cutoff" id="edit_perm_cutoff">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_cutoff">Configure 19:00 Cutoff Policy</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="can_approve_sealing" id="edit_perm_seal">
-                  <label class="form-check-label small fw-semibold" for="edit_perm_seal">Execute Cryptographic Day Seal (Approve)</label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="can_edit_cutoff" id="edit_perm_cutoff">
-                  <label class="form-check-label small fw-semibold" for="edit_perm_cutoff">Configure 19:00 Cutoff Policy & Rollover</label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="can_manage_users" id="edit_perm_users">
-                  <label class="form-check-label small fw-semibold" for="edit_perm_users">Manage System Users & Roles</label>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="can_manage_users" id="edit_perm_users">
+                    <label class="form-check-label small fw-semibold" for="edit_perm_users">Manage System Users & Roles</label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -430,36 +541,51 @@
 @section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  function applyRolePreset(role, prefix) {
+    const isSuperAdmin = (role === 'SUPER_ADMIN');
+    const container = document.getElementById(prefix === 'add' ? 'add-permission-checkboxes' : 'edit-permission-checkboxes');
+    const cbs = container.querySelectorAll('input[type="checkbox"]');
+
+    if (isSuperAdmin) {
+      cbs.forEach(cb => { cb.checked = true; cb.disabled = true; });
+    } else if (role === 'APPROVER') {
+      cbs.forEach(cb => cb.disabled = false);
+      document.getElementById(`${prefix}_perm_pso_create`).checked = false;
+      document.getElementById(`${prefix}_perm_pso_edit`).checked = false;
+      document.getElementById(`${prefix}_perm_pso_delete`).checked = false;
+      document.getElementById(`${prefix}_perm_pso_close`).checked = true;
+      document.getElementById(`${prefix}_perm_prefixes`).checked = false;
+      document.getElementById(`${prefix}_perm_salespersons`).checked = false;
+      document.getElementById(`${prefix}_perm_import`).checked = false;
+      document.getElementById(`${prefix}_perm_bills`).checked = false;
+      document.getElementById(`${prefix}_perm_corrections`).checked = true;
+      document.getElementById(`${prefix}_perm_credit`).checked = false;
+      document.getElementById(`${prefix}_perm_seal`).checked = true;
+      document.getElementById(`${prefix}_perm_cutoff`).checked = false;
+      document.getElementById(`${prefix}_perm_users`).checked = false;
+    } else { // OPERATOR
+      cbs.forEach(cb => cb.disabled = false);
+      document.getElementById(`${prefix}_perm_pso_create`).checked = true;
+      document.getElementById(`${prefix}_perm_pso_edit`).checked = true;
+      document.getElementById(`${prefix}_perm_pso_delete`).checked = true;
+      document.getElementById(`${prefix}_perm_pso_close`).checked = true;
+      document.getElementById(`${prefix}_perm_prefixes`).checked = true;
+      document.getElementById(`${prefix}_perm_salespersons`).checked = true;
+      document.getElementById(`${prefix}_perm_import`).checked = false;
+      document.getElementById(`${prefix}_perm_bills`).checked = false;
+      document.getElementById(`${prefix}_perm_corrections`).checked = false;
+      document.getElementById(`${prefix}_perm_credit`).checked = false;
+      document.getElementById(`${prefix}_perm_seal`).checked = false;
+      document.getElementById(`${prefix}_perm_cutoff`).checked = false;
+      document.getElementById(`${prefix}_perm_users`).checked = false;
+    }
+  }
+
   // Role selector dynamic permission presets in Add Modal
   const addRoleSelect = document.getElementById('add-role-select');
   if (addRoleSelect) {
     addRoleSelect.addEventListener('change', function () {
-      const role = this.value;
-      const cbs = document.querySelectorAll('#add-permission-checkboxes .perm-cb');
-      
-      if (role === 'SUPER_ADMIN') {
-        cbs.forEach(cb => { cb.checked = true; cb.disabled = true; });
-      } else if (role === 'APPROVER') {
-        cbs.forEach(cb => cb.disabled = false);
-        document.getElementById('add_perm_pso').checked = false;
-        document.getElementById('add_perm_import').checked = false;
-        document.getElementById('add_perm_bills').checked = false;
-        document.getElementById('add_perm_corrections').checked = true;
-        document.getElementById('add_perm_credit').checked = false;
-        document.getElementById('add_perm_seal').checked = true;
-        document.getElementById('add_perm_cutoff').checked = false;
-        document.getElementById('add_perm_users').checked = false;
-      } else { // OPERATOR
-        cbs.forEach(cb => cb.disabled = false);
-        document.getElementById('add_perm_pso').checked = true;
-        document.getElementById('add_perm_import').checked = false;
-        document.getElementById('add_perm_bills').checked = false;
-        document.getElementById('add_perm_corrections').checked = false;
-        document.getElementById('add_perm_credit').checked = false;
-        document.getElementById('add_perm_seal').checked = false;
-        document.getElementById('add_perm_cutoff').checked = false;
-        document.getElementById('add_perm_users').checked = false;
-      }
+      applyRolePreset(this.value, 'add');
     });
   }
 
@@ -467,32 +593,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const editRoleSelect = document.getElementById('edit-role-select');
   if (editRoleSelect) {
     editRoleSelect.addEventListener('change', function () {
-      const role = this.value;
-      const cbs = document.querySelectorAll('#edit-permission-checkboxes input[type="checkbox"]');
-      
-      if (role === 'SUPER_ADMIN') {
-        cbs.forEach(cb => { cb.checked = true; cb.disabled = true; });
-      } else if (role === 'APPROVER') {
-        cbs.forEach(cb => cb.disabled = false);
-        document.getElementById('edit_perm_pso').checked = false;
-        document.getElementById('edit_perm_import').checked = false;
-        document.getElementById('edit_perm_bills').checked = false;
-        document.getElementById('edit_perm_corrections').checked = true;
-        document.getElementById('edit_perm_credit').checked = false;
-        document.getElementById('edit_perm_seal').checked = true;
-        document.getElementById('edit_perm_cutoff').checked = false;
-        document.getElementById('edit_perm_users').checked = false;
-      } else { // OPERATOR
-        cbs.forEach(cb => cb.disabled = false);
-        document.getElementById('edit_perm_pso').checked = true;
-        document.getElementById('edit_perm_import').checked = false;
-        document.getElementById('edit_perm_bills').checked = false;
-        document.getElementById('edit_perm_corrections').checked = false;
-        document.getElementById('edit_perm_credit').checked = false;
-        document.getElementById('edit_perm_seal').checked = false;
-        document.getElementById('edit_perm_cutoff').checked = false;
-        document.getElementById('edit_perm_users').checked = false;
-      }
+      applyRolePreset(this.value, 'edit');
     });
   }
 
@@ -514,7 +615,12 @@ document.addEventListener('DOMContentLoaded', function () {
         cbs.forEach(cb => { cb.checked = true; cb.disabled = true; });
       } else {
         cbs.forEach(cb => cb.disabled = false);
-        document.getElementById('edit_perm_pso').checked = (this.dataset.pso === '1');
+        document.getElementById('edit_perm_pso_create').checked = (this.dataset.psoCreate === '1');
+        document.getElementById('edit_perm_pso_edit').checked = (this.dataset.psoEdit === '1');
+        document.getElementById('edit_perm_pso_delete').checked = (this.dataset.psoDelete === '1');
+        document.getElementById('edit_perm_pso_close').checked = (this.dataset.psoClose === '1');
+        document.getElementById('edit_perm_prefixes').checked = (this.dataset.prefixes === '1');
+        document.getElementById('edit_perm_salespersons').checked = (this.dataset.salespersons === '1');
         document.getElementById('edit_perm_import').checked = (this.dataset.import === '1');
         document.getElementById('edit_perm_bills').checked = (this.dataset.bills === '1');
         document.getElementById('edit_perm_corrections').checked = (this.dataset.corrections === '1');

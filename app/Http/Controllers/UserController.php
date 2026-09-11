@@ -53,6 +53,12 @@ class UserController extends Controller
         $canRecordCredit = $isSuperAdmin ? true : $request->boolean('can_record_credit', $roleInfo['default_permissions']['can_record_credit']);
         $canApproveSealing = $isSuperAdmin ? true : $request->boolean('can_approve_sealing', $roleInfo['default_permissions']['can_approve_sealing']);
         $canConfigurePso = $isSuperAdmin ? true : $request->boolean('can_configure_pso', $roleInfo['default_permissions']['can_configure_pso']);
+        $canManagePrefixes = $isSuperAdmin ? true : $request->boolean('can_manage_prefixes', $roleInfo['default_permissions']['can_manage_prefixes'] ?? true);
+        $canManageSalespersons = $isSuperAdmin ? true : $request->boolean('can_manage_salespersons', $roleInfo['default_permissions']['can_manage_salespersons'] ?? true);
+        $canCreatePso = $isSuperAdmin ? true : $request->boolean('can_create_pso', $roleInfo['default_permissions']['can_create_pso'] ?? true);
+        $canEditPso = $isSuperAdmin ? true : $request->boolean('can_edit_pso', $roleInfo['default_permissions']['can_edit_pso'] ?? true);
+        $canDeletePso = $isSuperAdmin ? true : $request->boolean('can_delete_pso', $roleInfo['default_permissions']['can_delete_pso'] ?? true);
+        $canClosePso = $isSuperAdmin ? true : $request->boolean('can_close_pso', $roleInfo['default_permissions']['can_close_pso'] ?? true);
         $canEditCutoff = $isSuperAdmin ? true : $request->boolean('can_edit_cutoff', $roleInfo['default_permissions']['can_edit_cutoff']);
         $canManageUsers = $isSuperAdmin ? true : $request->boolean('can_manage_users', $roleInfo['default_permissions']['can_manage_users']);
 
@@ -79,6 +85,12 @@ class UserController extends Controller
             'can_record_credit' => $canRecordCredit,
             'can_approve_sealing' => $canApproveSealing,
             'can_configure_pso' => $canConfigurePso,
+            'can_manage_prefixes' => $canManagePrefixes,
+            'can_manage_salespersons' => $canManageSalespersons,
+            'can_create_pso' => $canCreatePso,
+            'can_edit_pso' => $canEditPso,
+            'can_delete_pso' => $canDeletePso,
+            'can_close_pso' => $canClosePso,
             'can_edit_cutoff' => $canEditCutoff,
             'can_manage_users' => $canManageUsers,
             'is_active' => true,
@@ -125,6 +137,12 @@ class UserController extends Controller
         $user->can_record_credit = $isSuperAdmin ? true : $request->boolean('can_record_credit');
         $user->can_approve_sealing = $isSuperAdmin ? true : $request->boolean('can_approve_sealing');
         $user->can_configure_pso = $isSuperAdmin ? true : $request->boolean('can_configure_pso');
+        $user->can_manage_prefixes = $isSuperAdmin ? true : $request->boolean('can_manage_prefixes');
+        $user->can_manage_salespersons = $isSuperAdmin ? true : $request->boolean('can_manage_salespersons');
+        $user->can_create_pso = $isSuperAdmin ? true : $request->boolean('can_create_pso');
+        $user->can_edit_pso = $isSuperAdmin ? true : $request->boolean('can_edit_pso');
+        $user->can_delete_pso = $isSuperAdmin ? true : $request->boolean('can_delete_pso');
+        $user->can_close_pso = $isSuperAdmin ? true : $request->boolean('can_close_pso');
         $user->can_edit_cutoff = $isSuperAdmin ? true : $request->boolean('can_edit_cutoff');
         $user->can_manage_users = $isSuperAdmin ? true : $request->boolean('can_manage_users');
 

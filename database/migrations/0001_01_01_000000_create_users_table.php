@@ -32,6 +32,12 @@ return new class extends Migration
             $table->boolean('can_record_credit')->default(true);
             $table->boolean('can_approve_sealing')->default(false);
             $table->boolean('can_configure_pso')->default(true);
+            $table->boolean('can_manage_prefixes')->default(true);
+            $table->boolean('can_manage_salespersons')->default(true);
+            $table->boolean('can_create_pso')->default(true);
+            $table->boolean('can_edit_pso')->default(true);
+            $table->boolean('can_delete_pso')->default(true);
+            $table->boolean('can_close_pso')->default(true);
             $table->boolean('can_edit_cutoff')->default(false);
             $table->boolean('can_manage_users')->default(false);
             $table->boolean('is_active')->default(true);

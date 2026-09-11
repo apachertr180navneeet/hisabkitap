@@ -73,15 +73,15 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     // 1. PSO Series Management
     Route::get('/pso', [PsoManagementController::class, 'index'])->name('admin.pso.index');
-    Route::get('/pso/create', [PsoManagementController::class, 'create'])->middleware('permission:can_configure_pso')->name('admin.pso.create');
-    Route::post('/pso/store', [PsoManagementController::class, 'store'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.store');
-    Route::get('/pso/{id}/edit', [PsoManagementController::class, 'edit'])->middleware('permission:can_configure_pso')->name('admin.pso.edit');
-    Route::post('/pso/{id}/update', [PsoManagementController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.update');
-    Route::put('/pso/{id}', [PsoManagementController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.put_update');
-    Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.toggle');
-    Route::post('/pso/{id}/close', [PsoManagementController::class, 'closePso'])->middleware('read.only')->name('admin.pso.close');
+    Route::get('/pso/create', [PsoManagementController::class, 'create'])->middleware('permission:can_create_pso')->name('admin.pso.create');
+    Route::post('/pso/store', [PsoManagementController::class, 'store'])->middleware(['read.only', 'permission:can_create_pso'])->name('admin.pso.store');
+    Route::get('/pso/{id}/edit', [PsoManagementController::class, 'edit'])->middleware('permission:can_edit_pso')->name('admin.pso.edit');
+    Route::post('/pso/{id}/update', [PsoManagementController::class, 'update'])->middleware(['read.only', 'permission:can_edit_pso'])->name('admin.pso.update');
+    Route::put('/pso/{id}', [PsoManagementController::class, 'update'])->middleware(['read.only', 'permission:can_edit_pso'])->name('admin.pso.put_update');
+    Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_edit_pso'])->name('admin.pso.toggle');
+    Route::post('/pso/{id}/close', [PsoManagementController::class, 'closePso'])->middleware(['read.only', 'permission:can_close_pso'])->name('admin.pso.close');
     Route::post('/pso/{id}/reopen', [PsoManagementController::class, 'reopenPso'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.pso.reopen');
-    Route::delete('/pso/{id}', [PsoManagementController::class, 'destroy'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.delete');
+    Route::delete('/pso/{id}', [PsoManagementController::class, 'destroy'])->middleware(['read.only', 'permission:can_delete_pso'])->name('admin.pso.delete');
 
     // 2. Tally Excel Import
     Route::get('/import', [ExcelImportController::class, 'index'])->name('admin.import.index');
@@ -161,18 +161,18 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::get('/migrate/seed', [DatabaseMigrationController::class, 'seed'])->name('admin.migrate.seed');
 
     // 16. Prefix Master
-    Route::get('/prefix-master', [PrefixMasterController::class, 'index'])->name('admin.prefix.index');
-    Route::post('/prefix-master/store', [PrefixMasterController::class, 'store'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.store');
-    Route::post('/prefix-master/{id}/update', [PrefixMasterController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.update');
-    Route::post('/prefix-master/{id}/toggle', [PrefixMasterController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.toggle');
-    Route::delete('/prefix-master/{id}', [PrefixMasterController::class, 'destroy'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.prefix.delete');
+    Route::get('/prefix-master', [PrefixMasterController::class, 'index'])->middleware('permission:can_manage_prefixes')->name('admin.prefix.index');
+    Route::post('/prefix-master/store', [PrefixMasterController::class, 'store'])->middleware(['read.only', 'permission:can_manage_prefixes'])->name('admin.prefix.store');
+    Route::post('/prefix-master/{id}/update', [PrefixMasterController::class, 'update'])->middleware(['read.only', 'permission:can_manage_prefixes'])->name('admin.prefix.update');
+    Route::post('/prefix-master/{id}/toggle', [PrefixMasterController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_manage_prefixes'])->name('admin.prefix.toggle');
+    Route::delete('/prefix-master/{id}', [PrefixMasterController::class, 'destroy'])->middleware(['read.only', 'permission:can_manage_prefixes'])->name('admin.prefix.delete');
 
     // 17. Salesperson Master
-    Route::get('/salespersons', [SalespersonController::class, 'index'])->name('admin.salespersons.index');
-    Route::post('/salespersons/store', [SalespersonController::class, 'store'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.salespersons.store');
-    Route::post('/salespersons/{id}/update', [SalespersonController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.salespersons.update');
-    Route::post('/salespersons/{id}/toggle', [SalespersonController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.salespersons.toggle');
-    Route::delete('/salespersons/{id}', [SalespersonController::class, 'destroy'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.salespersons.delete');
+    Route::get('/salespersons', [SalespersonController::class, 'index'])->middleware('permission:can_manage_salespersons')->name('admin.salespersons.index');
+    Route::post('/salespersons/store', [SalespersonController::class, 'store'])->middleware(['read.only', 'permission:can_manage_salespersons'])->name('admin.salespersons.store');
+    Route::post('/salespersons/{id}/update', [SalespersonController::class, 'update'])->middleware(['read.only', 'permission:can_manage_salespersons'])->name('admin.salespersons.update');
+    Route::post('/salespersons/{id}/toggle', [SalespersonController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_manage_salespersons'])->name('admin.salespersons.toggle');
+    Route::delete('/salespersons/{id}', [SalespersonController::class, 'destroy'])->middleware(['read.only', 'permission:can_manage_salespersons'])->name('admin.salespersons.delete');
 });
 
 // Non-admin root routes for backward compatibility

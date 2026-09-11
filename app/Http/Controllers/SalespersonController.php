@@ -54,9 +54,9 @@ class SalespersonController extends Controller
             'name'        => trim($validated['name']),
             'prefix_id'   => $validated['prefix_id'] ?? null,
             'prefix_code' => $prefixCode,
-            'phone'       => $validated['phone'] ? trim($validated['phone']) : null,
-            'email'       => $validated['email'] ? trim($validated['email']) : null,
-            'area'        => $validated['area'] ? trim($validated['area']) : null,
+            'phone'       => !empty($validated['phone']) ? trim($validated['phone']) : null,
+            'email'       => !empty($validated['email']) ? trim($validated['email']) : null,
+            'area'        => !empty($validated['area']) ? trim($validated['area']) : null,
             'is_active'   => true,
         ]);
 
@@ -93,9 +93,9 @@ class SalespersonController extends Controller
             'name'        => $newName,
             'prefix_id'   => $validated['prefix_id'] ?? null,
             'prefix_code' => $prefixCode,
-            'phone'       => $validated['phone'] ? trim($validated['phone']) : null,
-            'email'       => $validated['email'] ? trim($validated['email']) : null,
-            'area'        => $validated['area'] ? trim($validated['area']) : null,
+            'phone'       => !empty($validated['phone']) ? trim($validated['phone']) : null,
+            'email'       => !empty($validated['email']) ? trim($validated['email']) : null,
+            'area'        => !empty($validated['area']) ? trim($validated['area']) : null,
         ]);
 
         $pfxLog = $prefixCode ? " [Linked Prefix: {$prefixCode}]" : ' [No Prefix Linked]';

@@ -36,6 +36,12 @@ class User extends Authenticatable
         'can_record_credit',
         'can_approve_sealing',
         'can_configure_pso',
+        'can_manage_prefixes',
+        'can_manage_salespersons',
+        'can_create_pso',
+        'can_edit_pso',
+        'can_delete_pso',
+        'can_close_pso',
         'can_edit_cutoff',
         'can_manage_users',
         'is_active',
@@ -71,6 +77,12 @@ class User extends Authenticatable
             'can_record_credit' => 'boolean',
             'can_approve_sealing' => 'boolean',
             'can_configure_pso' => 'boolean',
+            'can_manage_prefixes' => 'boolean',
+            'can_manage_salespersons' => 'boolean',
+            'can_create_pso' => 'boolean',
+            'can_edit_pso' => 'boolean',
+            'can_delete_pso' => 'boolean',
+            'can_close_pso' => 'boolean',
             'can_edit_cutoff' => 'boolean',
             'can_manage_users' => 'boolean',
             'is_active' => 'boolean',
@@ -113,6 +125,30 @@ class User extends Authenticatable
             return true;
         }
 
+        if ($permission === 'can_manage_prefixes') {
+            return (bool) ($this->can_manage_prefixes ?? $this->can_configure_pso ?? false);
+        }
+
+        if ($permission === 'can_manage_salespersons') {
+            return (bool) ($this->can_manage_salespersons ?? $this->can_configure_pso ?? false);
+        }
+
+        if ($permission === 'can_create_pso') {
+            return (bool) ($this->can_create_pso ?? $this->can_configure_pso ?? false);
+        }
+
+        if ($permission === 'can_edit_pso') {
+            return (bool) ($this->can_edit_pso ?? $this->can_configure_pso ?? false);
+        }
+
+        if ($permission === 'can_delete_pso') {
+            return (bool) ($this->can_delete_pso ?? $this->can_configure_pso ?? false);
+        }
+
+        if ($permission === 'can_close_pso') {
+            return (bool) ($this->can_close_pso ?? true);
+        }
+
         return (bool) ($this->{$permission} ?? false);
     }
 
@@ -138,6 +174,12 @@ class User extends Authenticatable
                     'can_record_credit' => true,
                     'can_approve_sealing' => true,
                     'can_configure_pso' => true,
+                    'can_manage_prefixes' => true,
+                    'can_manage_salespersons' => true,
+                    'can_create_pso' => true,
+                    'can_edit_pso' => true,
+                    'can_delete_pso' => true,
+                    'can_close_pso' => true,
                     'can_edit_cutoff' => true,
                     'can_manage_users' => true,
                     'is_read_only' => false,
@@ -151,8 +193,8 @@ class User extends Authenticatable
                 'badge_class' => 'bg-primary',
                 'icon' => 'bi-person-badge-fill',
                 'title' => 'PSO Operator',
-                'tagline' => 'Dashboard and PSO Management (Create & List View Only).',
-                'description' => 'Restricted to Dashboard and PSO Management. Can view existing configurations and create/add new PSO series.',
+                'tagline' => 'Dashboard, PSO Management, Prefix Master & Sales Persons.',
+                'description' => 'Permitted to manage PSO Series (Add, Edit, Delete, Close/Goods Return), Prefix Master, and Sales Persons.',
                 'default_permissions' => [
                     'can_edit_bills' => false,
                     'can_import_excel' => false,
@@ -160,11 +202,17 @@ class User extends Authenticatable
                     'can_record_credit' => false,
                     'can_approve_sealing' => false,
                     'can_configure_pso' => true,
+                    'can_manage_prefixes' => true,
+                    'can_manage_salespersons' => true,
+                    'can_create_pso' => true,
+                    'can_edit_pso' => true,
+                    'can_delete_pso' => true,
+                    'can_close_pso' => true,
                     'can_edit_cutoff' => false,
                     'can_manage_users' => false,
                     'is_read_only' => false,
                 ],
-                'allowed_modules' => ['Dashboard', 'PSO Series Management'],
+                'allowed_modules' => ['Dashboard', 'PSO Series Management', 'Prefix Master', 'Sales Persons'],
             ],
             'APPROVER' => [
                 'role_code' => 'APPROVER',
@@ -182,11 +230,17 @@ class User extends Authenticatable
                     'can_record_credit' => false,
                     'can_approve_sealing' => true,
                     'can_configure_pso' => false,
+                    'can_manage_prefixes' => false,
+                    'can_manage_salespersons' => false,
+                    'can_create_pso' => false,
+                    'can_edit_pso' => false,
+                    'can_delete_pso' => false,
+                    'can_close_pso' => true,
                     'can_edit_cutoff' => false,
                     'can_manage_users' => false,
                     'is_read_only' => false,
                 ],
-                'allowed_modules' => ['Dashboard', 'Bill Verification', 'Master Reconciliation', 'Approval & Sealing', '7-Day Retention', 'Reports'],
+                'allowed_modules' => ['Dashboard', 'Bill Verification', 'Master Reconciliation', '7-Day Retention', 'Reports'],
             ],
         ];
     }

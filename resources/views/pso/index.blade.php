@@ -8,7 +8,7 @@
     <h4 class="fw-bold mb-1">PSO Series Management</h4>
     <p class="text-muted mb-0">Define counter PSO prefixes, starting/ending serial ranges, and special company bill series.</p>
   </div>
-  @if($currentUser->hasPermission('can_configure_pso'))
+  @if($currentUser->hasPermission('can_create_pso') || $currentUser->hasPermission('can_configure_pso'))
   <a href="{{ route('admin.pso.create') }}" class="btn btn-primary">
     <i class="bi bi-plus-circle me-1"></i> Configure New PSO
   </a>
@@ -122,7 +122,7 @@
             <td>
               @if($pso->is_closed)
                 <span class="badge bg-dark">
-                  <i class="bi bi-lock-fill me-1"></i>Closed
+                  <i class="bi bi-lock-fill me-1"></i>PSO Closed
                 </span>
                 @if($pso->has_goods_return && $pso->goods_return_amount > 0)
                   <div class="text-danger font-mono small mt-0.5" style="font-size: 0.72rem;" title="{{ $pso->goods_return_particulars }}">
@@ -138,43 +138,35 @@
               @endif
             </td>
             <td class="text-end text-nowrap">
-              @if($currentUser && $currentUser->isOperator())
-                @if($pso->is_closed)
-                  <span class="badge bg-secondary-subtle text-secondary border font-mono small py-1.5 px-2">
-                    <i class="bi bi-lock-fill text-muted me-1"></i>PSO Closed
-                  </span>
-                @else
-                  <button type="button" class="btn btn-sm btn-outline-danger btn-open-close-modal"
-                          data-id="{{ $pso->id }}"
-                          data-code="{{ $pso->code }}"
-                          data-operator="{{ $pso->operator_name }}"
-                          data-action="{{ route('admin.pso.close', $pso->id) }}"
-                          title="Close this PSO Series">
-                    <i class="bi bi-door-closed-fill me-1"></i> Close PSO
-                  </button>
-                @endif
-              @elseif($currentUser->hasPermission('can_configure_pso'))
               <div class="d-flex justify-content-end align-items-center gap-1">
-                {{-- Close / Reopen Action --}}
+                {{-- Close PSO / Good Return Action --}}
                 @if($pso->is_closed)
+                  <span class="badge bg-secondary-subtle text-secondary border font-mono small py-1 px-2 me-1" title="Closed on {{ $pso->closed_at ? $pso->closed_at->format('d/m H:i') : '' }}">
+                    <i class="bi bi-lock-fill text-muted me-1"></i>Closed
+                  </span>
+                  @if($currentUser->hasPermission('can_manage_users') || $currentUser->isSuperAdmin())
                   <form action="{{ route('admin.pso.reopen', $pso->id) }}" method="POST" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-sm btn-outline-success" title="Reopen PSO Series">
                       <i class="bi bi-unlock-fill me-1"></i> Reopen
                     </button>
                   </form>
+                  @endif
                 @else
-                  <button type="button" class="btn btn-sm btn-outline-warning btn-open-close-modal"
+                  @if($currentUser->hasPermission('can_close_pso'))
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-open-close-modal"
                           data-id="{{ $pso->id }}"
                           data-code="{{ $pso->code }}"
                           data-operator="{{ $pso->operator_name }}"
                           data-action="{{ route('admin.pso.close', $pso->id) }}"
-                          title="Close this PSO Series">
-                    <i class="bi bi-door-closed me-1"></i> Close
+                          title="Close PSO & Record Goods Return">
+                    <i class="bi bi-door-closed-fill me-1"></i> Close PSO
                   </button>
+                  @endif
                 @endif
 
-                {{-- Edit Action --}}
+                {{-- Edit PSO Action --}}
+                @if($currentUser->hasPermission('can_edit_pso'))
                 <a href="{{ route('admin.pso.edit', $pso->id) }}" class="btn btn-sm btn-outline-primary" title="Edit PSO Configuration">
                   <i class="bi bi-pencil-square me-1"></i> Edit
                 </a>
@@ -186,13 +178,13 @@
                   <button type="submit" class="btn btn-sm {{ $pso->is_active ? 'btn-outline-secondary' : 'btn-outline-success' }}" 
                           title="{{ $pso->is_active ? 'Disable' : 'Enable' }}">
                     <i class="bi {{ $pso->is_active ? 'bi-pause-fill' : 'bi-play-fill' }}"></i>
-                    {{ $pso->is_active ? 'Disable' : 'Enable' }}
                   </button>
                 </form>
                 @endif
+                @endif
 
-                {{-- Delete Action (if safe) --}}
-                @if(($pso->bills_count ?? 0) === 0)
+                {{-- Delete Action --}}
+                @if($currentUser->hasPermission('can_delete_pso') && (($pso->bills_count ?? 0) === 0))
                 <form action="{{ route('admin.pso.delete', $pso->id) }}" method="POST" class="d-inline"
                       onsubmit="return confirm('Are you sure you want to delete PSO Series {{ $pso->code }}?');">
                   @csrf
@@ -203,9 +195,6 @@
                 </form>
                 @endif
               </div>
-              @else
-                <span class="text-muted small">Read Only</span>
-              @endif
             </td>
           </tr>
         @empty

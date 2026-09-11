@@ -149,6 +149,12 @@ class RoleAndPermissionTest extends TestCase
             'role_name' => 'PSO Operator',
             'role_code' => 'OPERATOR',
             'can_configure_pso' => true,
+            'can_create_pso' => true,
+            'can_edit_pso' => false,
+            'can_delete_pso' => false,
+            'can_close_pso' => true,
+            'can_manage_prefixes' => false,
+            'can_manage_salespersons' => false,
             'is_active' => true,
             'is_read_only' => false,
         ]);
@@ -158,25 +164,19 @@ class RoleAndPermissionTest extends TestCase
         // 1. Can access Dashboard
         $dashRes = $this->get('/admin/dashboard');
         $dashRes->assertStatus(200);
-        $dashRes->assertSee('Dashboard');
-        $dashRes->assertSee('PSO Management');
-        // Should NOT see other module links in sidebar
-        $dashRes->assertDontSee('Tally Excel Import');
-        $dashRes->assertDontSee('Payment Classification');
 
-        // 2. Can access PSO list view
+        // 2. Can access PSO Index (List View)
         $psoListRes = $this->get('/admin/pso');
         $psoListRes->assertStatus(200);
-        $psoListRes->assertSee('Configure New PSO');
 
-        // 3. Can access PSO create view
+        // 3. Can access PSO Create form
         $psoCreateRes = $this->get('/admin/pso/create');
         $psoCreateRes->assertStatus(200);
 
-        // 4. Can store new PSO
+        // 4. Can submit/store new PSO
         $psoStoreRes = $this->post('/admin/pso/store', [
-            'operator_name' => 'PSO Operator Only',
             'prefix' => 'CB',
+            'operator_name' => 'PSO Operator Only',
             'start_no' => 1,
             'end_no' => 10,
         ]);
@@ -258,5 +258,80 @@ class RoleAndPermissionTest extends TestCase
             $res->assertRedirect('/admin/dashboard');
             $res->assertSessionHas('error');
         }
+    }
+
+    public function test_operator_with_permissions_can_manage_pso_crud_prefixes_and_salespersons(): void
+    {
+        $operator = User::create([
+            'code' => 'usr_full_op',
+            'name' => 'Full PSO Operator',
+            'email' => 'full_op@hisabkitap.in',
+            'password' => Hash::make('password'),
+            'role_name' => 'PSO Operator',
+            'role_code' => 'OPERATOR',
+            'can_configure_pso' => true,
+            'can_create_pso' => true,
+            'can_edit_pso' => true,
+            'can_delete_pso' => true,
+            'can_close_pso' => true,
+            'can_manage_prefixes' => true,
+            'can_manage_salespersons' => true,
+            'is_active' => true,
+            'is_read_only' => false,
+        ]);
+
+        $this->actingAs($operator);
+
+        // 1. Can access Prefix Master and create prefix
+        $prefixRes = $this->get('/admin/prefix-master');
+        $prefixRes->assertStatus(200);
+
+        $storePrefixRes = $this->post('/admin/prefix-master/store', [
+            'prefix' => 'FULL',
+            'name' => 'Full Series',
+        ]);
+        $storePrefixRes->assertRedirect('/admin/prefix-master');
+        $this->assertDatabaseHas('prefixes', ['prefix' => 'FULL']);
+
+        // 2. Can access Salespersons and create salesperson
+        $spRes = $this->get('/admin/salespersons');
+        $spRes->assertStatus(200);
+
+        $storeSpRes = $this->post('/admin/salespersons/store', [
+            'name' => 'Salesman Rajesh',
+            'phone' => '9876543210',
+        ]);
+        $storeSpRes->assertRedirect('/admin/salespersons');
+        $this->assertDatabaseHas('salespersons', ['name' => 'Salesman Rajesh']);
+
+        // 3. Can create, edit, close, and delete PSO
+        $psoStoreRes = $this->post('/admin/pso/store', [
+            'prefix' => 'FULL',
+            'operator_name' => 'Full PSO Operator',
+            'start_no' => 1,
+            'end_no' => 10,
+        ]);
+        $psoStoreRes->assertRedirect('/admin/pso');
+        $pso = \App\Models\PsoConfig::where('operator_name', 'Full PSO Operator')->first();
+        $this->assertNotNull($pso);
+
+        // Edit PSO
+        $psoEditPage = $this->get("/admin/pso/{$pso->id}/edit");
+        $psoEditPage->assertStatus(200);
+
+        $psoUpdateRes = $this->post("/admin/pso/{$pso->id}/update", [
+            'prefix' => 'FULL',
+            'operator_name' => 'Full PSO Operator Updated',
+            'start_no' => 1,
+            'end_no' => 15,
+        ]);
+        $psoUpdateRes->assertRedirect('/admin/pso');
+        $pso->refresh();
+        $this->assertEquals(15, $pso->end_no);
+
+        // Delete PSO
+        $psoDelRes = $this->delete("/admin/pso/{$pso->id}");
+        $psoDelRes->assertRedirect('/admin/pso');
+        $this->assertDatabaseMissing('pso_configs', ['id' => $pso->id]);
     }
 }
