@@ -229,16 +229,23 @@
 
             <!-- Payment Type (View / Edit) -->
             <td>
-              @if($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0))
-                <div class="payment-badge-display">
-                  <span class="badge bg-success mb-1 d-block"><i class="bi bi-cash me-1"></i>Cash: ₹{{ number_format($bill->cash_amount, 2) }}</span>
-                  <span class="badge bg-info text-dark d-block"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹{{ number_format($bill->paytm_amount, 2) }}</span>
-                </div>
-              @else
-                <span class="payment-badge-display badge {{ $bill->payment_type === 'Cash' ? 'bg-success' : ($bill->payment_type === 'Paytm' ? 'bg-info text-dark' : ($bill->payment_type === 'Check' ? 'bg-primary' : ($bill->payment_type === 'Credit' ? 'bg-warning text-dark' : 'bg-secondary'))) }}">
-                  {{ $bill->payment_type }}
-                </span>
-              @endif
+              @php
+                $isSplit = (bool)($bill->is_split_payment || $bill->payment_type === 'Split' || ($bill->cash_amount > 0 && $bill->paytm_amount > 0));
+                $effNet = $bill->net_amount > 0 ? (float)$bill->net_amount : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount);
+                $dispCash = $bill->cash_amount > 0 ? (float)$bill->cash_amount : ($isSplit ? ($bill->paytm_amount > 0 ? max(0, $effNet - (float)$bill->paytm_amount) : $effNet) : ($bill->payment_type === 'Cash' ? $effNet : 0));
+                $dispPaytm = $bill->paytm_amount > 0 ? (float)$bill->paytm_amount : ($isSplit ? max(0, $effNet - $dispCash) : ($bill->payment_type === 'Paytm' ? $effNet : 0));
+              @endphp
+
+              <div class="payment-badge-display">
+                @if($isSplit)
+                  <span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹{{ number_format($dispCash, 2) }}</span>
+                  <span class="badge bg-info text-dark d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹{{ number_format($dispPaytm, 2) }}</span>
+                @else
+                  <span class="badge {{ $bill->payment_type === 'Cash' ? 'bg-success' : ($bill->payment_type === 'Paytm' ? 'bg-info text-dark' : ($bill->payment_type === 'Check' ? 'bg-primary' : ($bill->payment_type === 'Credit' ? 'bg-warning text-dark' : 'bg-secondary'))) }}">
+                    {{ $bill->payment_type }}
+                  </span>
+                @endif
+              </div>
               <select class="form-select form-select-sm inline-payment-select d-none" style="min-width: 140px;">
                 <option value="Cash" {{ (!$bill->is_split_payment && $bill->payment_type === 'Cash') ? 'selected' : '' }}>Cash</option>
                 <option value="Paytm" {{ (!$bill->is_split_payment && $bill->payment_type === 'Paytm') ? 'selected' : '' }}>Paytm / RTGS</option>
@@ -657,8 +664,16 @@ document.addEventListener('DOMContentLoaded', function () {
           // Update display DOM elements
           const payDisplay = row.querySelector('.payment-badge-display');
           if (payDisplay) {
-            payDisplay.textContent = paymentType;
-            payDisplay.className = `payment-badge-display badge ${getPaymentBadgeClass(paymentType)}`;
+            if (paymentType === 'Split' || data.bill.is_split_payment || (parseFloat(data.bill.cash_amount || 0) > 0 && parseFloat(data.bill.paytm_amount || 0) > 0)) {
+              const cAmt = parseFloat(data.bill.cash_amount || netAmt);
+              const pAmt = parseFloat(data.bill.paytm_amount || 0);
+              payDisplay.innerHTML = `
+                <span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹${cAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span class="badge bg-info text-dark d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹${pAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              `;
+            } else {
+              payDisplay.innerHTML = `<span class="badge ${getPaymentBadgeClass(paymentType)}">${paymentType}</span>`;
+            }
           }
 
           const spDisplay = row.querySelector('.salesperson-display');
@@ -928,8 +943,15 @@ document.addEventListener('DOMContentLoaded', function () {
             row.dataset.paymentType = payType;
             const payDisplay = row.querySelector('.payment-badge-display');
             if (payDisplay) {
-              payDisplay.textContent = payType;
-              payDisplay.className = `payment-badge-display badge ${getPaymentBadgeClass(payType)}`;
+              if (payType === 'Split') {
+                const curNet = parseFloat(row.dataset.net || row.dataset.amount || 0);
+                payDisplay.innerHTML = `
+                  <span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹${curNet.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span class="badge bg-info text-dark d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹0.00</span>
+                `;
+              } else {
+                payDisplay.innerHTML = `<span class="badge ${getPaymentBadgeClass(payType)}">${payType}</span>`;
+              }
             }
             const rowPaySelect = row.querySelector('.inline-payment-select');
             if (rowPaySelect) rowPaySelect.value = payType;
