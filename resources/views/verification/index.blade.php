@@ -303,9 +303,9 @@
                         data-id="{{ $bill->id }}" 
                         data-bill-no="{{ $bill->bill_no }}" 
                         data-customer="{{ $bill->customer_name }}" 
-                        data-net="{{ (float)($bill->net_amount > 0 ? $bill->net_amount : $bill->amount) }}" 
-                        data-cash="{{ (float)$bill->cash_amount }}" 
-                        data-paytm="{{ (float)$bill->paytm_amount }}"
+                        data-net="{{ (float)($bill->net_amount > 0 ? $bill->net_amount : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount)) }}" 
+                        data-cash="{{ (float)($bill->is_split_payment ? $bill->cash_amount : ($bill->payment_type === 'Cash' ? ($bill->net_amount > 0 ? $bill->net_amount : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount)) : 0)) }}" 
+                        data-paytm="{{ (float)($bill->is_split_payment ? $bill->paytm_amount : ($bill->payment_type === 'Paytm' ? ($bill->net_amount > 0 ? $bill->net_amount : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount)) : 0)) }}"
                         data-is-split="{{ $bill->is_split_payment ? '1' : '0' }}"
                         title="Split payment between Cash and Paytm">
                   <i class="bi bi-pie-chart-fill me-1"></i> Split
@@ -449,10 +449,36 @@ document.addEventListener('DOMContentLoaded', function () {
     const cdInput = row.querySelector('.inline-cd-input');
     const refundInput = row.querySelector('.inline-refund-input');
     const netDisplay = row.querySelector('.net-display');
+    const splitBtn = row.querySelector('.btn-split-pay');
 
     const cd = parseFloat(cdInput ? cdInput.value : 0) || 0;
     const refund = parseFloat(refundInput ? refundInput.value : 0) || 0;
     const net = Math.max(0, amount - cd - refund);
+
+    row.dataset.net = net;
+    row.dataset.cd = cd;
+    row.dataset.refund = refund;
+
+    if (splitBtn) {
+      splitBtn.dataset.net = net;
+      if (splitBtn.dataset.isSplit !== '1') {
+        if (row.dataset.paymentType === 'Paytm') {
+          splitBtn.dataset.paytm = net;
+          splitBtn.dataset.cash = 0;
+        } else {
+          splitBtn.dataset.cash = net;
+          splitBtn.dataset.paytm = 0;
+        }
+      } else {
+        let curCash = parseFloat(splitBtn.dataset.cash || 0);
+        if (curCash > net) {
+          splitBtn.dataset.cash = net;
+          splitBtn.dataset.paytm = 0;
+        } else {
+          splitBtn.dataset.paytm = Math.max(0, net - curCash);
+        }
+      }
+    }
 
     if (netDisplay) {
       netDisplay.textContent = '₹' + net.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -667,9 +693,31 @@ document.addEventListener('DOMContentLoaded', function () {
           }
 
           const netDisplay = row.querySelector('.net-display');
+          const netAmt = parseFloat(data.bill.net_amount || 0);
           if (netDisplay) {
-            const netAmt = parseFloat(data.bill.net_amount || 0);
             netDisplay.textContent = '₹' + netAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          }
+          row.dataset.net = netAmt;
+          const splitBtn = row.querySelector('.btn-split-pay');
+          if (splitBtn) {
+            splitBtn.dataset.net = netAmt;
+            if (splitBtn.dataset.isSplit !== '1') {
+              if (paymentType === 'Paytm') {
+                splitBtn.dataset.paytm = netAmt;
+                splitBtn.dataset.cash = 0;
+              } else {
+                splitBtn.dataset.cash = netAmt;
+                splitBtn.dataset.paytm = 0;
+              }
+            } else {
+              let curCash = parseFloat(splitBtn.dataset.cash || 0);
+              if (curCash > netAmt) {
+                splitBtn.dataset.cash = netAmt;
+                splitBtn.dataset.paytm = 0;
+              } else {
+                splitBtn.dataset.paytm = Math.max(0, netAmt - curCash);
+              }
+            }
           }
 
           // Switch back to view mode: Save button HIDES!
@@ -956,13 +1004,35 @@ document.addEventListener('DOMContentLoaded', function () {
     const billId = btn.dataset.id;
     const billNo = btn.dataset.billNo;
     const customer = btn.dataset.customer;
-    const net = parseFloat(btn.dataset.net || 0);
+
+    let net = parseFloat(btn.dataset.net || 0);
+    if (currentSplitRow) {
+      const rowAmount = parseFloat(currentSplitRow.dataset.amount || 0);
+      const cdInput = currentSplitRow.querySelector('.inline-cd-input');
+      const refundInput = currentSplitRow.querySelector('.inline-refund-input');
+      const cd = cdInput ? (parseFloat(cdInput.value) || 0) : (parseFloat(currentSplitRow.dataset.cd || 0) || 0);
+      const refund = refundInput ? (parseFloat(refundInput.value) || 0) : (parseFloat(currentSplitRow.dataset.refund || 0) || 0);
+      net = Math.max(0, rowAmount - cd - refund);
+      btn.dataset.net = net;
+      currentSplitRow.dataset.net = net;
+    }
+
     let cash = parseFloat(btn.dataset.cash || 0);
     let paytm = parseFloat(btn.dataset.paytm || 0);
+    const isSplit = btn.dataset.isSplit === '1' || (cash > 0 && paytm > 0);
 
-    if (cash === 0 && paytm === 0) {
-      cash = net;
-      paytm = 0;
+    if (!isSplit || (cash === 0 && paytm === 0) || Math.abs((cash + paytm) - net) > 0.01) {
+      if (isSplit && (cash + paytm > 0)) {
+        if (cash > net) {
+          cash = net;
+          paytm = 0;
+        } else {
+          paytm = Math.max(0, net - cash);
+        }
+      } else {
+        cash = net;
+        paytm = 0;
+      }
     }
 
     splitModalEl.dataset.billId = billId;

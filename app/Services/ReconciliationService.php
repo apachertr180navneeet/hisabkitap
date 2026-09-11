@@ -69,16 +69,17 @@ class ReconciliationService
                     }
 
                     // Payment breakdown (handling split Cash + Paytm or standard payment_type)
-                    $effectiveAmt = (float) ($bill->net_amount > 0 ? $bill->net_amount : $bill->amount);
+                    $calculatedNet = max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount);
+                    $effectiveAmt = (float) ($bill->net_amount > 0 ? $bill->net_amount : $calculatedNet);
 
                     if ($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0)) {
                         $totCash += (float) $bill->cash_amount;
                         $totPaytm += (float) $bill->paytm_amount;
                     } else {
                         if ($bill->payment_type === 'Cash') {
-                            $totCash += (float) ($bill->cash_amount > 0 ? $bill->cash_amount : $effectiveAmt);
+                            $totCash += $effectiveAmt;
                         } elseif ($bill->payment_type === 'Paytm') {
-                            $totPaytm += (float) ($bill->paytm_amount > 0 ? $bill->paytm_amount : $effectiveAmt);
+                            $totPaytm += $effectiveAmt;
                         } elseif ($bill->payment_type === 'Check') {
                             $totCheck += $effectiveAmt;
                         } elseif ($bill->payment_type === 'Credit') {

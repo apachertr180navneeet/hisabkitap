@@ -148,14 +148,19 @@ class BillVerificationController extends Controller
 
         if ($isSplit || ($cashAmt > 0 && $paytmAmt > 0)) {
             $bill->is_split_payment = true;
-            $bill->cash_amount = $cashAmt > 0 ? $cashAmt : ($bill->net_amount > 0 ? $bill->net_amount : $bill->amount);
-            $bill->paytm_amount = $paytmAmt;
+            if ($cashAmt == 0 && $paytmAmt == 0) {
+                $bill->cash_amount = $bill->net_amount;
+                $bill->paytm_amount = 0;
+            } else {
+                $bill->cash_amount = $cashAmt;
+                $bill->paytm_amount = $paytmAmt;
+            }
             $bill->payment_type = 'Cash'; // Primary accounting bucket
         } else {
             $bill->is_split_payment = false;
             $bill->payment_type = $normalizedPaymentType === 'Split' ? 'Cash' : $normalizedPaymentType;
-            $bill->cash_amount = ($bill->payment_type === 'Cash') ? ($cashAmt > 0 ? $cashAmt : $bill->net_amount) : 0;
-            $bill->paytm_amount = ($bill->payment_type === 'Paytm') ? ($paytmAmt > 0 ? $paytmAmt : $bill->net_amount) : 0;
+            $bill->cash_amount = ($bill->payment_type === 'Cash') ? $bill->net_amount : 0;
+            $bill->paytm_amount = ($bill->payment_type === 'Paytm') ? $bill->net_amount : 0;
         }
 
         // Update Salesperson
@@ -381,7 +386,8 @@ class BillVerificationController extends Controller
                 } else {
                     $bill->is_split_payment = false;
                     $bill->payment_type = $normalizedPaymentType;
-                    $effectiveNet = $bill->net_amount > 0 ? $bill->net_amount : $bill->amount;
+                    $effectiveNet = max(0, floatval($bill->amount) - floatval($bill->cd_amount) - floatval($bill->refund_amount));
+                    $bill->net_amount = $effectiveNet;
                     if ($normalizedPaymentType === 'Cash') {
                         $bill->cash_amount = $effectiveNet;
                         $bill->paytm_amount = 0;

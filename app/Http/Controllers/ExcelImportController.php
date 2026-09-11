@@ -250,6 +250,8 @@ class ExcelImportController extends Controller
                         'cd_amount' => $cdAmount,
                         'refund_amount' => $refundAmount,
                         'net_amount' => $netAmount,
+                        'cash_amount' => $paymentTypeNormalized === 'Cash' ? $netAmount : 0,
+                        'paytm_amount' => $paymentTypeNormalized === 'Paytm' ? $netAmount : 0,
                         'status' => $paymentTypeNormalized === 'Cancelled' ? 'Cancelled' : ($isPostCutoff ? 'Next Day PSO' : 'Matched'),
                         'is_expected' => true,
                         'tally_found' => true,

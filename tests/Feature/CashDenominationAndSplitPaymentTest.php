@@ -175,4 +175,66 @@ class CashDenominationAndSplitPaymentTest extends TestCase
             'is_split_payment' => true,
         ]);
     }
+
+    public function test_split_payment_and_denomination_respects_net_amount(): void
+    {
+        $pso = PsoConfig::create([
+            'code' => 'PSO-1',
+            'name' => 'Main Wholesale Counter',
+            'prefix' => 'SC',
+            'start_no' => 6700,
+            'end_no' => 6720,
+            'operator_name' => 'Operator One',
+            'is_active' => true,
+        ]);
+
+        $bill = Bill::create([
+            'bill_no' => 'Sc/26-27/6713',
+            'pso_config_id' => $pso->id,
+            'pso_code' => 'PSO-1',
+            'business_date' => '2026-08-14',
+            'customer_name' => 'GANPATI SWEET & NAMKEEN',
+            'amount' => 4240.00,
+            'payment_type' => 'Cash',
+            'cd_amount' => 0.00,
+            'refund_amount' => 240.00,
+            'net_amount' => 4000.00,
+            'cash_amount' => 4000.00,
+            'paytm_amount' => 0.00,
+            'status' => 'Matched',
+        ]);
+
+        // Verify denomination controller calculates book cash based on Net Amount (4000)
+        $service = app(ReconciliationService::class);
+        $metrics = $service->getMetrics('2026-08-14');
+        $this->assertEquals(4000.00, $metrics['totCash']);
+
+        $res = $this->get('/admin/cash-denomination?date=2026-08-14&pso=PSO-1');
+        $res->assertStatus(200);
+        $res->assertViewHas('scopedBookCash', 4000.00);
+
+        // Update to split payment via inline update route
+        $updateRes = $this->postJson(route('admin.verification.update'), [
+            'bill_id' => $bill->id,
+            'payment_type' => 'Cash',
+            'is_split_payment' => 1,
+            'cash_amount' => 2500.00,
+            'paytm_amount' => 1500.00,
+            'cd_amount' => 0.00,
+            'refund_amount' => 240.00,
+        ]);
+
+        $updateRes->assertStatus(200);
+        $updateRes->assertJson([
+            'success' => true,
+            'bill' => [
+                'net_amount' => '4000.00',
+            ]
+        ]);
+
+        $bill->refresh();
+        $this->assertEquals(4000.00, (float)$bill->net_amount);
+        $this->assertEquals(2500.00, (float)$bill->cash_amount);
+        $this->assertEquals(1500.00, (float)$bill->paytm_amount);
+    }
 }

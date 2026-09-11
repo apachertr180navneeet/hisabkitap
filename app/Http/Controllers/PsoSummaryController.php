@@ -30,8 +30,8 @@ class PsoSummaryController extends Controller
                 ->get();
 
             $gross = $bills->sum('amount');
-            $cash = $bills->where('payment_type', 'Cash')->sum('net_amount');
-            $paytm = $bills->where('payment_type', 'Paytm')->sum('net_amount');
+            $cash = $bills->where('is_split_payment', true)->sum('cash_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Cash')->sum('net_amount');
+            $paytm = $bills->where('is_split_payment', true)->sum('paytm_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Paytm')->sum('net_amount');
             $check = $bills->where('payment_type', 'Check')->sum('net_amount');
             $credit = $bills->where('payment_type', 'Credit')->sum('net_amount');
             $cancelled = $bills->where('payment_type', 'Cancelled')->sum('amount');
@@ -100,8 +100,8 @@ class PsoSummaryController extends Controller
             ->get();
 
         $gross = $allPsoBills->sum('amount');
-        $cash = $allPsoBills->where('payment_type', 'Cash')->sum('net_amount');
-        $paytm = $allPsoBills->where('payment_type', 'Paytm')->sum('net_amount');
+        $cash = $allPsoBills->where('is_split_payment', true)->sum('cash_amount') + $allPsoBills->where('is_split_payment', false)->where('payment_type', 'Cash')->sum('net_amount');
+        $paytm = $allPsoBills->where('is_split_payment', true)->sum('paytm_amount') + $allPsoBills->where('is_split_payment', false)->where('payment_type', 'Paytm')->sum('net_amount');
         $check = $allPsoBills->where('payment_type', 'Check')->sum('net_amount');
         $credit = $allPsoBills->where('payment_type', 'Credit')->sum('net_amount');
         $cancelled = $allPsoBills->where('payment_type', 'Cancelled')->sum('amount');

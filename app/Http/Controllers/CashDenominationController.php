@@ -49,15 +49,16 @@ class CashDenominationController extends Controller
 
         foreach ($bills as $b) {
             $scopedTotalBills += (float) $b->amount;
+            $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
+            $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
+
             if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
                 $scopedBookCash += (float) $b->cash_amount;
                 $scopedPaytm += (float) $b->paytm_amount;
             } elseif ($b->payment_type === 'Cash') {
-                $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $b->amount);
-                $scopedBookCash += (float) ($b->cash_amount > 0 ? $b->cash_amount : $effective);
+                $scopedBookCash += $effective;
             } elseif ($b->payment_type === 'Paytm') {
-                $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $b->amount);
-                $scopedPaytm += (float) ($b->paytm_amount > 0 ? $b->paytm_amount : $effective);
+                $scopedPaytm += $effective;
             }
         }
 
