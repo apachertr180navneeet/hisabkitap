@@ -34,7 +34,15 @@ class BillVerificationController extends Controller
             }
         }
 
-        $psoList = PsoConfig::where('is_active', true)->get();
+        $user = auth()->user();
+        $psoQuery = PsoConfig::where('is_closed', true);
+        if ($user && $user->isOperator()) {
+            $psoQuery->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $psoList = $psoQuery->orderBy('code')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
 
         $availableDates = Bill::selectRaw('DATE(business_date) as b_date')

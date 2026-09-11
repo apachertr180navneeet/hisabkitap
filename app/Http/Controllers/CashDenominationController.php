@@ -25,9 +25,17 @@ class CashDenominationController extends Controller
     {
         $businessDate = $request->query('date', $this->reconService->getBusinessDate());
         $selectedPso = $request->query('pso', 'ALL');
-
         $metrics = $this->reconService->getMetrics($businessDate);
-        $psoList = PsoConfig::where('is_active', true)->orderBy('code')->get();
+
+        $user = auth()->user();
+        $psoQuery = PsoConfig::where('is_closed', true);
+        if ($user && $user->isOperator()) {
+            $psoQuery->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $psoList = $psoQuery->orderBy('code')->get();
 
         // Query existing denominations for this date
         $denominationsQuery = CashDenomination::whereDate('business_date', $businessDate);

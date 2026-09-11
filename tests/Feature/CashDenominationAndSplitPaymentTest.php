@@ -46,6 +46,8 @@ class CashDenominationAndSplitPaymentTest extends TestCase
             'driver_name' => 'Ramesh Kumar',
             'gadi_number' => 'RJ 14 GA 5555',
             'is_active' => true,
+            'is_closed' => true,
+            'closed_at' => now(),
         ]);
 
         // Post Cash Denomination entry:
@@ -185,7 +187,9 @@ class CashDenominationAndSplitPaymentTest extends TestCase
             'start_no' => 6700,
             'end_no' => 6720,
             'operator_name' => 'Operator One',
-            'is_active' => true,
+            'is_active' => false,
+            'is_closed' => true,
+            'closed_at' => now(),
         ]);
 
         $bill = Bill::create([
@@ -236,5 +240,39 @@ class CashDenominationAndSplitPaymentTest extends TestCase
         $this->assertEquals(4000.00, (float)$bill->net_amount);
         $this->assertEquals(2500.00, (float)$bill->cash_amount);
         $this->assertEquals(1500.00, (float)$bill->paytm_amount);
+    }
+
+    public function test_cash_denomination_only_shows_closed_psos(): void
+    {
+        PsoConfig::create([
+            'code' => 'PSO-OPEN-UNCLOSED',
+            'prefix' => 'OP',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'Open Operator',
+            'is_active' => true,
+            'is_closed' => false,
+        ]);
+
+        PsoConfig::create([
+            'code' => 'PSO-CLOSED-FINAL',
+            'prefix' => 'CL',
+            'start_no' => 11,
+            'end_no' => 20,
+            'operator_name' => 'Closed Operator',
+            'is_active' => false,
+            'is_closed' => true,
+            'closed_at' => now(),
+        ]);
+
+        $response = $this->get('/admin/cash-denomination');
+        $response->assertStatus(200);
+        $response->assertSee('PSO-CLOSED-FINAL');
+        $response->assertDontSee('PSO-OPEN-UNCLOSED');
+
+        $verificationResponse = $this->get('/admin/verification');
+        $verificationResponse->assertStatus(200);
+        $verificationResponse->assertSee('PSO-CLOSED-FINAL');
+        $verificationResponse->assertDontSee('PSO-OPEN-UNCLOSED');
     }
 }
