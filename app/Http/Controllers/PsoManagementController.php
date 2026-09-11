@@ -168,6 +168,10 @@ class PsoManagementController extends Controller
 
     public function edit($id)
     {
+        if (auth()->check() && auth()->user()->isOperator()) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: PSO Operators can only view and create PSO series. Editing requires administrative privileges.');
+        }
+
         $pso = PsoConfig::withCount('bills')->findOrFail($id);
         $prefixes = Prefix::where('is_active', true)->orderBy('prefix')->get();
         $operators = User::orderBy('name')->pluck('name')
@@ -188,6 +192,10 @@ class PsoManagementController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (auth()->check() && auth()->user()->isOperator()) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: PSO Operators can only view and create PSO series. Editing requires administrative privileges.');
+        }
+
         $pso = PsoConfig::findOrFail($id);
 
         $validated = $request->validate([
@@ -290,6 +298,10 @@ class PsoManagementController extends Controller
 
     public function toggleStatus($id)
     {
+        if (auth()->check() && auth()->user()->isOperator()) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: PSO Operators cannot enable or disable PSO series.');
+        }
+
         $pso = PsoConfig::findOrFail($id);
         $pso->is_active = ! $pso->is_active;
         $pso->save();
@@ -301,6 +313,10 @@ class PsoManagementController extends Controller
 
     public function destroy($id)
     {
+        if (auth()->check() && auth()->user()->isOperator()) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: PSO Operators cannot delete PSO configurations.');
+        }
+
         $pso = PsoConfig::findOrFail($id);
 
         if ($pso->bills()->count() > 0) {

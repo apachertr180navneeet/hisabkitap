@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             \App\Http\Middleware\ShareUserRole::class,
+            \App\Http\Middleware\RestrictOperatorAccess::class,
         ]);
 
         $middleware->alias([

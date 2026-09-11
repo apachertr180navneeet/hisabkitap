@@ -120,7 +120,11 @@
               </span>
             </td>
             <td class="text-end text-nowrap">
-              @if($currentUser->hasPermission('can_configure_pso'))
+              @if($currentUser && $currentUser->isOperator())
+                <span class="badge bg-light text-secondary border font-mono small py-1.5 px-2">
+                  <i class="bi bi-eye me-1 text-primary"></i>List View Only
+                </span>
+              @elseif($currentUser->hasPermission('can_configure_pso'))
               <div class="d-flex justify-content-end align-items-center gap-1">
                 {{-- Edit Action --}}
                 <a href="{{ route('admin.pso.edit', $pso->id) }}" class="btn btn-sm btn-outline-primary" title="Edit PSO Configuration">

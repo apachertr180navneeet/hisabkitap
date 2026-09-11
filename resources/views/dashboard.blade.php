@@ -32,7 +32,21 @@
 </div>
 
 <!-- Alert Notification Bar -->
-@if(!$metrics['hasBills'])
+@if(isset($currentUser) && $currentUser && $currentUser->isOperator())
+  <div class="alert-erp alert-erp-info mb-3">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-person-badge-fill fs-5 text-primary"></i>
+      <div>
+        <span class="fw-semibold text-dark">PSO Operator Workspace:</span>
+        <span class="text-secondary ms-1">You have access to PSO Series Management. You can configure new counter series and view active series setups.</span>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ route('admin.pso.index') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-list-ul me-1"></i>View PSO Series</a>
+      <a href="{{ route('admin.pso.create') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle me-1"></i>Configure New PSO</a>
+    </div>
+  </div>
+@elseif(!$metrics['hasBills'])
   <div class="alert-erp alert-erp-info mb-3">
     <div class="d-flex align-items-center gap-2">
       <i class="bi bi-info-circle-fill fs-5 text-primary"></i>
@@ -359,7 +373,11 @@
     <div class="erp-table-container">
       <div class="erp-card-header">
         <span class="fw-semibold text-dark">Recent Imported Tally Files</span>
-        <a href="{{ route('admin.import.index') }}" class="btn btn-sm btn-outline-secondary">Upload New</a>
+        @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
+          <a href="{{ route('admin.import.index') }}" class="btn btn-sm btn-outline-secondary">Upload New</a>
+        @else
+          <span class="badge bg-light text-muted border">System Overview</span>
+        @endif
       </div>
       <div class="table-responsive">
         <table class="table erp-table mb-0 align-middle">
@@ -398,7 +416,11 @@
     <div class="erp-table-container">
       <div class="erp-card-header">
         <span class="fw-semibold text-dark">Pending Approvals & 7-Day Retention</span>
-        <a href="{{ route('admin.retention.index') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+        @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
+          <a href="{{ route('admin.retention.index') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+        @else
+          <span class="badge bg-light text-muted border">Audit Radar</span>
+        @endif
       </div>
       <div class="table-responsive">
         <table class="table erp-table mb-0 align-middle">

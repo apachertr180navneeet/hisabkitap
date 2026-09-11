@@ -46,17 +46,15 @@
         <span class="badge bg-primary-subtle text-primary fw-bold">{{ $stats['operators'] }} Active</span>
       </div>
       <h5 class="fw-bold text-dark mb-1">PSO Operator</h5>
-      <p class="text-muted small mb-3">Daily Counter Operations & Ingestion</p>
+      <p class="text-muted small mb-3">Dashboard & PSO Management Only</p>
       
       <div class="p-2.5 bg-light rounded small text-secondary mb-3" style="font-size: 0.8rem;">
-        <i class="bi bi-person-badge text-primary me-1"></i> <strong>Counter Operations:</strong> Series creation, Tally Excel DayBook imports, bill sequence matching, discount logging, and salesman credit collection.
+        <i class="bi bi-person-badge text-primary me-1"></i> <strong>PSO Management Access:</strong> Access to Dashboard and PSO Management only. Permitted to view PSO list and create/add new PSO series.
       </div>
 
       <div class="d-flex align-items-center gap-1.5 flex-wrap">
-        <span class="badge bg-primary-subtle text-primary small">PSO Config</span>
-        <span class="badge bg-primary-subtle text-primary small">Tally Import</span>
-        <span class="badge bg-primary-subtle text-primary small">Bill Verification</span>
-        <span class="badge bg-primary-subtle text-primary small">Credit Collection</span>
+        <span class="badge bg-primary-subtle text-primary small">Dashboard</span>
+        <span class="badge bg-primary-subtle text-primary small">PSO Series (Create & View)</span>
       </div>
     </div>
   </div>
@@ -454,10 +452,10 @@ document.addEventListener('DOMContentLoaded', function () {
       } else { // OPERATOR
         cbs.forEach(cb => cb.disabled = false);
         document.getElementById('add_perm_pso').checked = true;
-        document.getElementById('add_perm_import').checked = true;
-        document.getElementById('add_perm_bills').checked = true;
-        document.getElementById('add_perm_corrections').checked = true;
-        document.getElementById('add_perm_credit').checked = true;
+        document.getElementById('add_perm_import').checked = false;
+        document.getElementById('add_perm_bills').checked = false;
+        document.getElementById('add_perm_corrections').checked = false;
+        document.getElementById('add_perm_credit').checked = false;
         document.getElementById('add_perm_seal').checked = false;
         document.getElementById('add_perm_cutoff').checked = false;
         document.getElementById('add_perm_users').checked = false;
@@ -487,10 +485,10 @@ document.addEventListener('DOMContentLoaded', function () {
       } else { // OPERATOR
         cbs.forEach(cb => cb.disabled = false);
         document.getElementById('edit_perm_pso').checked = true;
-        document.getElementById('edit_perm_import').checked = true;
-        document.getElementById('edit_perm_bills').checked = true;
-        document.getElementById('edit_perm_corrections').checked = true;
-        document.getElementById('edit_perm_credit').checked = true;
+        document.getElementById('edit_perm_import').checked = false;
+        document.getElementById('edit_perm_bills').checked = false;
+        document.getElementById('edit_perm_corrections').checked = false;
+        document.getElementById('edit_perm_credit').checked = false;
         document.getElementById('edit_perm_seal').checked = false;
         document.getElementById('edit_perm_cutoff').checked = false;
         document.getElementById('edit_perm_users').checked = false;

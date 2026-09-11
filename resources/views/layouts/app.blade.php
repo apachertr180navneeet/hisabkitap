@@ -56,6 +56,8 @@
           </a>
         </li>
         @endif
+
+        @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
         @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_import_excel'))
         <li>
           <a href="{{ route('admin.import.index') }}" class="nav-item-custom {{ request()->routeIs('*.import.*') || request()->routeIs('import.*') ? 'active' : '' }}">
@@ -186,6 +188,7 @@
             <span>Sales Persons</span>
           </a>
         </li>
+        @endif
         @endif
         @endif
       </ul>
