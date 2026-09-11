@@ -141,26 +141,42 @@ class BillVerificationController extends Controller
         $bill->refund_amount = floatval($request->input('refund_amount', 0));
         $bill->net_amount = max(0, floatval($bill->amount) - $bill->cd_amount - $bill->refund_amount);
 
-        // Handle Split Payment (Cash + Paytm)
-        $isSplit = (bool) $request->input('is_split_payment', false) || ($normalizedPaymentType === 'Split');
+        // Handle Split Payment vs Standard Payment
         $cashAmt = floatval($request->input('cash_amount', 0));
         $paytmAmt = floatval($request->input('paytm_amount', 0));
+        $isSplit = (bool) $request->input('is_split_payment', false) || ($normalizedPaymentType === 'Split');
 
-        if ($isSplit || ($cashAmt > 0 && $paytmAmt > 0)) {
+        if (($isSplit && $cashAmt > 0 && $paytmAmt > 0) || ($cashAmt > 0 && $paytmAmt > 0)) {
             $bill->is_split_payment = true;
-            if ($cashAmt == 0 && $paytmAmt == 0) {
-                $bill->cash_amount = $bill->net_amount;
-                $bill->paytm_amount = 0;
-            } else {
-                $bill->cash_amount = $cashAmt;
-                $bill->paytm_amount = $paytmAmt;
-            }
+            $bill->cash_amount = $cashAmt;
+            $bill->paytm_amount = $paytmAmt;
             $bill->payment_type = 'Cash'; // Primary accounting bucket
-        } else {
+        } elseif ($normalizedPaymentType === 'Paytm' || ($paytmAmt > 0 && $cashAmt == 0)) {
             $bill->is_split_payment = false;
-            $bill->payment_type = $normalizedPaymentType === 'Split' ? 'Cash' : $normalizedPaymentType;
-            $bill->cash_amount = ($bill->payment_type === 'Cash') ? $bill->net_amount : 0;
-            $bill->paytm_amount = ($bill->payment_type === 'Paytm') ? $bill->net_amount : 0;
+            $bill->payment_type = 'Paytm';
+            $bill->paytm_amount = $bill->net_amount;
+            $bill->cash_amount = 0;
+        } elseif ($normalizedPaymentType === 'Check') {
+            $bill->is_split_payment = false;
+            $bill->payment_type = 'Check';
+            $bill->cash_amount = 0;
+            $bill->paytm_amount = 0;
+        } elseif ($normalizedPaymentType === 'Credit') {
+            $bill->is_split_payment = false;
+            $bill->payment_type = 'Credit';
+            $bill->cash_amount = 0;
+            $bill->paytm_amount = 0;
+        } elseif ($normalizedPaymentType === 'Cancelled') {
+            $bill->is_split_payment = false;
+            $bill->payment_type = 'Cancelled';
+            $bill->cash_amount = 0;
+            $bill->paytm_amount = 0;
+        } else {
+            // Default: Cash
+            $bill->is_split_payment = false;
+            $bill->payment_type = 'Cash';
+            $bill->cash_amount = $bill->net_amount;
+            $bill->paytm_amount = 0;
         }
 
         // Update Salesperson
