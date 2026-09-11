@@ -68,16 +68,17 @@
         <span class="badge bg-success-subtle text-success fw-bold">{{ $stats['approvers'] }} Active</span>
       </div>
       <h5 class="fw-bold text-dark mb-1">Accounts Approver</h5>
-      <p class="text-muted small mb-3">PSO Series Management</p>
+      <p class="text-muted small mb-3">PSO, Financial Workflow & Setup</p>
       
       <div class="p-2.5 bg-light rounded small text-secondary mb-3" style="font-size: 0.8rem;">
-        <i class="bi bi-shield-check text-success me-1"></i> <strong>Operational Access:</strong> Manage PSO Series (Add, Edit, Delete, Close/Goods Return).
+        <i class="bi bi-shield-check text-success me-1"></i> <strong>Operational Access:</strong> Manage PSO Series, Tally Import, Bill Verification, Financial Workflow, Prefix Master & Sales Persons.
       </div>
 
       <div class="d-flex align-items-center gap-1.5 flex-wrap">
-        <span class="badge bg-success-subtle text-success small">PSO Series Management</span>
-        <span class="badge bg-success-subtle text-success small">Add / Edit / Delete</span>
-        <span class="badge bg-success-subtle text-success small">Close & Goods Return</span>
+        <span class="badge bg-success-subtle text-success small">PSO Management</span>
+        <span class="badge bg-success-subtle text-success small">Tally & Bills</span>
+        <span class="badge bg-success-subtle text-success small">Financial Workflow</span>
+        <span class="badge bg-success-subtle text-success small">Prefix & Salespersons</span>
       </div>
     </div>
   </div>
@@ -554,12 +555,12 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById(`${prefix}_perm_pso_edit`).checked = true;
       document.getElementById(`${prefix}_perm_pso_delete`).checked = true;
       document.getElementById(`${prefix}_perm_pso_close`).checked = true;
-      document.getElementById(`${prefix}_perm_prefixes`).checked = false;
-      document.getElementById(`${prefix}_perm_salespersons`).checked = false;
-      document.getElementById(`${prefix}_perm_import`).checked = false;
-      document.getElementById(`${prefix}_perm_bills`).checked = false;
-      document.getElementById(`${prefix}_perm_corrections`).checked = false;
-      document.getElementById(`${prefix}_perm_credit`).checked = false;
+      document.getElementById(`${prefix}_perm_prefixes`).checked = true;
+      document.getElementById(`${prefix}_perm_salespersons`).checked = true;
+      document.getElementById(`${prefix}_perm_import`).checked = true;
+      document.getElementById(`${prefix}_perm_bills`).checked = true;
+      document.getElementById(`${prefix}_perm_corrections`).checked = true;
+      document.getElementById(`${prefix}_perm_credit`).checked = true;
       document.getElementById(`${prefix}_perm_seal`).checked = false;
       document.getElementById(`${prefix}_perm_cutoff`).checked = false;
       document.getElementById(`${prefix}_perm_users`).checked = false;

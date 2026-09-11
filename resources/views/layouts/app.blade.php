@@ -57,7 +57,7 @@
         </li>
         @endif
 
-        @if(!isset($currentUser) || !$currentUser || (!$currentUser->isOperator() && !$currentUser->isApprover()))
+        @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
         @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_import_excel'))
         <li>
           <a href="{{ route('admin.import.index') }}" class="nav-item-custom {{ request()->routeIs('*.import.*') || request()->routeIs('import.*') ? 'active' : '' }}">
@@ -151,7 +151,8 @@
         @endif
         @endif
 
-        @if(!isset($currentUser) || !$currentUser || (!$currentUser->isOperator() && !$currentUser->isApprover()))
+        @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users') || $currentUser->hasPermission('can_edit_cutoff') || $currentUser->hasPermission('can_manage_prefixes') || $currentUser->hasPermission('can_manage_salespersons'))
         <li class="menu-category">System & Administration</li>
         @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users'))
         <li>
@@ -185,6 +186,7 @@
             <span>Sales Persons</span>
           </a>
         </li>
+        @endif
         @endif
         @endif
       </ul>
