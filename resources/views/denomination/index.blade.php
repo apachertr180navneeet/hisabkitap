@@ -175,16 +175,12 @@
               <tbody>
                 @php
                   $denoms = [
-                    ['value' => 2000, 'name' => 'notes_2000', 'label' => '₹ 2,000 Note', 'badge' => 'bg-danger'],
                     ['value' => 500,  'name' => 'notes_500',  'label' => '₹ 500 Note',   'badge' => 'bg-secondary'],
                     ['value' => 200,  'name' => 'notes_200',  'label' => '₹ 200 Note',   'badge' => 'bg-warning text-dark'],
                     ['value' => 100,  'name' => 'notes_100',  'label' => '₹ 100 Note',   'badge' => 'bg-primary'],
                     ['value' => 50,   'name' => 'notes_50',   'label' => '₹ 50 Note',    'badge' => 'bg-info text-dark'],
                     ['value' => 20,   'name' => 'notes_20',   'label' => '₹ 20 Note',    'badge' => 'bg-success'],
                     ['value' => 10,   'name' => 'notes_10',   'label' => '₹ 10 Note',    'badge' => 'bg-dark'],
-                    ['value' => 5,    'name' => 'notes_5',    'label' => '₹ 5 Note',     'badge' => 'bg-secondary'],
-                    ['value' => 2,    'name' => 'notes_2',    'label' => '₹ 2 Note',     'badge' => 'bg-light text-dark border'],
-                    ['value' => 1,    'name' => 'notes_1',    'label' => '₹ 1 Note',     'badge' => 'bg-light text-dark border'],
                   ];
                 @endphp
 
@@ -370,7 +366,6 @@
               <!-- Note Breakdown Popover or small list -->
               <div class="mt-2 pt-2 border-top font-mono text-muted" style="font-size: 0.76rem;">
                 <span class="fw-semibold">Notes:</span> 
-                @if($d->notes_2000 > 0) 2000×{{ $d->notes_2000 }} @endif
                 @if($d->notes_500 > 0) 500×{{ $d->notes_500 }} @endif
                 @if($d->notes_200 > 0) 200×{{ $d->notes_200 }} @endif
                 @if($d->notes_100 > 0) 100×{{ $d->notes_100 }} @endif

@@ -22,16 +22,12 @@ return new class extends Migration
                 $table->string('gadi_number')->nullable();
                 
                 // Notes count
-                $table->integer('notes_2000')->default(0);
                 $table->integer('notes_500')->default(0);
                 $table->integer('notes_200')->default(0);
                 $table->integer('notes_100')->default(0);
                 $table->integer('notes_50')->default(0);
                 $table->integer('notes_20')->default(0);
                 $table->integer('notes_10')->default(0);
-                $table->integer('notes_5')->default(0);
-                $table->integer('notes_2')->default(0);
-                $table->integer('notes_1')->default(0);
                 
                 // Coins and totals
                 $table->decimal('coins_total', 14, 2)->default(0);
