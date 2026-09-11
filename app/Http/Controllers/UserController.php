@@ -52,15 +52,15 @@ class UserController extends Controller
         $canRecordCorrections = $isSuperAdmin ? true : $request->boolean('can_record_corrections', $roleInfo['default_permissions']['can_record_corrections']);
         $canRecordCredit = $isSuperAdmin ? true : $request->boolean('can_record_credit', $roleInfo['default_permissions']['can_record_credit']);
         $canApproveSealing = $isSuperAdmin ? true : $request->boolean('can_approve_sealing', $roleInfo['default_permissions']['can_approve_sealing']);
-        $canConfigurePso = $isSuperAdmin ? true : $request->boolean('can_configure_pso', $roleInfo['default_permissions']['can_configure_pso']);
-        $canManagePrefixes = $isSuperAdmin ? true : $request->boolean('can_manage_prefixes', $roleInfo['default_permissions']['can_manage_prefixes'] ?? true);
-        $canManageSalespersons = $isSuperAdmin ? true : $request->boolean('can_manage_salespersons', $roleInfo['default_permissions']['can_manage_salespersons'] ?? true);
         $canCreatePso = $isSuperAdmin ? true : $request->boolean('can_create_pso', $roleInfo['default_permissions']['can_create_pso'] ?? true);
         $canEditPso = $isSuperAdmin ? true : $request->boolean('can_edit_pso', $roleInfo['default_permissions']['can_edit_pso'] ?? true);
         $canDeletePso = $isSuperAdmin ? true : $request->boolean('can_delete_pso', $roleInfo['default_permissions']['can_delete_pso'] ?? true);
         $canClosePso = $isSuperAdmin ? true : $request->boolean('can_close_pso', $roleInfo['default_permissions']['can_close_pso'] ?? true);
-        $canEditCutoff = $isSuperAdmin ? true : $request->boolean('can_edit_cutoff', $roleInfo['default_permissions']['can_edit_cutoff']);
-        $canManageUsers = $isSuperAdmin ? true : $request->boolean('can_manage_users', $roleInfo['default_permissions']['can_manage_users']);
+        $canConfigurePso = $isSuperAdmin ? true : ($request->boolean('can_configure_pso', $roleInfo['default_permissions']['can_configure_pso'] ?? true) || $canCreatePso || $canEditPso || $canDeletePso || $canClosePso || in_array($validated['role_code'], ['OPERATOR', 'APPROVER']));
+        $canManagePrefixes = $isSuperAdmin ? true : $request->boolean('can_manage_prefixes', $roleInfo['default_permissions']['can_manage_prefixes'] ?? false);
+        $canManageSalespersons = $isSuperAdmin ? true : $request->boolean('can_manage_salespersons', $roleInfo['default_permissions']['can_manage_salespersons'] ?? false);
+        $canEditCutoff = $isSuperAdmin ? true : $request->boolean('can_edit_cutoff', $roleInfo['default_permissions']['can_edit_cutoff'] ?? false);
+        $canManageUsers = $isSuperAdmin ? true : $request->boolean('can_manage_users', $roleInfo['default_permissions']['can_manage_users'] ?? false);
 
         // Generate avatar initials
         $words = explode(' ', trim($validated['name']));
@@ -136,15 +136,16 @@ class UserController extends Controller
         $user->can_record_corrections = $isSuperAdmin ? true : $request->boolean('can_record_corrections');
         $user->can_record_credit = $isSuperAdmin ? true : $request->boolean('can_record_credit');
         $user->can_approve_sealing = $isSuperAdmin ? true : $request->boolean('can_approve_sealing');
-        $user->can_configure_pso = $isSuperAdmin ? true : $request->boolean('can_configure_pso');
-        $user->can_manage_prefixes = $isSuperAdmin ? true : $request->boolean('can_manage_prefixes');
-        $user->can_manage_salespersons = $isSuperAdmin ? true : $request->boolean('can_manage_salespersons');
         $user->can_create_pso = $isSuperAdmin ? true : $request->boolean('can_create_pso');
         $user->can_edit_pso = $isSuperAdmin ? true : $request->boolean('can_edit_pso');
         $user->can_delete_pso = $isSuperAdmin ? true : $request->boolean('can_delete_pso');
         $user->can_close_pso = $isSuperAdmin ? true : $request->boolean('can_close_pso');
+        $user->can_configure_pso = $isSuperAdmin ? true : ($request->boolean('can_configure_pso') || $user->can_create_pso || $user->can_edit_pso || $user->can_delete_pso || $user->can_close_pso || in_array($user->role_code, ['OPERATOR', 'APPROVER']));
+        $user->can_manage_prefixes = $isSuperAdmin ? true : $request->boolean('can_manage_prefixes');
+        $user->can_manage_salespersons = $isSuperAdmin ? true : $request->boolean('can_manage_salespersons');
         $user->can_edit_cutoff = $isSuperAdmin ? true : $request->boolean('can_edit_cutoff');
         $user->can_manage_users = $isSuperAdmin ? true : $request->boolean('can_manage_users');
+        $user->allowed_modules = $roleInfo['allowed_modules'];
 
         $user->save();
 

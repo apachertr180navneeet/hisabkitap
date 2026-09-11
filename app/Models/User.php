@@ -125,6 +125,18 @@ class User extends Authenticatable
             return true;
         }
 
+        if ($permission === 'can_configure_pso') {
+            return (bool) (
+                $this->can_configure_pso
+                || $this->can_create_pso
+                || $this->can_edit_pso
+                || $this->can_delete_pso
+                || $this->can_close_pso
+                || $this->isOperator()
+                || $this->isApprover()
+            );
+        }
+
         if ($permission === 'can_manage_prefixes') {
             return (bool) ($this->can_manage_prefixes ?? false);
         }
@@ -134,15 +146,15 @@ class User extends Authenticatable
         }
 
         if ($permission === 'can_create_pso') {
-            return (bool) ($this->can_create_pso ?? $this->can_configure_pso ?? false);
+            return (bool) ($this->can_create_pso ?? $this->can_configure_pso ?? $this->isOperator() ?? $this->isApprover() ?? false);
         }
 
         if ($permission === 'can_edit_pso') {
-            return (bool) ($this->can_edit_pso ?? $this->can_configure_pso ?? false);
+            return (bool) ($this->can_edit_pso ?? $this->can_configure_pso ?? $this->isOperator() ?? $this->isApprover() ?? false);
         }
 
         if ($permission === 'can_delete_pso') {
-            return (bool) ($this->can_delete_pso ?? $this->can_configure_pso ?? false);
+            return (bool) ($this->can_delete_pso ?? $this->can_configure_pso ?? $this->isOperator() ?? $this->isApprover() ?? false);
         }
 
         if ($permission === 'can_close_pso') {
@@ -221,8 +233,8 @@ class User extends Authenticatable
                 'badge_class' => 'bg-success',
                 'icon' => 'bi-shield-check',
                 'title' => 'Accounts Approver',
-                'tagline' => 'PSO Management, Master Reconciliation & Retention Auditing.',
-                'description' => 'Permitted to manage PSO Series (Add, Edit, Delete, Close/Goods Return) and review master reconciliation.',
+                'tagline' => 'Dashboard & PSO Series Management.',
+                'description' => 'Permitted to manage PSO Series (Add, Edit, Delete, Close/Goods Return).',
                 'default_permissions' => [
                     'can_edit_bills' => false,
                     'can_import_excel' => false,
@@ -240,7 +252,7 @@ class User extends Authenticatable
                     'can_manage_users' => false,
                     'is_read_only' => false,
                 ],
-                'allowed_modules' => ['Dashboard', 'PSO Series Management', 'Bill Verification', 'Master Reconciliation', '7-Day Retention', 'Reports'],
+                'allowed_modules' => ['Dashboard', 'PSO Series Management'],
             ],
         ];
     }

@@ -68,16 +68,16 @@
         <span class="badge bg-success-subtle text-success fw-bold">{{ $stats['approvers'] }} Active</span>
       </div>
       <h5 class="fw-bold text-dark mb-1">Accounts Approver</h5>
-      <p class="text-muted small mb-3">Variance Review & Master Reconciliation</p>
+      <p class="text-muted small mb-3">PSO Series Management</p>
       
       <div class="p-2.5 bg-light rounded small text-secondary mb-3" style="font-size: 0.8rem;">
-        <i class="bi bi-shield-check text-success me-1"></i> <strong>Operational Access:</strong> Manage PSO Series (Add, Edit, Delete, Close/Goods Return) and audit Master Reconciliation.
+        <i class="bi bi-shield-check text-success me-1"></i> <strong>Operational Access:</strong> Manage PSO Series (Add, Edit, Delete, Close/Goods Return).
       </div>
 
       <div class="d-flex align-items-center gap-1.5 flex-wrap">
-        <span class="badge bg-success-subtle text-success small">PSO (Add/Edit/Delete/Close)</span>
-        <span class="badge bg-success-subtle text-success small">Master Recon</span>
-        <span class="badge bg-success-subtle text-success small">7-Day Retention</span>
+        <span class="badge bg-success-subtle text-success small">PSO Series Management</span>
+        <span class="badge bg-success-subtle text-success small">Add / Edit / Delete</span>
+        <span class="badge bg-success-subtle text-success small">Close & Goods Return</span>
       </div>
     </div>
   </div>

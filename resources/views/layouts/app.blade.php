@@ -47,7 +47,7 @@
             <span>Dashboard</span>
           </a>
         </li>
-        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_configure_pso'))
+        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_configure_pso') || $currentUser->isOperator() || $currentUser->isApprover() || $currentUser->can_create_pso || $currentUser->can_edit_pso || $currentUser->can_delete_pso || $currentUser->can_close_pso)
         <li>
           <a href="{{ route('admin.pso.index') }}" class="nav-item-custom {{ request()->routeIs('*.pso.*') || request()->routeIs('pso.*') ? 'active' : '' }}">
             <i class="bi bi-diagram-3-fill"></i>
@@ -57,7 +57,7 @@
         </li>
         @endif
 
-        @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
+        @if(!isset($currentUser) || !$currentUser || (!$currentUser->isOperator() && !$currentUser->isApprover()))
         @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_import_excel'))
         <li>
           <a href="{{ route('admin.import.index') }}" class="nav-item-custom {{ request()->routeIs('*.import.*') || request()->routeIs('import.*') ? 'active' : '' }}">
@@ -119,6 +119,7 @@
           </a>
         </li>
 
+        @if(!isset($currentUser) || !$currentUser || (!$currentUser->isOperator() && !$currentUser->isApprover()))
         <li class="menu-category">Recon & Compliance</li>
         <li>
           <a href="{{ route('admin.reconciliation.index') }}" class="nav-item-custom {{ request()->routeIs('*.reconciliation.*') || request()->routeIs('reconciliation.*') ? 'active' : '' }}">
@@ -148,8 +149,9 @@
           </a>
         </li>
         @endif
+        @endif
 
-        @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
+        @if(!isset($currentUser) || !$currentUser || (!$currentUser->isOperator() && !$currentUser->isApprover()))
         <li class="menu-category">System & Administration</li>
         @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users'))
         <li>
