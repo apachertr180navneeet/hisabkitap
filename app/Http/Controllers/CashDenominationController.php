@@ -83,10 +83,15 @@ class CashDenominationController extends Controller
         }
 
         $scopedCountedCash = (float) $denominations->sum('total_physical_cash');
-        $scopedKmAllowance = (float) $denominations->sum('driver_km_allowance');
+        $scopedKmAllowance = (float) $denominations->sum('km_allowance_amount');
         $scopedKmCompleted = (float) $denominations->sum('total_km');
-        $scopedShortCash = (float) $denominations->sum('short_cash');
+        $scopedShortCash = (float) $denominations->sum('short_cash_amount');
         $scopedDenomCount = $denominations->count();
+
+        $activeDenom = null;
+        if ($selectedPso !== 'ALL') {
+            $activeDenom = $denominations->where('pso_code', $selectedPso)->first();
+        }
 
         // Available dates from bills and denominations
         $billDates = Bill::selectRaw('DISTINCT business_date')->whereNotNull('business_date')->pluck('business_date')->toArray();
@@ -101,6 +106,7 @@ class CashDenominationController extends Controller
             'metrics',
             'psoList',
             'denominations',
+            'activeDenom',
             'scopedBookCash',
             'scopedPaytm',
             'scopedTotalBills',
