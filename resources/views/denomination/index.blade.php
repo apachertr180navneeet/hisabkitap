@@ -286,11 +286,11 @@
           <div class="row g-2 mb-3">
             <div class="col-md-6">
               <label class="form-label small text-muted mb-1">Cashier / Receiver Name</label>
-              <input type="text" name="cashier_name" class="form-control form-control-sm" value="{{ $activeDenom && $activeDenom->cashier_name ? $activeDenom->cashier_name : session('active_user.name', 'Pooja Verma') }}">
+              <input type="text" name="cashier_name" id="denom_cashier_name" class="form-control form-control-sm" value="{{ $activeDenom && $activeDenom->cashier_name ? $activeDenom->cashier_name : session('active_user.name', 'Pooja Verma') }}">
             </div>
             <div class="col-md-6">
               <label class="form-label small text-muted mb-1">Remarks / Note</label>
-              <input type="text" name="remarks" class="form-control form-control-sm" placeholder="e.g. Driver cash submitted at counter close" value="{{ $activeDenom ? $activeDenom->remarks : '' }}">
+              <input type="text" name="remarks" id="denom_remarks" class="form-control form-control-sm" placeholder="e.g. Driver cash submitted at counter close" value="{{ $activeDenom ? $activeDenom->remarks : '' }}">
             </div>
           </div>
 
@@ -659,8 +659,11 @@ function loadDenominationIntoForm(denom) {
   if (document.getElementById('km_rate')) {
     document.getElementById('km_rate').value = (denom.km_rate !== undefined && denom.km_rate !== null) ? denom.km_rate : 0;
   }
-  if (document.getElementById('remarks') && denom.remarks) {
-    document.getElementById('remarks').value = denom.remarks;
+  if (document.getElementById('denom_cashier_name') && denom.cashier_name) {
+    document.getElementById('denom_cashier_name').value = denom.cashier_name;
+  }
+  if (document.getElementById('denom_remarks')) {
+    document.getElementById('denom_remarks').value = denom.remarks || '';
   }
 
   calculateTotal();
@@ -760,6 +763,14 @@ function loadCurrentModalSlipIntoForm() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  const psoSelect = document.getElementById('denom_pso_code');
+  if (psoSelect && psoSelect.value) {
+    const existing = recordedDenominations.find(d => d.pso_code === psoSelect.value);
+    if (existing) {
+      loadDenominationIntoForm(existing);
+      return;
+    }
+  }
   calculateTotal();
 });
 </script>
