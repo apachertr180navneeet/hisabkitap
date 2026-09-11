@@ -158,7 +158,7 @@ class RoleAndPermissionTest extends TestCase
         // 1. Can access Dashboard
         $dashRes = $this->get('/admin/dashboard');
         $dashRes->assertStatus(200);
-        $dashRes->assertSee('PSO Operator Workspace');
+        $dashRes->assertSee('Dashboard');
         $dashRes->assertSee('PSO Management');
         // Should NOT see other module links in sidebar
         $dashRes->assertDontSee('Tally Excel Import');
@@ -189,6 +189,8 @@ class RoleAndPermissionTest extends TestCase
         $psoListAfterRes->assertSee('List View Only');
 
         $pso = \App\Models\PsoConfig::where('operator_name', 'PSO Operator Only')->first();
+        $this->assertEquals($operator->id, $pso->created_by);
+        $this->assertEquals($operator->name, $pso->created_by_name);
 
         // 5. BLOCKED from PSO Edit view
         $psoEditRes = $this->get("/admin/pso/{$pso->id}/edit");

@@ -21,6 +21,7 @@ return new class extends Migration
             $table->integer('end_no')->default(10);
             $table->json('specials')->nullable(); // ["ITC 01", "ITC 03"]
             $table->string('operator_name');
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->boolean('is_active')->default(true);
             $table->text('description')->nullable();
             $table->timestamps();

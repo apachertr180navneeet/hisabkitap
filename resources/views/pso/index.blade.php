@@ -94,6 +94,11 @@
             </td>
             <td>
               <div class="fw-semibold text-dark">{{ $pso->operator_name }}</div>
+              @if($pso->created_by)
+                <div class="text-muted small mt-0.5" style="font-size: 0.73rem;">
+                  <i class="bi bi-person-check text-primary me-1"></i>Created by: <strong class="text-secondary">{{ $pso->created_by_name }}</strong>
+                </div>
+              @endif
               @if($pso->driver_name || $pso->gadi_number)
                 <div class="small mt-1 d-flex flex-wrap align-items-center gap-1">
                   @if($pso->gadi_number)

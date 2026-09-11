@@ -18,6 +18,7 @@ class PsoConfig extends Model
         'end_no',
         'specials',
         'operator_name',
+        'created_by',
         'driver_name',
         'helper_1',
         'helper_2',
@@ -88,5 +89,15 @@ class PsoConfig extends Model
     public function bills()
     {
         return $this->hasMany(Bill::class, 'pso_config_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function getCreatedByNameAttribute(): ?string
+    {
+        return $this->creator?->name ?? (is_numeric($this->created_by) ? ('User #' . $this->created_by) : $this->created_by);
     }
 }

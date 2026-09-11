@@ -44,10 +44,15 @@
 
       {{-- Card 1: PSO Identity & Operator Assignment --}}
       <div class="card border bg-white shadow-sm mb-4">
-        <div class="card-header bg-white py-3 px-4 border-bottom">
+        <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
           <h6 class="fw-bold mb-0 text-dark">
             <i class="bi bi-person-badge text-primary me-2"></i>PSO Identity & Operator Assignment
           </h6>
+          @if($pso->created_by)
+            <span class="badge bg-light text-secondary border font-mono small py-1 px-2">
+              <i class="bi bi-person-check text-primary me-1"></i>Created by: <strong>{{ $pso->created_by_name }}</strong>
+            </span>
+          @endif
         </div>
         <div class="card-body p-4">
           <div class="row g-3">

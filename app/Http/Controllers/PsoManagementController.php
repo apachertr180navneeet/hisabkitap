@@ -12,7 +12,7 @@ class PsoManagementController extends Controller
 {
     public function index()
     {
-        $psoList = PsoConfig::withCount('bills')->get();
+        $psoList = PsoConfig::with('creator')->withCount('bills')->get();
 
         return view('pso.index', compact('psoList'));
     }
@@ -142,6 +142,7 @@ class PsoManagementController extends Controller
         }
 
         $primary = $seriesList[0];
+        $createdByUserId = auth()->id();
 
         $pso = PsoConfig::create([
             'code' => $code,
@@ -152,6 +153,7 @@ class PsoManagementController extends Controller
             'end_no' => $primary['end_no'],
             'specials' => $specialsArr,
             'operator_name' => $validated['operator_name'],
+            'created_by' => $createdByUserId,
             'driver_name' => $validated['driver_name'] ?? $request->input('driver_name'),
             'helper_1' => $validated['helper_1'] ?? $request->input('helper_1'),
             'helper_2' => $validated['helper_2'] ?? $request->input('helper_2'),

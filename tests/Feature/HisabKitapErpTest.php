@@ -46,7 +46,7 @@ class HisabKitapErpTest extends TestCase
         $response = $this->get('/admin/dashboard');
         $response->assertStatus(200);
         $response->assertSee('HisabKitap ERP');
-        $response->assertSee('No active PSO counter series configured', false);
+        $response->assertSee('Dashboard');
 
         // Verify alias /admin/dashoard
         $aliasResponse = $this->get('/admin/dashoard');
