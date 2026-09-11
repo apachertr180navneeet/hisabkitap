@@ -121,9 +121,23 @@
           <select name="pso_id" class="form-select">
             <option value="ALL" selected>All PSOs (Auto-map by Series Prefix: CB, RB, etc.)</option>
             @foreach($psoList as $pso)
-              <option value="{{ $pso->code }}">{{ $pso->code }} ({{ $pso->prefix }} {{ sprintf('%02d', $pso->start_no) }}-{{ sprintf('%02d', $pso->end_no) }})</option>
+              @php
+                $ranges = $pso->getAllSeriesRanges();
+                $rangeSummary = collect($ranges)->map(function($r) {
+                  return ($r['prefix'] ?? '') . ' ' . sprintf('%02d', $r['start_no'] ?? 0) . '-' . sprintf('%02d', $r['end_no'] ?? 0);
+                })->implode(', ');
+                if (empty($rangeSummary)) {
+                  $rangeSummary = $pso->prefix . ' ' . sprintf('%02d', $pso->start_no) . '-' . sprintf('%02d', $pso->end_no);
+                }
+              @endphp
+              <option value="{{ $pso->code }}">{{ $pso->code }} ({{ $rangeSummary }})</option>
             @endforeach
           </select>
+          @if($psoList->isEmpty())
+            <div class="form-text text-muted small mt-1">
+              <i class="bi bi-info-circle me-1"></i> Only closed PSOs appear here. No closed PSOs found for this date.
+            </div>
+          @endif
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Cutoff Time Applied</label>

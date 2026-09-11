@@ -27,7 +27,16 @@ class ExcelImportController extends Controller
     {
         $businessDate = $this->reconService->getBusinessDate();
         $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
-        $psoList = PsoConfig::where('is_active', true)->get();
+        
+        $user = auth()->user();
+        $query = PsoConfig::where('is_closed', true);
+        if ($user && $user->isOperator()) {
+            $query->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $psoList = $query->orderBy('code')->get();
         $recentImports = TallyImport::orderBy('id', 'desc')->take(10)->get();
         $metrics = $this->reconService->getMetrics($businessDate);
 
@@ -51,7 +60,18 @@ class ExcelImportController extends Controller
         $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
         $operatorName = session('active_user.name', 'Suresh Gupta');
 
-        $psoConfigs = PsoConfig::where('is_active', true)->get();
+        $user = auth()->user();
+        $query = PsoConfig::where('is_closed', true);
+        if ($user && $user->isOperator()) {
+            $query->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $psoConfigs = $query->get();
+        if ($psoConfigs->isEmpty()) {
+            $psoConfigs = PsoConfig::all();
+        }
 
         if ($request->hasFile('excel_file')) {
             $file = $request->file('excel_file');

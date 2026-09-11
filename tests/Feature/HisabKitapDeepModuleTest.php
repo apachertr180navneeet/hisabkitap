@@ -76,6 +76,35 @@ class HisabKitapDeepModuleTest extends TestCase
         $response->assertSee('Tally');
     }
 
+    public function test_import_page_pso_dropdown_only_shows_closed_psos(): void
+    {
+        PsoConfig::create([
+            'code' => 'PSO-ACTIVE-OPEN',
+            'prefix' => 'OP',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'Open Operator',
+            'is_active' => true,
+            'is_closed' => false,
+        ]);
+
+        PsoConfig::create([
+            'code' => 'PSO-CLOSED-TARGET',
+            'prefix' => 'CL',
+            'start_no' => 11,
+            'end_no' => 20,
+            'operator_name' => 'Closed Operator',
+            'is_active' => false,
+            'is_closed' => true,
+            'closed_at' => now(),
+        ]);
+
+        $response = $this->get('/admin/import');
+        $response->assertStatus(200);
+        $response->assertSee('PSO-CLOSED-TARGET');
+        $response->assertDontSee('PSO-ACTIVE-OPEN');
+    }
+
     public function test_tally_import_without_file_creates_mock_record(): void
     {
         $response = $this->post('/admin/import', [
