@@ -126,11 +126,11 @@ class User extends Authenticatable
         }
 
         if ($permission === 'can_manage_prefixes') {
-            return (bool) ($this->can_manage_prefixes ?? $this->can_configure_pso ?? false);
+            return (bool) ($this->can_manage_prefixes ?? false);
         }
 
         if ($permission === 'can_manage_salespersons') {
-            return (bool) ($this->can_manage_salespersons ?? $this->can_configure_pso ?? false);
+            return (bool) ($this->can_manage_salespersons ?? false);
         }
 
         if ($permission === 'can_create_pso') {
@@ -193,8 +193,8 @@ class User extends Authenticatable
                 'badge_class' => 'bg-primary',
                 'icon' => 'bi-person-badge-fill',
                 'title' => 'PSO Operator',
-                'tagline' => 'Dashboard, PSO Management, Prefix Master & Sales Persons.',
-                'description' => 'Permitted to manage PSO Series (Add, Edit, Delete, Close/Goods Return), Prefix Master, and Sales Persons.',
+                'tagline' => 'Dashboard & PSO Series Management.',
+                'description' => 'Permitted to manage PSO Series (Add, Edit, Delete, Close/Goods Return).',
                 'default_permissions' => [
                     'can_edit_bills' => false,
                     'can_import_excel' => false,
@@ -202,8 +202,8 @@ class User extends Authenticatable
                     'can_record_credit' => false,
                     'can_approve_sealing' => false,
                     'can_configure_pso' => true,
-                    'can_manage_prefixes' => true,
-                    'can_manage_salespersons' => true,
+                    'can_manage_prefixes' => false,
+                    'can_manage_salespersons' => false,
                     'can_create_pso' => true,
                     'can_edit_pso' => true,
                     'can_delete_pso' => true,
@@ -212,7 +212,7 @@ class User extends Authenticatable
                     'can_manage_users' => false,
                     'is_read_only' => false,
                 ],
-                'allowed_modules' => ['Dashboard', 'PSO Series Management', 'Prefix Master', 'Sales Persons'],
+                'allowed_modules' => ['Dashboard', 'PSO Series Management'],
             ],
             'APPROVER' => [
                 'role_code' => 'APPROVER',

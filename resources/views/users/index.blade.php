@@ -49,13 +49,13 @@
       <p class="text-muted small mb-3">PSO Series, Prefix Master & Sales Persons</p>
       
       <div class="p-2.5 bg-light rounded small text-secondary mb-3" style="font-size: 0.8rem;">
-        <i class="bi bi-person-badge text-primary me-1"></i> <strong>Operational Access:</strong> Manage PSO Series (Add, Edit, Delete, Close/Goods Return), Series Prefix Master, and Sales Persons directory.
+        <i class="bi bi-person-badge text-primary me-1"></i> <strong>Operational Access:</strong> Manage PSO Series (Add, Edit, Delete, Close/Goods Return).
       </div>
 
       <div class="d-flex align-items-center gap-1.5 flex-wrap">
-        <span class="badge bg-primary-subtle text-primary small">PSO (Add/Edit/Delete/Close)</span>
-        <span class="badge bg-primary-subtle text-primary small">Prefix Master</span>
-        <span class="badge bg-primary-subtle text-primary small">Sales Persons</span>
+        <span class="badge bg-primary-subtle text-primary small">PSO Series Management</span>
+        <span class="badge bg-primary-subtle text-primary small">Add / Edit / Delete</span>
+        <span class="badge bg-primary-subtle text-primary small">Close & Goods Return</span>
       </div>
     </div>
   </div>
@@ -569,8 +569,8 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById(`${prefix}_perm_pso_edit`).checked = true;
       document.getElementById(`${prefix}_perm_pso_delete`).checked = true;
       document.getElementById(`${prefix}_perm_pso_close`).checked = true;
-      document.getElementById(`${prefix}_perm_prefixes`).checked = true;
-      document.getElementById(`${prefix}_perm_salespersons`).checked = true;
+      document.getElementById(`${prefix}_perm_prefixes`).checked = false;
+      document.getElementById(`${prefix}_perm_salespersons`).checked = false;
       document.getElementById(`${prefix}_perm_import`).checked = false;
       document.getElementById(`${prefix}_perm_bills`).checked = false;
       document.getElementById(`${prefix}_perm_corrections`).checked = false;

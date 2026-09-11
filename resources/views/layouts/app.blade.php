@@ -149,7 +149,7 @@
         </li>
         @endif
 
-        @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users') || $currentUser->hasPermission('can_edit_cutoff') || $currentUser->hasPermission('can_manage_prefixes') || $currentUser->hasPermission('can_manage_salespersons'))
+        @if(!isset($currentUser) || !$currentUser || !$currentUser->isOperator())
         <li class="menu-category">System & Administration</li>
         @if(!isset($currentUser) || !$currentUser || $currentUser->hasPermission('can_manage_users'))
         <li>

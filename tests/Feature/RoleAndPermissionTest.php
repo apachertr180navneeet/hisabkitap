@@ -26,11 +26,33 @@ class RoleAndPermissionTest extends TestCase
         $this->assertTrue($superAdmin->hasPermission('can_manage_users'));
         $this->assertTrue($superAdmin->hasPermission('can_approve_sealing'));
         $this->assertTrue($superAdmin->hasPermission('can_configure_pso'));
+        $this->assertTrue($superAdmin->hasPermission('can_manage_prefixes'));
+        $this->assertTrue($superAdmin->hasPermission('can_manage_salespersons'));
+        $this->assertTrue($superAdmin->hasPermission('can_create_pso'));
+        $this->assertTrue($superAdmin->hasPermission('can_edit_pso'));
+        $this->assertTrue($superAdmin->hasPermission('can_delete_pso'));
+        $this->assertTrue($superAdmin->hasPermission('can_close_pso'));
+        $this->assertTrue($superAdmin->hasPermission('can_edit_bills'));
+        $this->assertTrue($superAdmin->hasPermission('can_import_excel'));
+        $this->assertTrue($superAdmin->hasPermission('can_record_corrections'));
+        $this->assertTrue($superAdmin->hasPermission('can_record_credit'));
+        $this->assertTrue($superAdmin->hasPermission('can_edit_cutoff'));
 
         $this->actingAs($superAdmin);
         $this->assertTrue(Gate::allows('can_manage_users'));
         $this->assertTrue(Gate::allows('can_approve_sealing'));
         $this->assertTrue(Gate::allows('can_configure_pso'));
+        $this->assertTrue(Gate::allows('can_manage_prefixes'));
+        $this->assertTrue(Gate::allows('can_manage_salespersons'));
+        $this->assertTrue(Gate::allows('can_create_pso'));
+        $this->assertTrue(Gate::allows('can_edit_pso'));
+        $this->assertTrue(Gate::allows('can_delete_pso'));
+        $this->assertTrue(Gate::allows('can_close_pso'));
+        $this->assertTrue(Gate::allows('can_edit_bills'));
+        $this->assertTrue(Gate::allows('can_import_excel'));
+        $this->assertTrue(Gate::allows('can_record_corrections'));
+        $this->assertTrue(Gate::allows('can_record_credit'));
+        $this->assertTrue(Gate::allows('can_edit_cutoff'));
 
         // Operator
         $operator = User::create([
@@ -260,15 +282,15 @@ class RoleAndPermissionTest extends TestCase
         }
     }
 
-    public function test_operator_with_permissions_can_manage_pso_crud_prefixes_and_salespersons(): void
+    public function test_user_with_permissions_can_manage_pso_crud_prefixes_and_salespersons(): void
     {
-        $operator = User::create([
-            'code' => 'usr_full_op',
-            'name' => 'Full PSO Operator',
-            'email' => 'full_op@hisabkitap.in',
+        $customUser = User::create([
+            'code' => 'usr_full_mgr',
+            'name' => 'Full PSO Manager',
+            'email' => 'full_mgr@hisabkitap.in',
             'password' => Hash::make('password'),
-            'role_name' => 'PSO Operator',
-            'role_code' => 'OPERATOR',
+            'role_name' => 'Operations Manager',
+            'role_code' => 'OPS_MANAGER',
             'can_configure_pso' => true,
             'can_create_pso' => true,
             'can_edit_pso' => true,
@@ -280,7 +302,7 @@ class RoleAndPermissionTest extends TestCase
             'is_read_only' => false,
         ]);
 
-        $this->actingAs($operator);
+        $this->actingAs($customUser);
 
         // 1. Can access Prefix Master and create prefix
         $prefixRes = $this->get('/admin/prefix-master');
