@@ -82,6 +82,38 @@ class CashDenominationController extends Controller
             }
         }
 
+        // Build a complete per-PSO book cash map for dynamic client-side reconciliation
+        $allBills = Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false)->get();
+        $psoBookCashMap = [];
+        $totalAllCash = 0;
+
+        foreach ($psoList as $psoItem) {
+            $psoCash = 0;
+            $psoBills = $allBills->where('pso_code', $psoItem->code);
+            foreach ($psoBills as $b) {
+                $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
+                $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
+                if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+                    $psoCash += (float) $b->cash_amount;
+                } elseif ($b->payment_type === 'Cash') {
+                    $psoCash += $effective;
+                }
+            }
+            $psoBookCashMap[$psoItem->code] = round($psoCash, 2);
+        }
+
+        foreach ($allBills as $b) {
+            $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
+            $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
+            if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+                $totalAllCash += (float) $b->cash_amount;
+            } elseif ($b->payment_type === 'Cash') {
+                $totalAllCash += $effective;
+            }
+        }
+        $psoBookCashMap['ALL'] = round($totalAllCash, 2);
+        $psoBookCashMap[''] = round($totalAllCash, 2);
+
         $scopedCountedCash = (float) $denominations->sum('total_physical_cash');
         $scopedKmAllowance = (float) $denominations->sum('km_allowance_amount');
         $scopedKmCompleted = (float) $denominations->sum('total_km');
@@ -105,6 +137,7 @@ class CashDenominationController extends Controller
             'selectedPso',
             'metrics',
             'psoList',
+            'psoBookCashMap',
             'denominations',
             'activeDenom',
             'scopedBookCash',
@@ -163,16 +196,38 @@ class CashDenominationController extends Controller
         $kmRate  = (float) $request->input('km_rate', 0);
         $kmAllowance = $totalKm * $kmRate;
 
+        $psoCode = $request->input('pso_code');
         $bookCash = (float) $request->input('book_cash_amount', 0);
+
+        if ($bookCash <= 0 && $request->filled('business_date')) {
+            $billsForPsoQuery = Bill::whereDate('business_date', $request->input('business_date'))
+                ->where('is_post_cutoff', false);
+            if ($psoCode) {
+                $billsForPsoQuery->where('pso_code', $psoCode);
+            }
+            $psoBills = $billsForPsoQuery->get();
+            $calcCash = 0;
+            foreach ($psoBills as $b) {
+                $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
+                $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
+                if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+                    $calcCash += (float) $b->cash_amount;
+                } elseif ($b->payment_type === 'Cash') {
+                    $calcCash += $effective;
+                }
+            }
+            $bookCash = round($calcCash, 2);
+        }
+
         $expectedDeposit = max(0, $bookCash - $kmAllowance);
 
         $shortCash = 0;
         $excessCash = 0;
 
         if ($expectedDeposit > $physicalTotal) {
-            $shortCash = $expectedDeposit - $physicalTotal;
+            $shortCash = round($expectedDeposit - $physicalTotal, 2);
         } elseif ($physicalTotal > $expectedDeposit) {
-            $excessCash = $physicalTotal - $expectedDeposit;
+            $excessCash = round($physicalTotal - $expectedDeposit, 2);
         }
 
         $psoConfig = null;

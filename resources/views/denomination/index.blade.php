@@ -261,8 +261,8 @@
           <!-- Live Comparison Box -->
           <div class="p-3 mb-3 rounded border" id="live_comparison_box" style="background: #f8fafc;">
             <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="fw-semibold">1. Book Cash Bills:</span>
-              <span class="font-mono fw-bold text-primary">₹{{ number_format($scopedBookCash, 2) }}</span>
+              <span class="fw-semibold">1. Total Cash Bills:</span>
+              <span class="font-mono fw-bold text-primary fs-6" id="live_book_cash">₹{{ number_format($scopedBookCash, 2) }}</span>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="fw-semibold">2. Less KM Travel Allowance:</span>
@@ -273,12 +273,29 @@
               <span class="font-mono fw-bold text-dark fs-6" id="live_net_expected">₹{{ number_format($scopedBookCash, 2) }}</span>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="fw-bold">4. Physical Cash Counted:</span>
+              <span class="fw-bold">4. Cash Counted / Deposited:</span>
               <span class="font-mono fw-bold text-success fs-6" id="live_physical_counted">₹0.00</span>
             </div>
-            <div class="d-flex justify-content-between align-items-center pt-2 border-top" id="live_variance_row">
-              <span class="fw-bold" id="live_variance_label">Discrepancy / Short Cash:</span>
-              <span class="font-mono fw-bold fs-5 text-danger" id="live_variance_display">₹0.00</span>
+
+            <!-- Breakdown: Short, Excess, Status -->
+            <div class="row g-2 pt-2 border-top text-center bg-white p-2 rounded border" id="live_metrics_summary">
+              <div class="col-4 border-end">
+                <small class="text-muted d-block fw-semibold">Short Amount</small>
+                <strong class="font-mono text-danger fs-6" id="live_short_amount">₹0.00</strong>
+              </div>
+              <div class="col-4 border-end">
+                <small class="text-muted d-block fw-semibold">Excess Amount</small>
+                <strong class="font-mono text-info fs-6" id="live_excess_amount">₹0.00</strong>
+              </div>
+              <div class="col-4">
+                <small class="text-muted d-block fw-semibold">Status</small>
+                <span class="badge bg-success-subtle text-success border border-success px-2 py-1" id="live_status_badge">Matched</span>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-2 mt-2 border-top" id="live_variance_row">
+              <span class="fw-bold" id="live_variance_label">Reconciliation Status:</span>
+              <span class="font-mono fw-bold fs-5 text-success" id="live_variance_display">Matched (Zero Variance)</span>
             </div>
           </div>
 
@@ -508,6 +525,7 @@
 
 <script>
 const recordedDenominations = @json($denominations);
+const psoBookCashMap = @json($psoBookCashMap);
 let currentSelectedSlip = null;
 
 function adjustCount(inputId, delta) {
@@ -521,13 +539,13 @@ function adjustCount(inputId, delta) {
 
 function calculateTotal() {
   const inputs = document.querySelectorAll('.note-input');
-  let grandTotal = 0;
+  let physicalCounted = 0;
 
   inputs.forEach(input => {
     const val = parseFloat(input.getAttribute('data-val') || 0);
     const count = parseInt(input.value || 0, 10);
     const sub = val * (isNaN(count) ? 0 : count);
-    grandTotal += sub;
+    physicalCounted += sub;
 
     const subCell = document.getElementById('subtotal_' + input.name);
     if (subCell) {
@@ -537,16 +555,16 @@ function calculateTotal() {
 
   const coinsInput = document.getElementById('coins_total');
   const coins = parseFloat(coinsInput ? coinsInput.value : 0) || 0;
-  grandTotal += coins;
+  physicalCounted += coins;
   const coinsCell = document.getElementById('subtotal_coins');
   if (coinsCell) {
     coinsCell.textContent = '₹' + coins.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Display grand total
+  // Display grand total counted
   const grandDisplay = document.getElementById('grand_total_display');
   if (grandDisplay) {
-    grandDisplay.textContent = '₹' + grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    grandDisplay.textContent = '₹' + physicalCounted.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   // KM Allowance Calculation
@@ -564,10 +582,26 @@ function calculateTotal() {
     liveKmSub.textContent = '-₹' + kmAllowance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Live reconciliation comparison
-  const bookCash = parseFloat(document.getElementById('form_book_cash')?.value || 0) || 0;
-  const netExpected = Math.max(0, bookCash - kmAllowance);
+  // 1. Calculate Total Cash Amount for selected PSO
+  const psoSelect = document.getElementById('denom_pso_code');
+  const selectedPsoCode = psoSelect ? psoSelect.value : '';
+  let totalCash = 0;
+  if (psoBookCashMap && psoBookCashMap[selectedPsoCode] !== undefined) {
+    totalCash = parseFloat(psoBookCashMap[selectedPsoCode]) || 0;
+  } else {
+    totalCash = parseFloat(document.getElementById('form_book_cash')?.value || 0) || 0;
+  }
 
+  const formBookCashInput = document.getElementById('form_book_cash');
+  if (formBookCashInput) formBookCashInput.value = totalCash;
+
+  const liveBookCashEl = document.getElementById('live_book_cash');
+  if (liveBookCashEl) {
+    liveBookCashEl.textContent = '₹' + totalCash.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // 2. Net Cash Expected = Total Cash - KM Allowance
+  const netExpected = Math.max(0, totalCash - kmAllowance);
   const liveNetExpected = document.getElementById('live_net_expected');
   if (liveNetExpected) {
     liveNetExpected.textContent = '₹' + netExpected.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -575,29 +609,65 @@ function calculateTotal() {
 
   const liveCounted = document.getElementById('live_physical_counted');
   if (liveCounted) {
-    liveCounted.textContent = '₹' + grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    liveCounted.textContent = '₹' + physicalCounted.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  // 3 & 4 & 5. Reconciliation Calculation: Short, Excess, Matched
+  const diff = Math.round((netExpected - physicalCounted) * 100) / 100;
+  const liveShortAmount = document.getElementById('live_short_amount');
+  const liveExcessAmount = document.getElementById('live_excess_amount');
+  const liveStatusBadge = document.getElementById('live_status_badge');
   const liveVarianceLabel = document.getElementById('live_variance_label');
   const liveVarianceDisplay = document.getElementById('live_variance_display');
-  
-  if (liveVarianceDisplay) {
-    if (netExpected > grandTotal) {
-      const short = netExpected - grandTotal;
+
+  if (diff > 0.005) {
+    // Counted < Total Cash -> Short
+    const short = diff;
+    if (liveShortAmount) liveShortAmount.textContent = '₹' + short.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (liveExcessAmount) liveExcessAmount.textContent = '₹0.00';
+    if (liveStatusBadge) {
+      liveStatusBadge.className = 'badge bg-danger-subtle text-danger border border-danger px-2 py-1';
+      liveStatusBadge.textContent = 'Short by ₹' + short.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    if (liveVarianceLabel) {
       liveVarianceLabel.textContent = 'Short / Pending Cash:';
       liveVarianceLabel.className = 'fw-bold text-danger';
+    }
+    if (liveVarianceDisplay) {
       liveVarianceDisplay.textContent = '₹' + short.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Short';
       liveVarianceDisplay.className = 'font-mono fw-bold fs-5 text-danger';
-    } else if (grandTotal > netExpected) {
-      const excess = grandTotal - netExpected;
+    }
+  } else if (diff < -0.005) {
+    // Counted > Total Cash -> Excess
+    const excess = Math.abs(diff);
+    if (liveShortAmount) liveShortAmount.textContent = '₹0.00';
+    if (liveExcessAmount) liveExcessAmount.textContent = '₹' + excess.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (liveStatusBadge) {
+      liveStatusBadge.className = 'badge bg-info-subtle text-info border border-info px-2 py-1';
+      liveStatusBadge.textContent = 'Excess by ₹' + excess.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    if (liveVarianceLabel) {
       liveVarianceLabel.textContent = 'Excess Cash Deposited:';
       liveVarianceLabel.className = 'fw-bold text-info';
+    }
+    if (liveVarianceDisplay) {
       liveVarianceDisplay.textContent = '₹' + excess.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Excess';
       liveVarianceDisplay.className = 'font-mono fw-bold fs-5 text-info';
-    } else {
+    }
+  } else {
+    // Counted == Total Cash -> Matched
+    if (liveShortAmount) liveShortAmount.textContent = '₹0.00';
+    if (liveExcessAmount) liveExcessAmount.textContent = '₹0.00';
+    if (liveStatusBadge) {
+      liveStatusBadge.className = 'badge bg-success-subtle text-success border border-success px-2 py-1';
+      liveStatusBadge.textContent = 'Matched';
+    }
+    if (liveVarianceLabel) {
       liveVarianceLabel.textContent = 'Reconciliation Status:';
       liveVarianceLabel.className = 'fw-bold text-success';
-      liveVarianceDisplay.textContent = '₹0.00 (Zero Variance)';
+    }
+    if (liveVarianceDisplay) {
+      liveVarianceDisplay.textContent = '₹0.00 (Matched)';
       liveVarianceDisplay.className = 'font-mono fw-bold fs-5 text-success';
     }
   }
