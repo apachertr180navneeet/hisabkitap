@@ -12,7 +12,7 @@ class PsoManagementController extends Controller
 {
     public function index()
     {
-        $psoList = PsoConfig::with('creator')->withCount('bills')->get();
+        $psoList = PsoConfig::with(['creator', 'closer'])->withCount('bills')->get();
 
         return view('pso.index', compact('psoList'));
     }
@@ -296,6 +296,50 @@ class PsoManagementController extends Controller
         AuditLog::log('PSO_CONFIG_UPDATE', "Updated PSO series {$pso->code} range {$pso->prefix} {$pso->start_no}-{$pso->end_no}");
 
         return redirect()->route('admin.pso.index')->with('success', "PSO Configuration '{$pso->code}' updated successfully.");
+    }
+
+    public function closePso(Request $request, $id)
+    {
+        $pso = PsoConfig::findOrFail($id);
+
+        $hasGoodsReturn = $request->boolean('has_goods_return');
+        $returnAmount = $hasGoodsReturn ? (float)$request->input('goods_return_amount', 0) : 0;
+        $returnBillNo = $hasGoodsReturn ? $request->input('goods_return_bill_no') : null;
+        $returnParticulars = $hasGoodsReturn ? $request->input('goods_return_particulars') : null;
+
+        $pso->is_closed = true;
+        $pso->is_active = false;
+        $pso->closed_at = now();
+        $pso->closed_by = auth()->id();
+        $pso->has_goods_return = $hasGoodsReturn;
+        $pso->goods_return_amount = $returnAmount;
+        $pso->goods_return_bill_no = $returnBillNo;
+        $pso->goods_return_particulars = $returnParticulars;
+        $pso->save();
+
+        $logMsg = "Closed PSO series {$pso->code} by " . (auth()->user()?->name ?? 'Operator');
+        if ($hasGoodsReturn) {
+            $logMsg .= " with Goods Return of ₹" . number_format($returnAmount, 2) . ($returnBillNo ? " (Bill: {$returnBillNo})" : "");
+        } else {
+            $logMsg .= " (No Goods Return)";
+        }
+        AuditLog::log('PSO_CLOSED', $logMsg);
+
+        $successMsg = "PSO Series {$pso->code} has been closed successfully" . ($hasGoodsReturn ? " with Goods Return of ₹" . number_format($returnAmount, 2) . "." : ".");
+
+        return redirect()->route('admin.pso.index')->with('success', $successMsg);
+    }
+
+    public function reopenPso($id)
+    {
+        $pso = PsoConfig::findOrFail($id);
+        $pso->is_closed = false;
+        $pso->is_active = true;
+        $pso->save();
+
+        AuditLog::log('PSO_REOPENED', "Reopened PSO series {$pso->code}");
+
+        return redirect()->route('admin.pso.index')->with('success', "PSO Series {$pso->code} has been reopened.");
     }
 
     public function toggleStatus($id)

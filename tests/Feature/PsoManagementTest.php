@@ -310,4 +310,92 @@ class PsoManagementTest extends TestCase
         $this->assertCount(2, $pso->helpers_list);
         $this->assertEquals('Helper Sonu, Helper Monu', $pso->helpers_text);
     }
+
+    public function test_pso_operator_can_close_pso_with_goods_return(): void
+    {
+        $operator = User::firstOrCreate(
+            ['email' => 'op_pso_test@hisabkitap.in'],
+            [
+                'code' => 'usr_op_close_test',
+                'name' => 'Operator Test',
+                'password' => bcrypt('password'),
+                'role_name' => 'PSO Operator',
+                'role_code' => 'OPERATOR',
+                'can_configure_pso' => true,
+                'is_active' => true,
+            ]
+        );
+
+        $pso = PsoConfig::create([
+            'code' => 'PSO-RETURN-TEST',
+            'prefix' => 'SC',
+            'start_no' => 100,
+            'end_no' => 150,
+            'operator_name' => $operator->name,
+            'created_by' => $operator->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($operator)->post(route('admin.pso.close', $pso->id), [
+            'has_goods_return' => '1',
+            'goods_return_amount' => '450.50',
+            'goods_return_bill_no' => 'RET-9901',
+            'goods_return_particulars' => 'Damaged 2L bottle returned by customer',
+            'closing_notes' => 'Shift ended on time',
+        ]);
+
+        $response->assertRedirect(route('admin.pso.index'));
+        $response->assertSessionHas('success');
+
+        $pso->refresh();
+        $this->assertTrue($pso->is_closed);
+        $this->assertEquals($operator->id, $pso->closed_by);
+        $this->assertNotNull($pso->closed_at);
+        $this->assertTrue($pso->has_goods_return);
+        $this->assertEquals(450.50, (float) $pso->goods_return_amount);
+        $this->assertEquals('RET-9901', $pso->goods_return_bill_no);
+        $this->assertEquals('Damaged 2L bottle returned by customer', $pso->goods_return_particulars);
+        $this->assertEquals($operator->name, $pso->closed_by_name);
+        $this->assertEquals($operator->name, $pso->created_by_name);
+    }
+
+    public function test_pso_operator_can_close_pso_without_goods_return(): void
+    {
+        $operator = User::firstOrCreate(
+            ['email' => 'op_pso_test2@hisabkitap.in'],
+            [
+                'code' => 'usr_op_close_test2',
+                'name' => 'Operator Test Two',
+                'password' => bcrypt('password'),
+                'role_name' => 'PSO Operator',
+                'role_code' => 'OPERATOR',
+                'can_configure_pso' => true,
+                'is_active' => true,
+            ]
+        );
+
+        $pso = PsoConfig::create([
+            'code' => 'PSO-NO-RETURN',
+            'prefix' => 'SC',
+            'start_no' => 200,
+            'end_no' => 250,
+            'operator_name' => $operator->name,
+            'created_by' => $operator->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($operator)->post(route('admin.pso.close', $pso->id), [
+            'has_goods_return' => '0',
+            'closing_notes' => 'No return today, smooth shift',
+        ]);
+
+        $response->assertRedirect(route('admin.pso.index'));
+
+        $pso->refresh();
+        $this->assertTrue($pso->is_closed);
+        $this->assertFalse($pso->has_goods_return);
+        $this->assertEquals(0, (float) $pso->goods_return_amount);
+        $this->assertNull($pso->goods_return_bill_no);
+    }
 }
+

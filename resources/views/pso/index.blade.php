@@ -120,23 +120,65 @@
               @endif
             </td>
             <td>
-              <span class="badge {{ $pso->is_active ? 'bg-success' : 'bg-secondary' }}">
-                {{ $pso->is_active ? 'Active' : 'Inactive' }}
-              </span>
+              @if($pso->is_closed)
+                <span class="badge bg-dark">
+                  <i class="bi bi-lock-fill me-1"></i>Closed
+                </span>
+                @if($pso->has_goods_return && $pso->goods_return_amount > 0)
+                  <div class="text-danger font-mono small mt-0.5" style="font-size: 0.72rem;" title="{{ $pso->goods_return_particulars }}">
+                    <i class="bi bi-arrow-return-left me-0.5"></i>Return: ₹{{ number_format($pso->goods_return_amount, 2) }}
+                  </div>
+                @else
+                  <div class="text-muted small mt-0.5" style="font-size: 0.72rem;">No Returns</div>
+                @endif
+              @else
+                <span class="badge {{ $pso->is_active ? 'bg-success' : 'bg-secondary' }}">
+                  {{ $pso->is_active ? 'Active' : 'Inactive' }}
+                </span>
+              @endif
             </td>
             <td class="text-end text-nowrap">
               @if($currentUser && $currentUser->isOperator())
-                <span class="badge bg-light text-secondary border font-mono small py-1.5 px-2">
-                  <i class="bi bi-eye me-1 text-primary"></i>List View Only
-                </span>
+                @if($pso->is_closed)
+                  <span class="badge bg-secondary-subtle text-secondary border font-mono small py-1.5 px-2">
+                    <i class="bi bi-lock-fill text-muted me-1"></i>PSO Closed
+                  </span>
+                @else
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-open-close-modal"
+                          data-id="{{ $pso->id }}"
+                          data-code="{{ $pso->code }}"
+                          data-operator="{{ $pso->operator_name }}"
+                          title="Close this PSO Series">
+                    <i class="bi bi-door-closed-fill me-1"></i> Close PSO
+                  </button>
+                @endif
               @elseif($currentUser->hasPermission('can_configure_pso'))
               <div class="d-flex justify-content-end align-items-center gap-1">
+                {{-- Close / Reopen Action --}}
+                @if($pso->is_closed)
+                  <form action="{{ route('admin.pso.reopen', $pso->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-outline-success" title="Reopen PSO Series">
+                      <i class="bi bi-unlock-fill me-1"></i> Reopen
+                    </button>
+                  </form>
+                @else
+                  <button type="button" class="btn btn-sm btn-outline-warning btn-open-close-modal"
+                          data-id="{{ $pso->id }}"
+                          data-code="{{ $pso->code }}"
+                          data-operator="{{ $pso->operator_name }}"
+                          title="Close this PSO Series">
+                    <i class="bi bi-door-closed me-1"></i> Close
+                  </button>
+                @endif
+
                 {{-- Edit Action --}}
                 <a href="{{ route('admin.pso.edit', $pso->id) }}" class="btn btn-sm btn-outline-primary" title="Edit PSO Configuration">
                   <i class="bi bi-pencil-square me-1"></i> Edit
                 </a>
 
                 {{-- Status Toggle --}}
+                @if(!$pso->is_closed)
                 <form action="{{ route('admin.pso.toggle', $pso->id) }}" method="POST" class="d-inline">
                   @csrf
                   <button type="submit" class="btn btn-sm {{ $pso->is_active ? 'btn-outline-secondary' : 'btn-outline-success' }}" 
@@ -145,6 +187,7 @@
                     {{ $pso->is_active ? 'Disable' : 'Enable' }}
                   </button>
                 </form>
+                @endif
 
                 {{-- Delete Action (if safe) --}}
                 @if(($pso->bills_count ?? 0) === 0)
@@ -197,4 +240,137 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL: CLOSE PSO & GOODS RETURN CHECK -->
+<div class="modal fade" id="modal-close-pso" tabindex="-1" aria-labelledby="modalClosePsoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold" id="modalClosePsoLabel">
+          <i class="bi bi-door-closed-fill me-2"></i> Close PSO Series: <span id="close-modal-pso-code" class="font-mono"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="form-close-pso" method="POST">
+        @csrf
+        <div class="modal-body p-4">
+          <div class="p-3 bg-light rounded border mb-3">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="text-muted small">Assigned Operator:</span>
+              <strong id="close-modal-operator" class="text-dark"></strong>
+            </div>
+            <p class="text-secondary small mb-0">
+              Closing this PSO series locks the counter sequence for the day. Please verify any customer goods return below.
+            </p>
+          </div>
+
+          <!-- Question: Any Goods Return? -->
+          <div class="mb-3">
+            <label class="form-label fw-bold text-dark fs-6">
+              <i class="bi bi-question-circle text-primary me-1"></i> Are there any Goods Returned for this PSO counter? <span class="text-danger">*</span>
+            </label>
+            <div class="d-flex gap-3 mt-1">
+              <div class="form-check p-2.5 border rounded flex-fill bg-white">
+                <input class="form-check-input ms-1 me-2" type="radio" name="has_goods_return" id="goods_return_no" value="0" checked>
+                <label class="form-check-label fw-semibold text-dark cursor-pointer" for="goods_return_no">
+                  <i class="bi bi-check-circle text-success me-1"></i> No Goods Return
+                </label>
+                <div class="text-muted small ms-4">All items delivered cleanly</div>
+              </div>
+              <div class="form-check p-2.5 border rounded flex-fill bg-white">
+                <input class="form-check-input ms-1 me-2" type="radio" name="has_goods_return" id="goods_return_yes" value="1">
+                <label class="form-check-label fw-semibold text-danger cursor-pointer" for="goods_return_yes">
+                  <i class="bi bi-arrow-return-left text-danger me-1"></i> Yes, Goods Returned
+                </label>
+                <div class="text-muted small ms-4">Customer returned goods / refund</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conditional Goods Return Details Container -->
+          <div id="goods-return-details-card" class="p-3 border border-danger-subtle bg-danger-subtle rounded mb-3 d-none">
+            <h6 class="fw-bold text-danger mb-2">
+              <i class="bi bi-box-arrow-in-left me-1"></i> Goods Return Details
+            </h6>
+            <div class="mb-2">
+              <label class="form-label fw-semibold text-dark small">Return Amount (₹) <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-white">₹</span>
+                <input type="number" step="0.01" min="0.01" name="goods_return_amount" id="goods_return_amount" 
+                       class="form-control font-mono" placeholder="e.g. 1500.00">
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-semibold text-dark small">Bill / Invoice Reference (Optional)</label>
+              <input type="text" name="goods_return_bill_no" id="goods_return_bill_no" 
+                     class="form-control font-mono" placeholder="e.g. SC 6718">
+            </div>
+            <div>
+              <label class="form-label fw-semibold text-dark small">Particulars / Reason for Return</label>
+              <textarea name="goods_return_particulars" id="goods_return_particulars" class="form-control" rows="2" 
+                        placeholder="e.g. Damaged cartons returned by customer / cancelled order"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger fw-bold">
+            <i class="bi bi-door-closed-fill me-1"></i> Confirm & Close PSO
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const modalClosePso = document.getElementById('modal-close-pso');
+  const formClosePso = document.getElementById('form-close-pso');
+  const codeSpan = document.getElementById('close-modal-pso-code');
+  const operatorSpan = document.getElementById('close-modal-operator');
+  const goodsReturnDetailsCard = document.getElementById('goods-return-details-card');
+  const radioNo = document.getElementById('goods_return_no');
+  const radioYes = document.getElementById('goods_return_yes');
+  const inputAmount = document.getElementById('goods_return_amount');
+
+  function toggleGoodsReturnFields() {
+    if (radioYes.checked) {
+      goodsReturnDetailsCard.classList.remove('d-none');
+      inputAmount.setAttribute('required', 'required');
+    } else {
+      goodsReturnDetailsCard.classList.add('d-none');
+      inputAmount.removeAttribute('required');
+      inputAmount.value = '';
+    }
+  }
+
+  if (radioNo && radioYes) {
+    radioNo.addEventListener('change', toggleGoodsReturnFields);
+    radioYes.addEventListener('change', toggleGoodsReturnFields);
+  }
+
+  document.querySelectorAll('.btn-open-close-modal').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const psoId = this.dataset.id;
+      const psoCode = this.dataset.code;
+      const operator = this.dataset.operator || 'Assigned Operator';
+
+      if (formClosePso) {
+        formClosePso.action = `/admin/pso/${psoId}/close`;
+      }
+      if (codeSpan) codeSpan.textContent = psoCode;
+      if (operatorSpan) operatorSpan.textContent = operator;
+
+      if (radioNo) radioNo.checked = true;
+      toggleGoodsReturnFields();
+
+      const modal = new bootstrap.Modal(modalClosePso);
+      modal.show();
+    });
+  });
+});
+</script>
 @endsection

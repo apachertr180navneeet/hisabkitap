@@ -26,6 +26,13 @@ class PsoConfig extends Model
         'gadi_number',
         'vehicle_no',
         'is_active',
+        'is_closed',
+        'closed_at',
+        'closed_by',
+        'has_goods_return',
+        'goods_return_amount',
+        'goods_return_bill_no',
+        'goods_return_particulars',
         'description',
     ];
 
@@ -33,6 +40,10 @@ class PsoConfig extends Model
         'specials' => 'array',
         'series_ranges' => 'array',
         'is_active' => 'boolean',
+        'is_closed' => 'boolean',
+        'has_goods_return' => 'boolean',
+        'goods_return_amount' => 'decimal:2',
+        'closed_at' => 'datetime',
         'start_no' => 'integer',
         'end_no' => 'integer',
     ];
@@ -96,8 +107,18 @@ class PsoConfig extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function closer()
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
     public function getCreatedByNameAttribute(): ?string
     {
         return $this->creator?->name ?? (is_numeric($this->created_by) ? ('User #' . $this->created_by) : $this->created_by);
+    }
+
+    public function getClosedByNameAttribute(): ?string
+    {
+        return $this->closer?->name ?? (is_numeric($this->closed_by) ? ('User #' . $this->closed_by) : $this->closed_by);
     }
 }

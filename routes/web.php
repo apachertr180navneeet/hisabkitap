@@ -79,6 +79,8 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::post('/pso/{id}/update', [PsoManagementController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.update');
     Route::put('/pso/{id}', [PsoManagementController::class, 'update'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.put_update');
     Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.toggle');
+    Route::post('/pso/{id}/close', [PsoManagementController::class, 'closePso'])->middleware('read.only')->name('admin.pso.close');
+    Route::post('/pso/{id}/reopen', [PsoManagementController::class, 'reopenPso'])->middleware(['read.only', 'permission:can_manage_users'])->name('admin.pso.reopen');
     Route::delete('/pso/{id}', [PsoManagementController::class, 'destroy'])->middleware(['read.only', 'permission:can_configure_pso'])->name('admin.pso.delete');
 
     // 2. Tally Excel Import
@@ -186,6 +188,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/pso/{id}/update', [PsoManagementController::class, 'update'])->middleware('read.only')->name('pso.update');
     Route::put('/pso/{id}', [PsoManagementController::class, 'update'])->middleware('read.only')->name('pso.put_update');
     Route::post('/pso/{id}/toggle', [PsoManagementController::class, 'toggleStatus'])->middleware('read.only')->name('pso.toggle');
+    Route::post('/pso/{id}/close', [PsoManagementController::class, 'closePso'])->middleware('read.only')->name('pso.close');
+    Route::post('/pso/{id}/reopen', [PsoManagementController::class, 'reopenPso'])->middleware('read.only')->name('pso.reopen');
     Route::delete('/pso/{id}', [PsoManagementController::class, 'destroy'])->middleware('read.only')->name('pso.delete');
     Route::get('/import', [ExcelImportController::class, 'index'])->name('import.index');
     Route::post('/import', [ExcelImportController::class, 'import'])->middleware('read.only')->name('import.process');

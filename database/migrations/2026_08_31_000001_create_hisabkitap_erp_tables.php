@@ -23,6 +23,13 @@ return new class extends Migration
             $table->string('operator_name');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_closed')->default(false);
+            $table->timestamp('closed_at')->nullable();
+            $table->foreignId('closed_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->boolean('has_goods_return')->default(false);
+            $table->decimal('goods_return_amount', 14, 2)->default(0);
+            $table->string('goods_return_bill_no')->nullable();
+            $table->text('goods_return_particulars')->nullable();
             $table->text('description')->nullable();
             $table->timestamps();
         });

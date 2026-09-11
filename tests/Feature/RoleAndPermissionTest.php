@@ -183,14 +183,34 @@ class RoleAndPermissionTest extends TestCase
         $psoStoreRes->assertRedirect('/admin/pso');
         $this->assertDatabaseHas('pso_configs', ['operator_name' => 'PSO Operator Only']);
 
-        // 4b. Now that a PSO exists, verify 'List View Only' badge is rendered for operator
+        // 4b. Now that a PSO exists, verify 'Close PSO' button is rendered for operator
         $psoListAfterRes = $this->get('/admin/pso');
         $psoListAfterRes->assertStatus(200);
-        $psoListAfterRes->assertSee('List View Only');
+        $psoListAfterRes->assertSee('Close PSO');
 
         $pso = \App\Models\PsoConfig::where('operator_name', 'PSO Operator Only')->first();
         $this->assertEquals($operator->id, $pso->created_by);
         $this->assertEquals($operator->name, $pso->created_by_name);
+
+        // 4c. Operator closes PSO with Goods Return
+        $closeRes = $this->post("/admin/pso/{$pso->id}/close", [
+            'has_goods_return' => '1',
+            'goods_return_amount' => '1250.00',
+            'goods_return_bill_no' => 'CB 05',
+            'goods_return_particulars' => 'Customer returned defective item',
+        ]);
+        $closeRes->assertRedirect('/admin/pso');
+        $pso->refresh();
+        $this->assertTrue($pso->is_closed);
+        $this->assertTrue($pso->has_goods_return);
+        $this->assertEquals(1250.00, (float)$pso->goods_return_amount);
+        $this->assertEquals($operator->id, $pso->closed_by);
+        $this->assertEquals($operator->name, $pso->closed_by_name);
+
+        // 4d. Verify table shows 'PSO Closed' and return amount
+        $closedListRes = $this->get('/admin/pso');
+        $closedListRes->assertSee('PSO Closed');
+        $closedListRes->assertSee('1,250.00');
 
         // 5. BLOCKED from PSO Edit view
         $psoEditRes = $this->get("/admin/pso/{$pso->id}/edit");

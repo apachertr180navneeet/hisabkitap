@@ -22,6 +22,8 @@ class RestrictOperatorAccess
         'pso.create',
         'admin.pso.store',
         'pso.store',
+        'admin.pso.close',
+        'pso.close',
         'admin.profile',
         'profile',
         'admin.profile.update',
