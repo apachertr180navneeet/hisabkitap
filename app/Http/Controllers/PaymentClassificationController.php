@@ -17,7 +17,7 @@ class PaymentClassificationController extends Controller
 
     public function index(Request $request)
     {
-        $businessDate = $this->reconService->getBusinessDate();
+        $businessDate = $request->query('date', $this->reconService->getBusinessDate());
         $metrics = $this->reconService->getMetrics($businessDate);
 
         $query = Bill::whereDate('business_date', $businessDate)

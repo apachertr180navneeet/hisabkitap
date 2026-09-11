@@ -23,7 +23,19 @@ class CashDenominationController extends Controller
      */
     public function index(Request $request)
     {
-        $businessDate = $request->query('date', $this->reconService->getBusinessDate());
+        $businessDate = $request->query('date');
+        if (!$businessDate) {
+            $defaultDate = $this->reconService->getBusinessDate();
+            if (Bill::whereDate('business_date', $defaultDate)->exists() || CashDenomination::whereDate('business_date', $defaultDate)->exists()) {
+                $businessDate = $defaultDate;
+            } else {
+                $latestBillDate = Bill::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+                $latestDenomDate = CashDenomination::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+                $latestDate = $latestBillDate ?: $latestDenomDate;
+                $businessDate = $latestDate ? date('Y-m-d', strtotime($latestDate)) : $defaultDate;
+            }
+        }
+
         $selectedPso = $request->query('pso', 'ALL');
         $metrics = $this->reconService->getMetrics($businessDate);
 
@@ -70,12 +82,18 @@ class CashDenominationController extends Controller
             }
         }
 
-        // Available dates from bills
-        $availableDates = Bill::selectRaw('DISTINCT business_date')
-            ->orderBy('business_date', 'desc')
-            ->pluck('business_date')
-            ->map(fn($d) => is_string($d) ? $d : $d->format('Y-m-d'))
-            ->toArray();
+        $scopedCountedCash = (float) $denominations->sum('total_physical_cash');
+        $scopedKmAllowance = (float) $denominations->sum('driver_km_allowance');
+        $scopedKmCompleted = (float) $denominations->sum('total_km');
+        $scopedShortCash = (float) $denominations->sum('short_cash');
+        $scopedDenomCount = $denominations->count();
+
+        // Available dates from bills and denominations
+        $billDates = Bill::selectRaw('DISTINCT business_date')->whereNotNull('business_date')->pluck('business_date')->toArray();
+        $denomDates = CashDenomination::selectRaw('DISTINCT business_date')->whereNotNull('business_date')->pluck('business_date')->toArray();
+        $allDates = array_unique(array_filter(array_merge($billDates, $denomDates)));
+        rsort($allDates);
+        $availableDates = array_map(fn($d) => is_string($d) ? substr($d, 0, 10) : $d->format('Y-m-d'), $allDates);
 
         return view('denomination.index', compact(
             'businessDate',
@@ -86,6 +104,11 @@ class CashDenominationController extends Controller
             'scopedBookCash',
             'scopedPaytm',
             'scopedTotalBills',
+            'scopedCountedCash',
+            'scopedKmAllowance',
+            'scopedKmCompleted',
+            'scopedShortCash',
+            'scopedDenomCount',
             'availableDates'
         ));
     }

@@ -18,7 +18,20 @@ class ReconciliationService
      */
     public function getBusinessDate(): string
     {
-        return date('Y-m-d');
+        $settingDate = SystemSetting::getVal('business_date');
+        if ($settingDate) {
+            return $settingDate;
+        }
+
+        $today = date('Y-m-d');
+        if (Bill::whereDate('business_date', $today)->exists() || CashDenomination::whereDate('business_date', $today)->exists()) {
+            return $today;
+        }
+
+        $latestDate = Bill::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date')
+            ?: CashDenomination::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+
+        return $latestDate ? (is_string($latestDate) ? substr($latestDate, 0, 10) : $latestDate->format('Y-m-d')) : $today;
     }
 
     /**

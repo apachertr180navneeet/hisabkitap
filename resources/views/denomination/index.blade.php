@@ -78,8 +78,8 @@
         <i class="bi bi-cash-stack fs-4 text-success"></i>
       </div>
       <h6 class="text-muted small mb-1">Physical Cash Deposited</h6>
-      <div class="fs-4 fw-bold font-mono text-success">₹{{ number_format($metrics['totalPhysicalCash'], 2) }}</div>
-      <small class="text-muted">{{ $metrics['denominationCount'] }} handover slips recorded</small>
+      <div class="fs-4 fw-bold font-mono text-success">₹{{ number_format($scopedCountedCash, 2) }}</div>
+      <small class="text-muted">{{ $scopedDenomCount }} handover slips recorded</small>
     </div>
   </div>
 
@@ -90,22 +90,22 @@
         <i class="bi bi-speedometer2 fs-4 text-info"></i>
       </div>
       <h6 class="text-muted small mb-1">Driver KM Allowance</h6>
-      <div class="fs-4 fw-bold font-mono text-info">₹{{ number_format($metrics['totalKmAllowance'], 2) }}</div>
-      <small class="text-muted">{{ number_format($metrics['totalKmCompleted'], 1) }} KM total logged</small>
+      <div class="fs-4 fw-bold font-mono text-info">₹{{ number_format($scopedKmAllowance, 2) }}</div>
+      <small class="text-muted">{{ number_format($scopedKmCompleted, 1) }} KM total logged</small>
     </div>
   </div>
 
   <div class="col-md">
-    <div class="card border p-3 bg-white h-100 border-start border-4 {{ $metrics['totalShortCash'] > 0 ? 'border-danger' : 'border-secondary' }} shadow-sm">
+    <div class="card border p-3 bg-white h-100 border-start border-4 {{ $scopedShortCash > 0 ? 'border-danger' : 'border-secondary' }} shadow-sm">
       <div class="d-flex justify-content-between align-items-start mb-1">
-        <span class="badge {{ $metrics['totalShortCash'] > 0 ? 'bg-danger' : 'bg-secondary' }}">Variance</span>
-        <i class="bi bi-exclamation-octagon fs-4 {{ $metrics['totalShortCash'] > 0 ? 'text-danger' : 'text-secondary' }}"></i>
+        <span class="badge {{ $scopedShortCash > 0 ? 'bg-danger' : 'bg-secondary' }}">Variance</span>
+        <i class="bi bi-exclamation-octagon fs-4 {{ $scopedShortCash > 0 ? 'text-danger' : 'text-secondary' }}"></i>
       </div>
       <h6 class="text-muted small mb-1">Short / Pending Cash</h6>
-      <div class="fs-4 fw-bold font-mono {{ $metrics['totalShortCash'] > 0 ? 'text-danger' : 'text-dark' }}">
-        ₹{{ number_format($metrics['totalShortCash'], 2) }}
+      <div class="fs-4 fw-bold font-mono {{ $scopedShortCash > 0 ? 'text-danger' : 'text-dark' }}">
+        ₹{{ number_format($scopedShortCash, 2) }}
       </div>
-      <small class="text-muted">{{ $metrics['totalShortCash'] > 0 ? 'Pending recovery from driver' : 'No shortage detected' }}</small>
+      <small class="text-muted">{{ $scopedShortCash > 0 ? 'Pending recovery from driver' : 'No shortage detected' }}</small>
     </div>
   </div>
 

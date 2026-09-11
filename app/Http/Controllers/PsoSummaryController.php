@@ -16,9 +16,9 @@ class PsoSummaryController extends Controller
         $this->reconService = $reconService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $businessDate = $this->reconService->getBusinessDate();
+        $businessDate = $request->query('date', $this->reconService->getBusinessDate());
         $psoConfigs = PsoConfig::where('is_active', true)->get();
         $metrics = $this->reconService->getMetrics($businessDate);
 
