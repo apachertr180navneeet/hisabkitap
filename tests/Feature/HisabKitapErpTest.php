@@ -240,7 +240,8 @@ class HisabKitapErpTest extends TestCase
         $operator->refresh();
         $this->assertTrue($operator->isApprover());
         $this->assertTrue($operator->hasPermission('can_approve_sealing'));
-        $this->assertFalse($operator->hasPermission('can_import_excel'));
+        $this->assertTrue($operator->hasPermission('can_import_excel'));
+        $this->assertFalse($operator->hasPermission('can_manage_users'));
 
         // 4. Toggle Status
         $toggleRes = $this->post("/admin/users/{$operator->id}/toggle-status");

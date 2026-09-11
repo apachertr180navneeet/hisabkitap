@@ -356,4 +356,103 @@ class RoleAndPermissionTest extends TestCase
         $psoDelRes->assertRedirect('/admin/pso');
         $this->assertDatabaseMissing('pso_configs', ['id' => $pso->id]);
     }
+
+    public function test_pso_operator_only_sees_own_pso_data_and_not_approver_pso(): void
+    {
+        $approver = User::create([
+            'code' => 'usr_app_test',
+            'name' => 'Accounts Approver',
+            'email' => 'approver@hisabkitap.in',
+            'password' => Hash::make('password'),
+            'role_name' => 'Accounts Approver',
+            'role_code' => 'APPROVER',
+            'can_configure_pso' => true,
+            'can_create_pso' => true,
+            'can_edit_pso' => true,
+            'is_active' => true,
+        ]);
+
+        $operator1 = User::create([
+            'code' => 'usr_op_1',
+            'name' => 'PSO Operator 1',
+            'email' => 'operator1@hisabkitap.in',
+            'password' => Hash::make('password'),
+            'role_name' => 'PSO Operator',
+            'role_code' => 'OPERATOR',
+            'can_configure_pso' => true,
+            'can_create_pso' => true,
+            'can_close_pso' => true,
+            'is_active' => true,
+        ]);
+
+        $operator2 = User::create([
+            'code' => 'usr_op_2',
+            'name' => 'PSO Operator 2',
+            'email' => 'operator2@hisabkitap.in',
+            'password' => Hash::make('password'),
+            'role_name' => 'PSO Operator',
+            'role_code' => 'OPERATOR',
+            'can_configure_pso' => true,
+            'can_create_pso' => true,
+            'can_close_pso' => true,
+            'is_active' => true,
+        ]);
+
+        // 1. Approver creates a PSO
+        $psoApprover = \App\Models\PsoConfig::create([
+            'code' => 'PSO-APPROVER',
+            'prefix' => 'AP',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'Approver Desk',
+            'created_by' => $approver->id,
+            'is_active' => true,
+        ]);
+
+        // 2. Operator 1 creates a PSO
+        $psoOp1 = \App\Models\PsoConfig::create([
+            'code' => 'PSO-OP-1',
+            'prefix' => 'OP1',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'PSO Operator 1',
+            'created_by' => $operator1->id,
+            'is_active' => true,
+        ]);
+
+        // 3. Operator 2 creates a PSO
+        $psoOp2 = \App\Models\PsoConfig::create([
+            'code' => 'PSO-OP-2',
+            'prefix' => 'OP2',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'PSO Operator 2',
+            'created_by' => $operator2->id,
+            'is_active' => true,
+        ]);
+
+        // 4. Operator 1 logs in and views /admin/pso
+        $this->actingAs($operator1);
+        $resOp1 = $this->get('/admin/pso');
+        $resOp1->assertStatus(200);
+        $resOp1->assertSee('PSO-OP-1');
+        $resOp1->assertDontSee('PSO-APPROVER');
+        $resOp1->assertDontSee('PSO-OP-2');
+
+        // 5. Operator 2 logs in and views /admin/pso
+        $this->actingAs($operator2);
+        $resOp2 = $this->get('/admin/pso');
+        $resOp2->assertStatus(200);
+        $resOp2->assertSee('PSO-OP-2');
+        $resOp2->assertDontSee('PSO-APPROVER');
+        $resOp2->assertDontSee('PSO-OP-1');
+
+        // 6. Approver logs in and views /admin/pso (sees all)
+        $this->actingAs($approver);
+        $resApp = $this->get('/admin/pso');
+        $resApp->assertStatus(200);
+        $resApp->assertSee('PSO-APPROVER');
+        $resApp->assertSee('PSO-OP-1');
+        $resApp->assertSee('PSO-OP-2');
+    }
 }

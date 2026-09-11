@@ -12,7 +12,17 @@ class PsoManagementController extends Controller
 {
     public function index()
     {
-        $psoList = PsoConfig::with(['creator', 'closer'])->withCount('bills')->get();
+        $user = auth()->user();
+        $query = PsoConfig::with(['creator', 'closer'])->withCount('bills');
+
+        if ($user && $user->isOperator()) {
+            $query->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+
+        $psoList = $query->get();
 
         return view('pso.index', compact('psoList'));
     }
@@ -170,11 +180,17 @@ class PsoManagementController extends Controller
 
     public function edit($id)
     {
-        if (auth()->check() && !auth()->user()->hasPermission('can_edit_pso')) {
+        $user = auth()->user();
+        if ($user && !$user->hasPermission('can_edit_pso')) {
             return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to edit PSO configurations.');
         }
 
         $pso = PsoConfig::withCount('bills')->findOrFail($id);
+
+        if ($user && $user->isOperator() && $pso->created_by != $user->id && $pso->operator_name !== $user->name) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You can only edit your own PSO configurations.');
+        }
+
         $prefixes = Prefix::where('is_active', true)->orderBy('prefix')->get();
         $operators = User::orderBy('name')->pluck('name')
             ->merge(PsoConfig::distinct()->pluck('operator_name'))
@@ -194,11 +210,16 @@ class PsoManagementController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (auth()->check() && !auth()->user()->hasPermission('can_edit_pso')) {
+        $user = auth()->user();
+        if ($user && !$user->hasPermission('can_edit_pso')) {
             return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to edit PSO configurations.');
         }
 
         $pso = PsoConfig::findOrFail($id);
+
+        if ($user && $user->isOperator() && $pso->created_by != $user->id && $pso->operator_name !== $user->name) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You can only edit your own PSO configurations.');
+        }
 
         $validated = $request->validate([
             'prefix' => 'nullable',
@@ -302,6 +323,15 @@ class PsoManagementController extends Controller
     {
         $pso = PsoConfig::findOrFail($id);
 
+        $user = auth()->user();
+        if ($user && !$user->hasPermission('can_close_pso')) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to close PSO configurations.');
+        }
+
+        if ($user && $user->isOperator() && $pso->created_by != $user->id && $pso->operator_name !== $user->name) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You can only close your own PSO series.');
+        }
+
         $hasGoodsReturn = $request->boolean('has_goods_return');
         $returnAmount = $hasGoodsReturn ? (float)$request->input('goods_return_amount', 0) : 0;
         $returnBillNo = $hasGoodsReturn ? $request->input('goods_return_bill_no') : null;
@@ -344,11 +374,17 @@ class PsoManagementController extends Controller
 
     public function toggleStatus($id)
     {
-        if (auth()->check() && !auth()->user()->hasPermission('can_edit_pso')) {
+        $user = auth()->user();
+        if ($user && !$user->hasPermission('can_edit_pso')) {
             return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to enable or disable PSO series.');
         }
 
         $pso = PsoConfig::findOrFail($id);
+
+        if ($user && $user->isOperator() && $pso->created_by != $user->id && $pso->operator_name !== $user->name) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You can only toggle status of your own PSO series.');
+        }
+
         $pso->is_active = ! $pso->is_active;
         $pso->save();
 
@@ -359,11 +395,16 @@ class PsoManagementController extends Controller
 
     public function destroy($id)
     {
-        if (auth()->check() && !auth()->user()->hasPermission('can_delete_pso')) {
+        $user = auth()->user();
+        if ($user && !$user->hasPermission('can_delete_pso')) {
             return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You do not have permission to delete PSO configurations.');
         }
 
         $pso = PsoConfig::findOrFail($id);
+
+        if ($user && $user->isOperator() && $pso->created_by != $user->id && $pso->operator_name !== $user->name) {
+            return redirect()->route('admin.pso.index')->with('error', 'Access Denied: You can only delete your own PSO configurations.');
+        }
 
         if ($pso->bills()->count() > 0) {
             return redirect()->route('admin.pso.index')->with('warning', "Cannot delete PSO Series {$pso->code} because it already has linked bill records. You can disable it instead.");
