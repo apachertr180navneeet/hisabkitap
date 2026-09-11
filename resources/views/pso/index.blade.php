@@ -148,6 +148,7 @@
                           data-id="{{ $pso->id }}"
                           data-code="{{ $pso->code }}"
                           data-operator="{{ $pso->operator_name }}"
+                          data-action="{{ route('admin.pso.close', $pso->id) }}"
                           title="Close this PSO Series">
                     <i class="bi bi-door-closed-fill me-1"></i> Close PSO
                   </button>
@@ -167,6 +168,7 @@
                           data-id="{{ $pso->id }}"
                           data-code="{{ $pso->code }}"
                           data-operator="{{ $pso->operator_name }}"
+                          data-action="{{ route('admin.pso.close', $pso->id) }}"
                           title="Close this PSO Series">
                     <i class="bi bi-door-closed me-1"></i> Close
                   </button>
@@ -357,9 +359,10 @@ document.addEventListener('DOMContentLoaded', function () {
       const psoId = this.dataset.id;
       const psoCode = this.dataset.code;
       const operator = this.dataset.operator || 'Assigned Operator';
+      const actionUrl = this.dataset.action || `{{ url('admin/pso') }}/${psoId}/close`;
 
       if (formClosePso) {
-        formClosePso.action = `/admin/pso/${psoId}/close`;
+        formClosePso.action = actionUrl;
       }
       if (codeSpan) codeSpan.textContent = psoCode;
       if (operatorSpan) operatorSpan.textContent = operator;

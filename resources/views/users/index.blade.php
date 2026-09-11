@@ -501,7 +501,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.addEventListener('click', function () {
       const id = this.dataset.id;
       const form = document.getElementById('form-edit-user');
-      form.action = `/admin/users/${id}/update`;
+      form.action = `{{ url('admin/users') }}/${id}/update`;
 
       document.getElementById('edit-name').value = this.dataset.name;
       document.getElementById('edit-email').value = this.dataset.email;
@@ -544,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const id = this.dataset.id;
       const name = this.dataset.name;
       const form = document.getElementById('form-password-user');
-      form.action = `/admin/users/${id}/change-password`;
+      form.action = `{{ url('admin/users') }}/${id}/change-password`;
 
       document.getElementById('pwd-user-name').textContent = name;
 
