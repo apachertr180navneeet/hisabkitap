@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Models\CashDenomination;
 use App\Models\PsoConfig;
 use App\Models\Bill;
@@ -277,5 +278,249 @@ class CashDenominationController extends Controller
         AuditLog::log('CASH_DENOMINATION_DELETED', "Deleted denomination entry of ₹" . number_format($amt, 2) . " for date {$date}");
 
         return redirect()->back()->with('success', 'Cash denomination entry removed successfully.');
+    }
+
+    /**
+     * Export Cash Denominations and Note Breakdown to CSV/Excel
+     */
+    public function exportExcel(Request $request): StreamedResponse
+    {
+        $businessDate = $request->query('date');
+        if (!$businessDate) {
+            $defaultDate = $this->reconService->getBusinessDate();
+            $latestBillDate = Bill::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+            $latestDenomDate = CashDenomination::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+            $latestDate = $latestBillDate ?: $latestDenomDate;
+            $businessDate = $latestDate ? date('Y-m-d', strtotime($latestDate)) : $defaultDate;
+        }
+
+        $selectedPso = $request->query('pso', 'ALL');
+
+        $user = auth()->user();
+        $query = CashDenomination::whereDate('business_date', $businessDate);
+        if ($selectedPso !== 'ALL' && !empty($selectedPso)) {
+            $query->where('pso_code', $selectedPso);
+        }
+        if ($user && $user->isOperator()) {
+            $query->where(function ($q) use ($user) {
+                $q->whereHas('psoConfig', function ($sub) use ($user) {
+                    $sub->where('created_by', $user->id)
+                        ->orWhere('operator_name', $user->name);
+                })->orWhere('cashier_name', $user->name);
+            });
+        }
+
+        $records = $query->orderBy('id', 'asc')->get();
+
+        $filenameDate = $businessDate ?: date('Y-m-d');
+        $filenamePso = ($selectedPso !== 'ALL' && !empty($selectedPso)) ? "_{$selectedPso}" : '';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"Cash_Denomination_{$filenameDate}{$filenamePso}.csv\"",
+        ];
+
+        return response()->stream(function () use ($records, $businessDate) {
+            $handle = fopen('php://output', 'w');
+            // Write UTF-8 BOM for Excel compatibility
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Header Row
+            fputcsv($handle, [
+                'Slip ID',
+                'Business Date',
+                'PSO Counter',
+                'Driver / Handover By',
+                'Vehicle / Gadi No',
+                '500 Notes (Qty)',
+                '500 Amount (INR)',
+                '200 Notes (Qty)',
+                '200 Amount (INR)',
+                '100 Notes (Qty)',
+                '100 Amount (INR)',
+                '50 Notes (Qty)',
+                '50 Amount (INR)',
+                '20 Notes (Qty)',
+                '20 Amount (INR)',
+                '10 Notes (Qty)',
+                '10 Amount (INR)',
+                'Coins Total (INR)',
+                'Total Physical Cash (INR)',
+                'Trip KM',
+                'KM Rate (INR)',
+                'KM Allowance (INR)',
+                'Book Cash (INR)',
+                'Short Cash / Pending (INR)',
+                'Excess Cash (INR)',
+                'Cashier / Handled By',
+                'Remarks',
+                'Recorded Time'
+            ]);
+
+            $tot500Count = 0; $tot500Amt = 0;
+            $tot200Count = 0; $tot200Amt = 0;
+            $tot100Count = 0; $tot100Amt = 0;
+            $tot50Count = 0; $tot50Amt = 0;
+            $tot20Count = 0; $tot20Amt = 0;
+            $tot10Count = 0; $tot10Amt = 0;
+            $totCoins = 0; $totPhysical = 0;
+            $totKm = 0; $totKmAllowance = 0;
+            $totBookCash = 0; $totShortCash = 0; $totExcessCash = 0;
+
+            foreach ($records as $r) {
+                $a500 = (int)$r->notes_500 * 500;
+                $a200 = (int)$r->notes_200 * 200;
+                $a100 = (int)$r->notes_100 * 100;
+                $a50  = (int)$r->notes_50 * 50;
+                $a20  = (int)$r->notes_20 * 20;
+                $a10  = (int)$r->notes_10 * 10;
+
+                $tot500Count += (int)$r->notes_500; $tot500Amt += $a500;
+                $tot200Count += (int)$r->notes_200; $tot200Amt += $a200;
+                $tot100Count += (int)$r->notes_100; $tot100Amt += $a100;
+                $tot50Count  += (int)$r->notes_50;  $tot50Amt  += $a50;
+                $tot20Count  += (int)$r->notes_20;  $tot20Amt  += $a20;
+                $tot10Count  += (int)$r->notes_10;  $tot10Amt  += $a10;
+                $totCoins += (float)$r->coins_total;
+                $totPhysical += (float)$r->total_physical_cash;
+                $totKm += (float)$r->total_km;
+                $totKmAllowance += (float)$r->km_allowance_amount;
+                $totBookCash += (float)$r->book_cash_amount;
+                $totShortCash += (float)$r->short_cash_amount;
+                $totExcessCash += (float)$r->excess_cash_amount;
+
+                fputcsv($handle, [
+                    $r->id,
+                    $r->business_date ? date('d/m/Y', strtotime($r->business_date)) : '',
+                    $r->pso_code ?: 'General',
+                    $r->driver_name ?: '—',
+                    $r->gadi_number ?: '—',
+                    $r->notes_500,
+                    $a500,
+                    $r->notes_200,
+                    $a200,
+                    $r->notes_100,
+                    $a100,
+                    $r->notes_50,
+                    $a50,
+                    $r->notes_20,
+                    $a20,
+                    $r->notes_10,
+                    $a10,
+                    $r->coins_total,
+                    $r->total_physical_cash,
+                    $r->total_km,
+                    $r->km_rate,
+                    $r->km_allowance_amount,
+                    $r->book_cash_amount,
+                    $r->short_cash_amount,
+                    $r->excess_cash_amount,
+                    $r->cashier_name ?: '—',
+                    $r->remarks ?: '—',
+                    $r->created_at ? $r->created_at->format('d/m/Y H:i') : ''
+                ]);
+            }
+
+            // Summary Total Row
+            fputcsv($handle, [
+                'TOTAL',
+                date('d/m/Y', strtotime($businessDate)),
+                'ALL SCOPED',
+                '',
+                '',
+                $tot500Count,
+                $tot500Amt,
+                $tot200Count,
+                $tot200Amt,
+                $tot100Count,
+                $tot100Amt,
+                $tot50Count,
+                $tot50Amt,
+                $tot20Count,
+                $tot20Amt,
+                $tot10Count,
+                $tot10Amt,
+                $totCoins,
+                $totPhysical,
+                $totKm,
+                '',
+                $totKmAllowance,
+                $totBookCash,
+                $totShortCash,
+                $totExcessCash,
+                '',
+                '',
+                ''
+            ]);
+
+            fclose($handle);
+        }, 200, $headers);
+    }
+
+    /**
+     * Print / Export PDF slip for Cash Denomination
+     */
+    public function exportPdf(Request $request)
+    {
+        $businessDate = $request->query('date');
+        if (!$businessDate) {
+            $defaultDate = $this->reconService->getBusinessDate();
+            $latestBillDate = Bill::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+            $latestDenomDate = CashDenomination::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+            $latestDate = $latestBillDate ?: $latestDenomDate;
+            $businessDate = $latestDate ? date('Y-m-d', strtotime($latestDate)) : $defaultDate;
+        }
+
+        $selectedPso = $request->query('pso', 'ALL');
+        $slipId = $request->query('id');
+
+        $user = auth()->user();
+        $query = CashDenomination::whereDate('business_date', $businessDate);
+        if ($slipId) {
+            $query->where('id', $slipId);
+        } elseif ($selectedPso !== 'ALL' && !empty($selectedPso)) {
+            $query->where('pso_code', $selectedPso);
+        }
+
+        if ($user && $user->isOperator()) {
+            $query->where(function ($q) use ($user) {
+                $q->whereHas('psoConfig', function ($sub) use ($user) {
+                    $sub->where('created_by', $user->id)
+                        ->orWhere('operator_name', $user->name);
+                })->orWhere('cashier_name', $user->name);
+            });
+        }
+
+        $denominations = $query->orderBy('id', 'asc')->get();
+
+        // Calculate aggregate sums
+        $totals = [
+            'notes_500' => $denominations->sum('notes_500'),
+            'amt_500'   => $denominations->sum('notes_500') * 500,
+            'notes_200' => $denominations->sum('notes_200'),
+            'amt_200'   => $denominations->sum('notes_200') * 200,
+            'notes_100' => $denominations->sum('notes_100'),
+            'amt_100'   => $denominations->sum('notes_100') * 100,
+            'notes_50'  => $denominations->sum('notes_50'),
+            'amt_50'    => $denominations->sum('notes_50') * 50,
+            'notes_20'  => $denominations->sum('notes_20'),
+            'amt_20'    => $denominations->sum('notes_20') * 20,
+            'notes_10'  => $denominations->sum('notes_10'),
+            'amt_10'    => $denominations->sum('notes_10') * 10,
+            'coins_total' => $denominations->sum('coins_total'),
+            'total_physical_cash' => $denominations->sum('total_physical_cash'),
+            'total_km' => $denominations->sum('total_km'),
+            'km_allowance_amount' => $denominations->sum('km_allowance_amount'),
+            'book_cash_amount' => $denominations->sum('book_cash_amount'),
+            'short_cash_amount' => $denominations->sum('short_cash_amount'),
+            'excess_cash_amount' => $denominations->sum('excess_cash_amount'),
+        ];
+
+        return view('denomination.print', compact(
+            'businessDate',
+            'selectedPso',
+            'denominations',
+            'totals',
+            'slipId'
+        ));
     }
 }

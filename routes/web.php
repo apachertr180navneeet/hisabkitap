@@ -101,22 +101,34 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::get('/cash-denomination', [CashDenominationController::class, 'index'])->name('admin.denomination.index');
     Route::post('/cash-denomination/store', [CashDenominationController::class, 'store'])->middleware('read.only')->name('admin.denomination.store');
     Route::delete('/cash-denomination/{id}', [CashDenominationController::class, 'destroy'])->middleware('read.only')->name('admin.denomination.delete');
+    Route::get('/cash-denomination/export-excel', [CashDenominationController::class, 'exportExcel'])->name('admin.denomination.export_excel');
+    Route::get('/cash-denomination/export-pdf', [CashDenominationController::class, 'exportPdf'])->name('admin.denomination.export_pdf');
 
     // 4. Payment Classification
     Route::get('/payment-classification', [PaymentClassificationController::class, 'index'])->name('admin.payment.index');
+    Route::get('/payment-classification/export-excel', [PaymentClassificationController::class, 'exportExcel'])->name('admin.payment.export_excel');
+    Route::get('/payment-classification/export-pdf', [PaymentClassificationController::class, 'exportPdf'])->name('admin.payment.export_pdf');
 
     // 5. Corrections & Returns
     Route::get('/corrections', [CorrectionsController::class, 'index'])->name('admin.corrections.index');
     Route::post('/corrections/store', [CorrectionsController::class, 'store'])->middleware(['read.only', 'permission:can_record_corrections'])->name('admin.corrections.store');
+    Route::get('/corrections/export-excel', [CorrectionsController::class, 'exportExcel'])->name('admin.corrections.export_excel');
+    Route::get('/corrections/export-pdf', [CorrectionsController::class, 'exportPdf'])->name('admin.corrections.export_pdf');
 
     // 6. Credit Collection
     Route::get('/credit-collection', [CreditCollectionController::class, 'index'])->name('admin.credit.index');
     Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware(['read.only', 'permission:can_record_credit'])->name('admin.credit.update');
     Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('admin.credit.export');
+    Route::get('/credit-collection/export-excel', [CreditCollectionController::class, 'exportSheet'])->name('admin.credit.export_excel');
+    Route::get('/credit-collection/export-pdf', [CreditCollectionController::class, 'exportPdf'])->name('admin.credit.export_pdf');
 
     // 7. PSO Summary Matrix & Single PSO Detail
     Route::get('/pso-summary', [PsoSummaryController::class, 'index'])->name('admin.summary.index');
+    Route::get('/pso-summary/export-excel', [PsoSummaryController::class, 'exportExcel'])->name('admin.summary.export_excel');
+    Route::get('/pso-summary/export-pdf', [PsoSummaryController::class, 'exportPdf'])->name('admin.summary.export_pdf');
     Route::get('/pso-summary/{id}', [PsoSummaryController::class, 'show'])->name('admin.summary.show');
+    Route::get('/pso-summary/{id}/export-excel', [PsoSummaryController::class, 'exportSingleExcel'])->name('admin.summary.export_single_excel');
+    Route::get('/pso-summary/{id}/export-pdf', [PsoSummaryController::class, 'exportSinglePdf'])->name('admin.summary.export_single_pdf');
 
     // 8. Master Reconciliation Engine
     Route::get('/reconciliation', [MasterReconciliationController::class, 'index'])->name('admin.reconciliation.index');
@@ -204,6 +216,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/cash-denomination', [CashDenominationController::class, 'index'])->name('denomination.index');
     Route::post('/cash-denomination/store', [CashDenominationController::class, 'store'])->middleware('read.only')->name('denomination.store');
     Route::delete('/cash-denomination/{id}', [CashDenominationController::class, 'destroy'])->middleware('read.only')->name('denomination.delete');
+    Route::get('/cash-denomination/export-excel', [CashDenominationController::class, 'exportExcel'])->name('denomination.export_excel');
+    Route::get('/cash-denomination/export-pdf', [CashDenominationController::class, 'exportPdf'])->name('denomination.export_pdf');
     Route::get('/payment-classification', [PaymentClassificationController::class, 'index'])->name('payment.index');
     Route::get('/corrections', [CorrectionsController::class, 'index'])->name('corrections.index');
     Route::post('/corrections/store', [CorrectionsController::class, 'store'])->middleware('read.only')->name('corrections.store');

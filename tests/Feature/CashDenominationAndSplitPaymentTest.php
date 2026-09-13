@@ -280,4 +280,58 @@ class CashDenominationAndSplitPaymentTest extends TestCase
         $paymentResponse->assertSee('PSO-CLOSED-FINAL');
         $paymentResponse->assertDontSee('PSO-OPEN-UNCLOSED');
     }
+
+    public function test_cash_denomination_export_excel_and_pdf(): void
+    {
+        $pso = PsoConfig::create([
+            'code' => 'PSO-PRINT-TEST',
+            'prefix' => 'PT',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'Print Op',
+            'driver_name' => 'Driver Print',
+            'gadi_number' => 'RJ 14 PT 9999',
+            'is_active' => false,
+            'is_closed' => true,
+            'closed_at' => now(),
+        ]);
+
+        CashDenomination::create([
+            'business_date' => '2026-09-07',
+            'pso_config_id' => $pso->id,
+            'pso_code' => 'PSO-PRINT-TEST',
+            'driver_name' => 'Driver Print',
+            'gadi_number' => 'RJ 14 PT 9999',
+            'notes_500' => 10,
+            'notes_200' => 5,
+            'notes_100' => 20,
+            'notes_50' => 0,
+            'notes_20' => 0,
+            'notes_10' => 0,
+            'coins_total' => 50,
+            'total_physical_cash' => 8050.00,
+            'total_km' => 150,
+            'km_rate' => 2.0,
+            'km_allowance_amount' => 300.00,
+            'book_cash_amount' => 8500.00,
+            'short_cash_amount' => 150.00,
+            'excess_cash_amount' => 0.00,
+            'cashier_name' => 'Pooja Verma',
+            'remarks' => 'Test print record',
+        ]);
+
+        // 1. Test Excel / CSV Export
+        $excelResponse = $this->get('/admin/cash-denomination/export-excel?date=2026-09-07&pso=PSO-PRINT-TEST');
+        $excelResponse->assertStatus(200);
+        $excelResponse->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+
+        // 2. Test PDF / Print View
+        $pdfResponse = $this->get('/admin/cash-denomination/export-pdf?date=2026-09-07&pso=PSO-PRINT-TEST');
+        $pdfResponse->assertStatus(200);
+        $pdfResponse->assertSee('PHYSICAL CASH DENOMINATION');
+        $pdfResponse->assertSee('PSO-PRINT-TEST');
+        $pdfResponse->assertSee('Driver Print');
+        $pdfResponse->assertSee('₹8,050.00');
+        $pdfResponse->assertSee('Print / Save PDF');
+    }
 }

@@ -8,7 +8,13 @@
     <h4 class="fw-bold mb-1">Cash Denomination & Driver Handover</h4>
     <p class="text-muted mb-0">Note-by-note physical cash counting, Driver KM travel deductions, and real-time short cash discrepancy tracking.</p>
   </div>
-  <div class="d-flex gap-2 align-items-center">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <a href="{{ route('admin.denomination.export_excel', ['date' => $businessDate, 'pso' => $selectedPso]) }}" class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel me-1"></i> Excel
+    </a>
+    <a href="{{ route('admin.denomination.export_pdf', ['date' => $businessDate, 'pso' => $selectedPso]) }}" target="_blank" class="btn btn-danger btn-sm">
+      <i class="bi bi-file-earmark-pdf me-1"></i> PDF / Print
+    </a>
     <a href="{{ route('admin.reconciliation.index') }}" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-shield-check me-1"></i> Master Reconciliation
     </a>
@@ -375,6 +381,9 @@
                 @endif
 
                 <div class="d-flex align-items-center gap-1">
+                  <a href="{{ route('admin.denomination.export_pdf', ['date' => $businessDate, 'id' => $d->id]) }}" target="_blank" class="btn btn-sm btn-outline-danger px-2 py-1" title="Print / PDF Slip">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                  </a>
                   <button type="button" class="btn btn-sm btn-outline-primary px-2 py-1" title="View Denomination Details" onclick="openViewDenominationModal({{ $d->id }})">
                     <i class="bi bi-eye me-1"></i> View
                   </button>
@@ -514,6 +523,9 @@
         </div>
       </div>
       <div class="modal-footer bg-light py-2">
+        <button type="button" class="btn btn-danger btn-sm" onclick="printModalSlip()">
+          <i class="bi bi-file-earmark-pdf me-1"></i> Print / PDF Slip
+        </button>
         <button type="button" class="btn btn-primary btn-sm" onclick="loadCurrentModalSlipIntoForm()">
           <i class="bi bi-arrow-left-square-fill me-1"></i> Load into Calculator
         </button>
@@ -821,6 +833,16 @@ function openViewDenominationModal(id) {
 
   const modal = new bootstrap.Modal(document.getElementById('viewDenominationModal'));
   modal.show();
+}
+
+function printModalSlip() {
+  if (currentSelectedSlip && currentSelectedSlip.id) {
+    const url = '{{ route('admin.denomination.export_pdf') }}?date={{ $businessDate }}&id=' + currentSelectedSlip.id;
+    window.open(url, '_blank');
+  } else {
+    const url = '{{ route('admin.denomination.export_pdf', ['date' => $businessDate, 'pso' => $selectedPso]) }}';
+    window.open(url, '_blank');
+  }
 }
 
 function loadCurrentModalSlipIntoForm() {
