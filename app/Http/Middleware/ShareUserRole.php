@@ -43,7 +43,8 @@ class ShareUserRole
                 $allUsers = User::orderBy('id', 'asc')->get();
             }
 
-            $businessDate = date('Y-m-d');
+            $reconService = app(ReconciliationService::class);
+            $businessDate = $reconService->getBusinessDate();
             $formattedBusinessDate = date('d/m/Y', strtotime($businessDate));
             $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
 
@@ -52,7 +53,6 @@ class ShareUserRole
                 $isSealed = $seal ? (bool) $seal->is_sealed : false;
             }
 
-            $reconService = app(ReconciliationService::class);
             $metrics = $reconService->getMetrics($businessDate);
 
             $activeFinancialYear = SystemSetting::getVal('financial_year', '2026-2027');
