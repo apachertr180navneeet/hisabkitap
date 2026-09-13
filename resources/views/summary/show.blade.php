@@ -38,17 +38,18 @@
       </ul>
     </div>
 
-    <a href="{{ route('admin.verification.index', ['pso' => $pso->code]) }}" class="btn btn-primary">
-      <i class="bi bi-receipt-cutoff me-1"></i> Open in Bill Verification
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_single_excel' : 'summary.export_single_excel', $pso->id) }}" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i> Excel
     </a>
-
-    <a href="{{ route('admin.summary.index') }}" class="btn btn-outline-secondary">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_single_pdf' : 'summary.export_single_pdf', $pso->id) }}" target="_blank" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf me-1"></i> PDF / Print
+    </a>
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.verification.index' : 'verification.index', ['pso' => $pso->code]) }}" class="btn btn-primary">
+      <i class="bi bi-receipt-cutoff me-1"></i> Open in Verification
+    </a>
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.index' : 'summary.index') }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left me-1"></i> Back to Matrix
     </a>
-
-    <button class="btn btn-outline-primary" onclick="window.print()">
-      <i class="bi bi-printer me-1"></i> Print
-    </button>
   </div>
 </div>
 

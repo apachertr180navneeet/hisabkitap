@@ -8,13 +8,16 @@
     <h4 class="fw-bold mb-1">PSO Summary Matrix</h4>
     <p class="text-muted mb-0">Granular aggregate collection metrics for PSO 1, PSO 2 (+ITC), and PSO 3.</p>
   </div>
-  <div class="d-flex gap-2">
-    <a href="{{ route('admin.verification.index') }}" class="btn btn-primary">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_excel' : 'summary.export_excel') }}" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i> Excel
+    </a>
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_pdf' : 'summary.export_pdf') }}" target="_blank" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf me-1"></i> PDF / Print
+    </a>
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.verification.index' : 'verification.index') }}" class="btn btn-primary">
       <i class="bi bi-receipt-cutoff me-1"></i> View All Bills
     </a>
-    <button class="btn btn-outline-primary" onclick="window.print()">
-      <i class="bi bi-printer me-1"></i> Print Summary
-    </button>
   </div>
 </div>
 

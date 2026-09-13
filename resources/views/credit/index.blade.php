@@ -8,12 +8,12 @@
     <h4 class="fw-bold mb-1">Credit Collection Management</h4>
     <p class="text-muted mb-0">Dedicated ledger for bills sold on Credit. Assign to salesmen and export physical collection sheets.</p>
   </div>
-  <div class="d-flex gap-2">
-    <button class="btn btn-outline-secondary" onclick="window.print()">
-      <i class="bi bi-printer me-1"></i> Print Sheet
-    </button>
-    <a href="{{ route('credit.export') }}" class="btn btn-success">
-      <i class="bi bi-file-earmark-excel me-1"></i> Export Credit Collection Sheet
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.export_excel' : 'credit.export_excel') }}" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i> Download Excel
+    </a>
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.export_pdf' : 'credit.export_pdf') }}" target="_blank" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf me-1"></i> PDF / Print Sheet
     </a>
   </div>
 </div>

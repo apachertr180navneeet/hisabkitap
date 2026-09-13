@@ -69,28 +69,67 @@ class CreditCollectionController extends Controller
         $date = $this->reconService->getBusinessDate();
 
         $headers = [
-            'Content-Type' => 'text/csv',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"Credit_Collection_Sheet_{$date}.csv\"",
         ];
 
         return response()->stream(function () use ($credits) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Bill No', 'Customer Name', 'Assigned Salesman', 'Bill Date', 'Due Date', 'Total Amount', 'Paid Amount', 'Outstanding', 'Status', 'Remarks']);
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            fputcsv($handle, ['Bill No', 'Customer Name', 'Assigned Salesman', 'Bill Date', 'Due Date', 'Total Amount (INR)', 'Paid Amount (INR)', 'Outstanding (INR)', 'Status', 'Remarks']);
+            
+            $totSales = 0; $totPaid = 0; $totOut = 0;
             foreach ($credits as $c) {
+                $totSales += (float)$c->bill_amount;
+                $totPaid += (float)$c->paid_amount;
+                $totOut += (float)$c->outstanding_amount;
+                $bDate = $c->bill_date ? (is_string($c->bill_date) ? substr($c->bill_date, 0, 10) : $c->bill_date->format('d/m/Y')) : '';
+                $dDate = $c->due_date ? (is_string($c->due_date) ? substr($c->due_date, 0, 10) : $c->due_date->format('d/m/Y')) : '';
+
                 fputcsv($handle, [
                     $c->bill_no,
                     $c->customer_name,
-                    $c->salesman_name,
-                    $c->bill_date,
-                    $c->due_date,
+                    $c->salesman_name ?: '—',
+                    $bDate,
+                    $dDate,
                     $c->bill_amount,
                     $c->paid_amount,
                     $c->outstanding_amount,
                     $c->collection_status,
-                    $c->remark,
+                    $c->remark ?: '—',
                 ]);
             }
+
+            fputcsv($handle, [
+                'TOTAL',
+                count($credits) . ' Customers',
+                '',
+                '',
+                '',
+                $totSales,
+                $totPaid,
+                $totOut,
+                '',
+                ''
+            ]);
+
             fclose($handle);
         }, 200, $headers);
+    }
+
+    /**
+     * Print / Export PDF for Credit Collections
+     */
+    public function exportPdf(Request $request)
+    {
+        $businessDate = $this->reconService->getBusinessDate();
+        $credits = CreditCollection::orderBy('id', 'asc')->get();
+
+        $totSales = $credits->sum('bill_amount');
+        $totRecovered = $credits->sum('paid_amount');
+        $totOutstanding = $credits->sum('outstanding_amount');
+
+        return view('credit.print', compact('credits', 'businessDate', 'totSales', 'totRecovered', 'totOutstanding'));
     }
 }

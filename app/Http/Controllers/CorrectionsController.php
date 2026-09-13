@@ -7,6 +7,7 @@ use App\Models\Bill;
 use App\Models\Correction;
 use App\Services\ReconciliationService;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CorrectionsController extends Controller
 {
@@ -76,5 +77,95 @@ class CorrectionsController extends Controller
         AuditLog::log('CORRECTION_ADDED', "Recorded adjustment {$corrCode} for {$bill->bill_no}: Net deduction ₹".abs($netAdj)." ({$request->reason})");
 
         return redirect()->back()->with('success', "Adjustment {$corrCode} recorded successfully for bill {$bill->bill_no}.");
+    }
+
+    /**
+     * Export Corrections to CSV / Excel
+     */
+    public function exportExcel(Request $request): StreamedResponse
+    {
+        $corrections = Correction::orderBy('id', 'desc')->get();
+        $date = $this->reconService->getBusinessDate();
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"Corrections_and_Returns_{$date}.csv\"",
+        ];
+
+        return response()->stream(function () use ($corrections, $date) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            fputcsv($handle, [
+                'Correction Code',
+                'Bill No',
+                'Original Bill Amount (INR)',
+                'Correction Type',
+                'Cash Discount CD (INR)',
+                'Goods Return (INR)',
+                'Refund Amount (INR)',
+                'Net Adjustment (INR)',
+                'Reason / Remarks',
+                'Approved By',
+                'Date & Time'
+            ]);
+
+            $totOriginal = 0; $totCd = 0; $totReturn = 0; $totRefund = 0; $totNetAdj = 0;
+
+            foreach ($corrections as $c) {
+                $totOriginal += (float)$c->original_amount;
+                $totCd += (float)$c->cd_amount;
+                $totReturn += (float)$c->goods_return_amount;
+                $totRefund += (float)$c->refund_amount;
+                $totNetAdj += (float)$c->net_adjustment;
+                $cDate = $c->created_at ? $c->created_at->format('d/m/Y H:i') : '';
+
+                fputcsv($handle, [
+                    $c->corr_code,
+                    $c->bill_no,
+                    $c->original_amount,
+                    $c->correction_type,
+                    $c->cd_amount,
+                    $c->goods_return_amount,
+                    $c->refund_amount,
+                    $c->net_adjustment,
+                    $c->reason,
+                    $c->approved_by,
+                    $cDate
+                ]);
+            }
+
+            fputcsv($handle, [
+                'TOTAL',
+                count($corrections) . ' Entries',
+                $totOriginal,
+                '',
+                $totCd,
+                $totReturn,
+                $totRefund,
+                $totNetAdj,
+                '',
+                '',
+                ''
+            ]);
+
+            fclose($handle);
+        }, 200, $headers);
+    }
+
+    /**
+     * Print / Export PDF for Corrections & Returns
+     */
+    public function exportPdf(Request $request)
+    {
+        $businessDate = $this->reconService->getBusinessDate();
+        $corrections = Correction::orderBy('id', 'desc')->get();
+
+        $totCd = Correction::sum('cd_amount');
+        $totReturn = Correction::sum('goods_return_amount');
+        $totRefund = Correction::sum('refund_amount');
+        $totNetAdj = Correction::sum('net_adjustment');
+
+        return view('corrections.print', compact('corrections', 'businessDate', 'totCd', 'totReturn', 'totRefund', 'totNetAdj'));
     }
 }

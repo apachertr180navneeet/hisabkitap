@@ -8,9 +8,17 @@
     <h4 class="fw-bold mb-1">Corrections, Cash Discounts & Goods Returns</h4>
     <p class="text-muted mb-0">Record and audit post-billing corrections, volume cash discounts (CD), and damaged returns.</p>
   </div>
-  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-add-correction">
-    <i class="bi bi-plus-circle me-1"></i> Record New Correction / Return
-  </button>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.corrections.export_excel' : 'corrections.export_excel') }}" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i> Excel
+    </a>
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.corrections.export_pdf' : 'corrections.export_pdf') }}" target="_blank" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf me-1"></i> PDF / Print
+    </a>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-add-correction">
+      <i class="bi bi-plus-circle me-1"></i> Record New Correction / Return
+    </button>
+  </div>
 </div>
 
 <div class="row g-3 mb-4">

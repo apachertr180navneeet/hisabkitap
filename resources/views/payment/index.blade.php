@@ -14,6 +14,12 @@
     <p class="text-muted mb-0">Classification of gross collections into distinct clearing buckets based on accounting treatment.</p>
   </div>
   <div class="d-flex gap-2 align-items-center flex-wrap">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.payment.export_excel' : 'payment.export_excel', request()->query()) }}" class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel me-1"></i> Excel
+    </a>
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.payment.export_pdf' : 'payment.export_pdf', request()->query()) }}" target="_blank" class="btn btn-danger btn-sm">
+      <i class="bi bi-file-earmark-pdf me-1"></i> PDF / Print
+    </a>
     @if(request()->filled('date') || request()->filled('pso') || request()->filled('search') || (request()->filled('paytype') && request('paytype') !== 'ALL'))
       <a href="{{ route($routeName) }}" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters

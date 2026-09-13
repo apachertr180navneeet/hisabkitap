@@ -306,7 +306,8 @@ class HisabKitapDeepModuleTest extends TestCase
 
     public function test_pso_summary_matrix_page_loads(): void
     {
-        $this->makePso();
+        $pso = $this->makePso();
+        $pso->update(['is_closed' => true]);
         $this->makeBill(['payment_type' => 'Cash', 'amount' => 10000, 'net_amount' => 10000]);
         $this->makeBill(['bill_no' => 'CB 02', 'payment_type' => 'Paytm', 'amount' => 5000, 'net_amount' => 4800]);
 
@@ -925,5 +926,96 @@ class HisabKitapDeepModuleTest extends TestCase
         ]);
         $res->assertStatus(200);
         $this->assertEquals('Cancelled', Bill::first()->status);
+    }
+
+    public function test_payment_classification_export_excel_and_pdf(): void
+    {
+        $this->makePso();
+        $this->makeBill(['payment_type' => 'Cash', 'amount' => 5000, 'net_amount' => 5000]);
+
+        $excelRes = $this->get('/admin/payment-classification/export-excel');
+        $excelRes->assertStatus(200);
+        $this->assertStringContainsString('text/csv', $excelRes->headers->get('Content-Type'));
+
+        $pdfRes = $this->get('/admin/payment-classification/export-pdf');
+        $pdfRes->assertStatus(200);
+        $pdfRes->assertSee('Payment Classification');
+        $pdfRes->assertSee('Print / Save PDF');
+    }
+
+    public function test_corrections_export_excel_and_pdf(): void
+    {
+        $this->makePso();
+        $bill = $this->makeBill(['amount' => 2000, 'net_amount' => 2000]);
+
+        Correction::create([
+            'corr_code' => 'CORR-01',
+            'bill_id' => $bill->id,
+            'bill_no' => $bill->bill_no,
+            'original_amount' => 2000,
+            'correction_type' => 'Cash Discount (CD)',
+            'cd_amount' => 200,
+            'goods_return_amount' => 0,
+            'refund_amount' => 0,
+            'net_adjustment' => -200,
+            'reason' => 'Volume CD',
+            'approved_by' => 'Pooja Verma',
+        ]);
+
+        $excelRes = $this->get('/admin/corrections/export-excel');
+        $excelRes->assertStatus(200);
+        $this->assertStringContainsString('text/csv', $excelRes->headers->get('Content-Type'));
+
+        $pdfRes = $this->get('/admin/corrections/export-pdf');
+        $pdfRes->assertStatus(200);
+        $pdfRes->assertSee('CORR-01');
+        $pdfRes->assertSee('Print / Save PDF');
+    }
+
+    public function test_credit_collection_export_pdf(): void
+    {
+        CreditCollection::create([
+            'bill_no' => 'CB 99',
+            'customer_name' => 'Credit PDF Customer',
+            'salesman_name' => 'Ravi',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 3000,
+            'paid_amount' => 1000,
+            'outstanding_amount' => 2000,
+            'collection_status' => 'Partially Collected',
+        ]);
+
+        $excelRes = $this->get('/admin/credit-collection/export-excel');
+        $excelRes->assertStatus(200);
+        $this->assertStringContainsString('text/csv', $excelRes->headers->get('Content-Type'));
+
+        $pdfRes = $this->get('/admin/credit-collection/export-pdf');
+        $pdfRes->assertStatus(200);
+        $pdfRes->assertSee('Credit PDF Customer');
+        $pdfRes->assertSee('Print / Save PDF');
+    }
+
+    public function test_pso_summary_matrix_export_excel_and_pdf(): void
+    {
+        $pso = $this->makePso();
+        $this->makeBill(['payment_type' => 'Cash', 'amount' => 5000, 'net_amount' => 5000]);
+
+        $excelRes = $this->get('/admin/pso-summary/export-excel');
+        $excelRes->assertStatus(200);
+        $this->assertStringContainsString('text/csv', $excelRes->headers->get('Content-Type'));
+
+        $pdfRes = $this->get('/admin/pso-summary/export-pdf');
+        $pdfRes->assertStatus(200);
+        $pdfRes->assertSee('PSO Summary Matrix');
+        $pdfRes->assertSee('Print / Save PDF');
+
+        $singleExcelRes = $this->get("/admin/pso-summary/{$pso->id}/export-excel");
+        $singleExcelRes->assertStatus(200);
+        $this->assertStringContainsString('text/csv', $singleExcelRes->headers->get('Content-Type'));
+
+        $singlePdfRes = $this->get("/admin/pso-summary/{$pso->id}/export-pdf");
+        $singlePdfRes->assertStatus(200);
+        $singlePdfRes->assertSee($pso->code);
+        $singlePdfRes->assertSee('Print / Save PDF');
     }
 }
