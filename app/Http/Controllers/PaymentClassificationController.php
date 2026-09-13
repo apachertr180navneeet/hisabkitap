@@ -181,7 +181,15 @@ class PaymentClassificationController extends Controller
 
         $bills = $query->orderBy('id', 'asc')->get();
 
-        $psoList = PsoConfig::where('is_active', true)->orderBy('code')->get();
+        $user = auth()->user();
+        $psoQuery = PsoConfig::where('is_closed', true);
+        if ($user && $user->isOperator()) {
+            $psoQuery->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $psoList = $psoQuery->orderBy('code')->get();
 
         return view('payment.index', compact('bills', 'metrics', 'businessDate', 'availableDates', 'psoList'));
     }

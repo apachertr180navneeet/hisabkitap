@@ -274,5 +274,10 @@ class CashDenominationAndSplitPaymentTest extends TestCase
         $verificationResponse->assertStatus(200);
         $verificationResponse->assertSee('PSO-CLOSED-FINAL');
         $verificationResponse->assertDontSee('PSO-OPEN-UNCLOSED');
+
+        $paymentResponse = $this->get('/admin/payment-classification');
+        $paymentResponse->assertStatus(200);
+        $paymentResponse->assertSee('PSO-CLOSED-FINAL');
+        $paymentResponse->assertDontSee('PSO-OPEN-UNCLOSED');
     }
 }
