@@ -21,6 +21,25 @@
   </div>
 
   <div class="d-flex flex-wrap gap-2 align-items-center">
+    <!-- Date Filter Dropdown -->
+    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.summary.show' : 'summary.show', $pso->id) }}" class="d-inline-block">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white"><i class="bi bi-calendar3 text-primary"></i></span>
+        <select name="date" class="form-select form-select-sm fw-semibold" onchange="this.form.submit()">
+          @if(!empty($availableDates))
+            @foreach($availableDates as $d)
+              <option value="{{ $d }}" {{ $businessDate === $d ? 'selected' : '' }}>
+                {{ date('d/m/Y', strtotime($d)) }}
+              </option>
+            @endforeach
+            <option value="ALL" {{ $businessDate === 'ALL' ? 'selected' : '' }}>All Available Dates</option>
+          @else
+            <option value="{{ $businessDate }}" selected>{{ date('d/m/Y', strtotime($businessDate)) }}</option>
+          @endif
+        </select>
+      </div>
+    </form>
+
     <!-- PSO SWITCHER DROPDOWN -->
     <div class="dropdown">
       <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -29,7 +48,7 @@
       <ul class="dropdown-menu dropdown-menu-end shadow-sm">
         @foreach($allPsoConfigs as $otherPso)
           <li>
-            <a class="dropdown-item d-flex justify-content-between align-items-center {{ $otherPso->id === $pso->id ? 'active fw-bold' : '' }}" href="{{ route('admin.summary.show', $otherPso->id) }}">
+            <a class="dropdown-item d-flex justify-content-between align-items-center {{ $otherPso->id === $pso->id ? 'active fw-bold' : '' }}" href="{{ route('admin.summary.show', ['id' => $otherPso->id, 'date' => $businessDate]) }}">
               <span>{{ $otherPso->code }} &mdash; {{ $otherPso->operator_name }}</span>
               <span class="badge {{ $otherPso->id === $pso->id ? 'bg-light text-dark' : 'bg-secondary' }} ms-2 font-mono">{{ $otherPso->prefix }}</span>
             </a>
@@ -38,16 +57,16 @@
       </ul>
     </div>
 
-    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_single_excel' : 'summary.export_single_excel', $pso->id) }}" class="btn btn-success">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_single_excel' : 'summary.export_single_excel', ['id' => $pso->id, 'date' => $businessDate]) }}" class="btn btn-success">
       <i class="bi bi-file-earmark-excel me-1"></i> Excel
     </a>
-    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_single_pdf' : 'summary.export_single_pdf', $pso->id) }}" target="_blank" class="btn btn-danger">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_single_pdf' : 'summary.export_single_pdf', ['id' => $pso->id, 'date' => $businessDate]) }}" target="_blank" class="btn btn-danger">
       <i class="bi bi-file-earmark-pdf me-1"></i> PDF / Print
     </a>
-    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.verification.index' : 'verification.index', ['pso' => $pso->code]) }}" class="btn btn-primary">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.verification.index' : 'verification.index', ['pso' => $pso->code, 'date' => $businessDate]) }}" class="btn btn-primary">
       <i class="bi bi-receipt-cutoff me-1"></i> Open in Verification
     </a>
-    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.index' : 'summary.index') }}" class="btn btn-outline-secondary">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.index' : 'summary.index', ['date' => $businessDate]) }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left me-1"></i> Back to Matrix
     </a>
   </div>
@@ -215,6 +234,7 @@
 
     <!-- INLINE FILTER FORM -->
     <form method="GET" action="{{ route('admin.summary.show', $pso->id) }}" class="d-flex flex-wrap gap-2 align-items-center">
+      <input type="hidden" name="date" value="{{ $businessDate }}">
       <select name="payment_type" class="form-select form-select-sm" style="width: 140px;" onchange="this.form.submit()">
         <option value="ALL" {{ request('payment_type') == 'ALL' ? 'selected' : '' }}>All Payment Types</option>
         <option value="Cash" {{ request('payment_type') == 'Cash' ? 'selected' : '' }}>Cash</option>
@@ -237,7 +257,7 @@
       </div>
 
       @if(request()->hasAny(['payment_type', 'status', 'search']))
-        <a href="{{ route('admin.summary.show', $pso->id) }}" class="btn btn-sm btn-outline-danger" title="Clear Filters">
+        <a href="{{ route('admin.summary.show', ['id' => $pso->id, 'date' => $businessDate]) }}" class="btn btn-sm btn-outline-danger" title="Clear Filters">
           <i class="bi bi-x-circle"></i>
         </a>
       @endif

@@ -3,19 +3,38 @@
 @section('title', 'PSO Summary Matrix')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
   <div>
     <h4 class="fw-bold mb-1">PSO Summary Matrix</h4>
-    <p class="text-muted mb-0">Granular aggregate collection metrics for PSO 1, PSO 2 (+ITC), and PSO 3.</p>
+    <p class="text-muted mb-0">Granular aggregate collection metrics for closed PSO counters (PSO 1, PSO 2, PSO 3).</p>
   </div>
   <div class="d-flex gap-2 align-items-center flex-wrap">
-    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_excel' : 'summary.export_excel') }}" class="btn btn-success">
+    <!-- Date Filter Dropdown -->
+    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.summary.index' : 'summary.index') }}" class="d-inline-block">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white"><i class="bi bi-calendar3 text-primary"></i></span>
+        <select name="date" class="form-select form-select-sm fw-semibold" onchange="this.form.submit()">
+          @if(!empty($availableDates))
+            @foreach($availableDates as $d)
+              <option value="{{ $d }}" {{ $businessDate === $d ? 'selected' : '' }}>
+                {{ date('d/m/Y', strtotime($d)) }}
+              </option>
+            @endforeach
+            <option value="ALL" {{ $businessDate === 'ALL' ? 'selected' : '' }}>All Available Dates</option>
+          @else
+            <option value="{{ $businessDate }}" selected>{{ date('d/m/Y', strtotime($businessDate)) }}</option>
+          @endif
+        </select>
+      </div>
+    </form>
+
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_excel' : 'summary.export_excel', ['date' => $businessDate]) }}" class="btn btn-success">
       <i class="bi bi-file-earmark-excel me-1"></i> Excel
     </a>
-    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_pdf' : 'summary.export_pdf') }}" target="_blank" class="btn btn-danger">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.summary.export_pdf' : 'summary.export_pdf', ['date' => $businessDate]) }}" target="_blank" class="btn btn-danger">
       <i class="bi bi-file-earmark-pdf me-1"></i> PDF / Print
     </a>
-    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.verification.index' : 'verification.index') }}" class="btn btn-primary">
+    <a href="{{ route(request()->routeIs('admin.*') ? 'admin.verification.index' : 'verification.index', ['date' => $businessDate]) }}" class="btn btn-primary">
       <i class="bi bi-receipt-cutoff me-1"></i> View All Bills
     </a>
   </div>
@@ -44,13 +63,13 @@
         @forelse($matrixRows as $index => $row)
           <tr>
             <td class="text-start">
-              <a href="{{ route('admin.summary.show', $row['pso']->id) }}" class="text-decoration-none fw-bold font-mono text-primary fs-6">
+              <a href="{{ route('admin.summary.show', ['id' => $row['pso']->id, 'date' => $businessDate]) }}" class="text-decoration-none fw-bold font-mono text-primary fs-6">
                 {{ $row['pso']->code }} <i class="bi bi-box-arrow-up-right small"></i>
               </a>
               <div class="small text-muted">{{ $row['pso']->prefix }} {{ sprintf('%02d', $row['pso']->start_no) }}-{{ sprintf('%02d', $row['pso']->end_no) }} | Op: {{ $row['pso']->operator_name }}@if($row['pso']->driver_name) | Drv: {{ $row['pso']->driver_name }}@endif @if($row['pso']->gadi_number) | Gadi: {{ $row['pso']->gadi_number }}@endif</div>
             </td>
             <td>
-              <a href="{{ route('admin.summary.show', $row['pso']->id) }}" class="btn btn-sm btn-light border font-mono px-2 py-1" title="View single PSO detail page">
+              <a href="{{ route('admin.summary.show', ['id' => $row['pso']->id, 'date' => $businessDate]) }}" class="btn btn-sm btn-light border font-mono px-2 py-1" title="View single PSO detail page">
                 {{ $row['billsCount'] }} bills <i class="bi bi-arrow-right-short ms-1 text-primary"></i>
               </a>
             </td>
@@ -65,7 +84,7 @@
             <td class="text-end font-mono text-success fw-bold">₹{{ number_format($row['net'], 2) }}</td>
             <td class="text-center">
               <div class="btn-group btn-group-sm">
-                <a href="{{ route('admin.summary.show', $row['pso']->id) }}" class="btn btn-primary">
+                <a href="{{ route('admin.summary.show', ['id' => $row['pso']->id, 'date' => $businessDate]) }}" class="btn btn-primary">
                   <i class="bi bi-file-earmark-text me-1"></i> Detail Page
                 </a>
                 <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#psoDetailModal{{ $index }}" title="Quick Modal Preview">
@@ -86,7 +105,7 @@
         <tr class="fw-bold">
           <td class="text-start">MASTER TOTAL</td>
           <td>
-            <a href="{{ route('admin.verification.index') }}" class="badge bg-primary text-white text-decoration-none px-2 py-1" title="View all bills">
+            <a href="{{ route('admin.verification.index', ['date' => $businessDate]) }}" class="badge bg-primary text-white text-decoration-none px-2 py-1" title="View all bills">
               {{ $metrics['totalBillsCount'] }} bills <i class="bi bi-arrow-right-short"></i>
             </a>
           </td>
@@ -113,14 +132,14 @@
     <div class="card border p-3 bg-white h-100 shadow-sm">
       <div class="d-flex justify-content-between align-items-start">
         <h6 class="fw-bold text-primary mb-1">{{ $row['pso']->code }} ({{ $row['pso']->prefix }} {{ sprintf('%02d', $row['pso']->start_no) }}–{{ $row['pso']->prefix }} {{ sprintf('%02d', $row['pso']->end_no) }})</h6>
-        <a href="{{ route('admin.summary.show', $row['pso']->id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">
+        <a href="{{ route('admin.summary.show', ['id' => $row['pso']->id, 'date' => $businessDate]) }}" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">
           <i class="bi bi-file-earmark-text me-1"></i>Detail Page
         </a>
       </div>
       <div class="fs-4 fw-bold font-mono text-dark">Total = ₹{{ number_format($row['net'], 2) }}</div>
       <div class="d-flex justify-content-between align-items-center mt-2">
         <small class="text-muted">{{ $row['billsCount'] }} Bills | {{ $row['pso']->operator_name }}</small>
-        <a href="{{ route('admin.verification.index', ['pso' => $row['pso']->code]) }}" class="small text-decoration-none">
+        <a href="{{ route('admin.verification.index', ['pso' => $row['pso']->code, 'date' => $businessDate]) }}" class="small text-decoration-none">
           Verify Bills <i class="bi bi-arrow-right"></i>
         </a>
       </div>

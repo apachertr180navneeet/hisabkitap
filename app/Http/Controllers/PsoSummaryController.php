@@ -17,9 +17,111 @@ class PsoSummaryController extends Controller
         $this->reconService = $reconService;
     }
 
+    /**
+     * Resolve active business date with fallback to latest bill date
+     */
+    protected function resolveBusinessDate(Request $request): string
+    {
+        $businessDate = $request->query('date') ?: $request->input('date');
+        if (!$businessDate) {
+            $defaultDate = $this->reconService->getBusinessDate();
+            if (Bill::whereDate('business_date', $defaultDate)->exists()) {
+                $businessDate = $defaultDate;
+            } else {
+                $latestBillDate = Bill::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
+                $businessDate = $latestBillDate ? (is_string($latestBillDate) ? substr($latestBillDate, 0, 10) : $latestBillDate->format('Y-m-d')) : $defaultDate;
+            }
+        }
+        return $businessDate;
+    }
+
+    /**
+     * Get list of all available business dates in the database
+     */
+    protected function getAvailableDates(): array
+    {
+        $billDates = Bill::selectRaw('DISTINCT business_date')->whereNotNull('business_date')->pluck('business_date')->toArray();
+        $allDates = array_unique(array_filter($billDates));
+        rsort($allDates);
+        return array_map(fn($d) => is_string($d) ? substr($d, 0, 10) : (is_object($d) ? $d->format('Y-m-d') : substr((string)$d, 0, 10)), $allDates);
+    }
+
+    /**
+     * Build query for bills belonging to a PSO configuration
+     */
+    protected function getPsoBillsQuery(PsoConfig $pso, ?string $businessDate = null)
+    {
+        $query = Bill::query();
+
+        if ($businessDate && $businessDate !== 'ALL') {
+            $query->whereDate('business_date', $businessDate);
+        }
+
+        $query->where(function ($q) use ($pso) {
+            $q->where('pso_config_id', $pso->id)
+              ->orWhere('pso_code', $pso->code);
+
+            // Match by prefix and series ranges
+            $ranges = $pso->getAllSeriesRanges();
+            foreach ($ranges as $range) {
+                $prefix = trim($range['prefix'] ?? $pso->prefix ?? '');
+                if (!empty($prefix)) {
+                    $q->orWhere('bill_no', 'like', $prefix . '%')
+                      ->orWhere('bill_no', 'like', $prefix . ' %');
+                }
+            }
+        });
+
+        $query->where(function ($q) {
+            $q->where('is_post_cutoff', false)
+              ->orWhereNull('is_post_cutoff');
+        });
+
+        return $query;
+    }
+
+    /**
+     * Compute statistics for a collection of bills
+     */
+    protected function computeBillStats($bills): array
+    {
+        $gross = (float) $bills->sum('amount');
+        $cash = (float) $bills->where('is_split_payment', true)->sum('cash_amount') 
+              + (float) $bills->where('is_split_payment', false)->where('payment_type', 'Cash')->sum('net_amount');
+        $paytm = (float) $bills->where('is_split_payment', true)->sum('paytm_amount') 
+               + (float) $bills->where('is_split_payment', false)->where('payment_type', 'Paytm')->sum('net_amount');
+        $check = (float) $bills->whereIn('payment_type', ['Check', 'Cheque'])->sum('net_amount');
+        $credit = (float) $bills->where('payment_type', 'Credit')->sum('net_amount');
+        $cancelled = (float) $bills->where('payment_type', 'Cancelled')->sum('amount');
+        $cd = (float) $bills->sum('cd_amount');
+        $refund = (float) $bills->sum('refund_amount');
+
+        $net = 0;
+        foreach ($bills as $b) {
+            if ($b->status !== 'Missing' && $b->payment_type !== 'Cancelled') {
+                $calcNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
+                $net += (float) ($b->net_amount > 0 ? $b->net_amount : $calcNet);
+            }
+        }
+
+        return [
+            'gross' => $gross,
+            'cash' => $cash,
+            'paytm' => $paytm,
+            'check' => $check,
+            'credit' => $credit,
+            'cancelled' => $cancelled,
+            'cd' => $cd,
+            'refund' => $refund,
+            'net' => $net,
+        ];
+    }
+
     public function index(Request $request)
     {
-        $businessDate = $request->query('date', $this->reconService->getBusinessDate());
+        $businessDate = $this->resolveBusinessDate($request);
+        $availableDates = $this->getAvailableDates();
+
         $user = auth()->user();
         $psoQuery = PsoConfig::where('is_closed', true);
         if ($user && $user->isOperator()) {
@@ -29,47 +131,65 @@ class PsoSummaryController extends Controller
             });
         }
         $psoConfigs = $psoQuery->orderBy('code')->get();
-        $metrics = $this->reconService->getMetrics($businessDate);
+        $metrics = $this->reconService->getMetrics($businessDate === 'ALL' ? null : $businessDate);
 
         $matrixRows = [];
-        foreach ($psoConfigs as $pso) {
-            $bills = Bill::whereDate('business_date', $businessDate)
-                ->where('pso_code', $pso->code)
-                ->where('is_post_cutoff', false)
-                ->get();
+        $masterTotalGross = 0; $masterTotalCash = 0; $masterTotalPaytm = 0;
+        $masterTotalCheck = 0; $masterTotalCredit = 0; $masterTotalCancelled = 0;
+        $masterTotalCd = 0; $masterTotalRefund = 0; $masterTotalNet = 0; $masterTotalBills = 0;
 
-            $gross = $bills->sum('amount');
-            $cash = $bills->where('is_split_payment', true)->sum('cash_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Cash')->sum('net_amount');
-            $paytm = $bills->where('is_split_payment', true)->sum('paytm_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Paytm')->sum('net_amount');
-            $check = $bills->where('payment_type', 'Check')->sum('net_amount');
-            $credit = $bills->where('payment_type', 'Credit')->sum('net_amount');
-            $cancelled = $bills->where('payment_type', 'Cancelled')->sum('amount');
-            $cd = $bills->sum('cd_amount');
-            $refund = $bills->sum('refund_amount');
-            $net = $bills->where('status', '!=', 'Missing')->sum('net_amount');
+        foreach ($psoConfigs as $pso) {
+            $bills = $this->getPsoBillsQuery($pso, $businessDate)->get();
+            $stats = $this->computeBillStats($bills);
+
+            $masterTotalGross += $stats['gross'];
+            $masterTotalCash += $stats['cash'];
+            $masterTotalPaytm += $stats['paytm'];
+            $masterTotalCheck += $stats['check'];
+            $masterTotalCredit += $stats['credit'];
+            $masterTotalCancelled += $stats['cancelled'];
+            $masterTotalCd += $stats['cd'];
+            $masterTotalRefund += $stats['refund'];
+            $masterTotalNet += $stats['net'];
+            $masterTotalBills += $bills->count();
 
             $matrixRows[] = [
                 'pso' => $pso,
                 'bills' => $bills,
                 'billsCount' => $bills->count(),
-                'gross' => $gross,
-                'cash' => $cash,
-                'paytm' => $paytm,
-                'check' => $check,
-                'credit' => $credit,
-                'cancelled' => $cancelled,
-                'cd' => $cd,
-                'refund' => $refund,
-                'net' => $net,
+                'gross' => $stats['gross'],
+                'cash' => $stats['cash'],
+                'paytm' => $stats['paytm'],
+                'check' => $stats['check'],
+                'credit' => $stats['credit'],
+                'cancelled' => $stats['cancelled'],
+                'cd' => $stats['cd'],
+                'refund' => $stats['refund'],
+                'net' => $stats['net'],
             ];
         }
 
-        return view('summary.index', compact('matrixRows', 'metrics'));
+        // Update metrics aggregates from matrix rows if calculated
+        if ($masterTotalBills > 0 || empty($metrics['totalBillsCount'])) {
+            $metrics['totalBillsCount'] = $masterTotalBills;
+            $metrics['tallyTotal'] = $masterTotalGross;
+            $metrics['totCash'] = $masterTotalCash;
+            $metrics['totPaytm'] = $masterTotalPaytm;
+            $metrics['totCheck'] = $masterTotalCheck;
+            $metrics['totCredit'] = $masterTotalCredit;
+            $metrics['totCancelled'] = $masterTotalCancelled;
+            $metrics['totCd'] = $masterTotalCd;
+            $metrics['totRefund'] = $masterTotalRefund;
+            $metrics['psoCollection'] = $masterTotalNet;
+        }
+
+        return view('summary.index', compact('matrixRows', 'metrics', 'businessDate', 'availableDates'));
     }
 
     public function show($id, Request $request)
     {
-        $businessDate = $this->reconService->getBusinessDate();
+        $businessDate = $this->resolveBusinessDate($request);
+        $availableDates = $this->getAvailableDates();
         
         // Find PSO by ID or by Code
         $pso = is_numeric($id)
@@ -86,9 +206,7 @@ class PsoSummaryController extends Controller
         }
         $allPsoConfigs = $psoQuery->orderBy('code')->get();
 
-        $query = Bill::whereDate('business_date', $businessDate)
-            ->where('pso_code', $pso->code)
-            ->where('is_post_cutoff', false);
+        $query = $this->getPsoBillsQuery($pso, $businessDate);
 
         if ($request->filled('payment_type') && $request->payment_type !== 'ALL') {
             $query->where('payment_type', $request->payment_type);
@@ -110,41 +228,29 @@ class PsoSummaryController extends Controller
 
         $bills = $query->orderBy('id', 'asc')->get();
 
-        // Calculate single PSO statistics
-        $allPsoBills = Bill::whereDate('business_date', $businessDate)
-            ->where('pso_code', $pso->code)
-            ->where('is_post_cutoff', false)
-            ->get();
-
-        $gross = $allPsoBills->sum('amount');
-        $cash = $allPsoBills->where('is_split_payment', true)->sum('cash_amount') + $allPsoBills->where('is_split_payment', false)->where('payment_type', 'Cash')->sum('net_amount');
-        $paytm = $allPsoBills->where('is_split_payment', true)->sum('paytm_amount') + $allPsoBills->where('is_split_payment', false)->where('payment_type', 'Paytm')->sum('net_amount');
-        $check = $allPsoBills->where('payment_type', 'Check')->sum('net_amount');
-        $credit = $allPsoBills->where('payment_type', 'Credit')->sum('net_amount');
-        $cancelled = $allPsoBills->where('payment_type', 'Cancelled')->sum('amount');
-        $cd = $allPsoBills->sum('cd_amount');
-        $refund = $allPsoBills->sum('refund_amount');
-        $net = $allPsoBills->where('status', '!=', 'Missing')->sum('net_amount');
+        // Calculate single PSO statistics across all bills for this date
+        $allPsoBills = $this->getPsoBillsQuery($pso, $businessDate)->get();
+        $statsCalculated = $this->computeBillStats($allPsoBills);
 
         $stats = [
             'totalBills' => $allPsoBills->count(),
             'matchedCount' => $allPsoBills->where('status', 'Matched')->count(),
             'missingCount' => $allPsoBills->where('status', 'Missing')->count(),
             'cancelledCount' => $allPsoBills->where('payment_type', 'Cancelled')->count(),
-            'gross' => $gross,
-            'cash' => $cash,
-            'paytm' => $paytm,
-            'check' => $check,
-            'credit' => $credit,
-            'cancelled' => $cancelled,
-            'cd' => $cd,
-            'refund' => $refund,
-            'net' => $net,
+            'gross' => $statsCalculated['gross'],
+            'cash' => $statsCalculated['cash'],
+            'paytm' => $statsCalculated['paytm'],
+            'check' => $statsCalculated['check'],
+            'credit' => $statsCalculated['credit'],
+            'cancelled' => $statsCalculated['cancelled'],
+            'cd' => $statsCalculated['cd'],
+            'refund' => $statsCalculated['refund'],
+            'net' => $statsCalculated['net'],
         ];
 
-        $globalMetrics = $this->reconService->getMetrics($businessDate);
+        $globalMetrics = $this->reconService->getMetrics($businessDate === 'ALL' ? null : $businessDate);
 
-        return view('summary.show', compact('pso', 'bills', 'stats', 'allPsoConfigs', 'businessDate', 'globalMetrics'));
+        return view('summary.show', compact('pso', 'bills', 'stats', 'allPsoConfigs', 'businessDate', 'availableDates', 'globalMetrics'));
     }
 
     /**
@@ -152,7 +258,7 @@ class PsoSummaryController extends Controller
      */
     public function exportExcel(Request $request): StreamedResponse
     {
-        $businessDate = $request->query('date', $this->reconService->getBusinessDate());
+        $businessDate = $this->resolveBusinessDate($request);
         $user = auth()->user();
         $psoQuery = PsoConfig::where('is_closed', true);
         if ($user && $user->isOperator()) {
@@ -194,30 +300,18 @@ class PsoSummaryController extends Controller
             $totCancelled = 0; $totCd = 0; $totRefund = 0; $totNet = 0; $totBills = 0;
 
             foreach ($psoConfigs as $pso) {
-                $bills = Bill::whereDate('business_date', $businessDate)
-                    ->where('pso_code', $pso->code)
-                    ->where('is_post_cutoff', false)
-                    ->get();
+                $bills = $this->getPsoBillsQuery($pso, $businessDate)->get();
+                $stats = $this->computeBillStats($bills);
 
-                $gross = $bills->sum('amount');
-                $cash = $bills->where('is_split_payment', true)->sum('cash_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Cash')->sum('net_amount');
-                $paytm = $bills->where('is_split_payment', true)->sum('paytm_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Paytm')->sum('net_amount');
-                $check = $bills->where('payment_type', 'Check')->sum('net_amount') + $bills->where('payment_type', 'Cheque')->sum('net_amount');
-                $credit = $bills->where('payment_type', 'Credit')->sum('net_amount');
-                $cancelled = $bills->where('payment_type', 'Cancelled')->sum('amount');
-                $cd = $bills->sum('cd_amount');
-                $refund = $bills->sum('refund_amount');
-                $net = $bills->where('status', '!=', 'Missing')->sum('net_amount');
-
-                $totGross += $gross;
-                $totCash += $cash;
-                $totPaytm += $paytm;
-                $totCheck += $check;
-                $totCredit += $credit;
-                $totCancelled += $cancelled;
-                $totCd += $cd;
-                $totRefund += $refund;
-                $totNet += $net;
+                $totGross += $stats['gross'];
+                $totCash += $stats['cash'];
+                $totPaytm += $stats['paytm'];
+                $totCheck += $stats['check'];
+                $totCredit += $stats['credit'];
+                $totCancelled += $stats['cancelled'];
+                $totCd += $stats['cd'];
+                $totRefund += $stats['refund'];
+                $totNet += $stats['net'];
                 $totBills += $bills->count();
 
                 fputcsv($handle, [
@@ -227,15 +321,15 @@ class PsoSummaryController extends Controller
                     $pso->driver_name ?: '—',
                     $pso->gadi_number ?: '—',
                     $bills->count(),
-                    $gross,
-                    $cash,
-                    $paytm,
-                    $check,
-                    $credit,
-                    $cancelled,
-                    $cd,
-                    $refund,
-                    $net
+                    $stats['gross'],
+                    $stats['cash'],
+                    $stats['paytm'],
+                    $stats['check'],
+                    $stats['credit'],
+                    $stats['cancelled'],
+                    $stats['cd'],
+                    $stats['refund'],
+                    $stats['net']
                 ]);
             }
 
@@ -266,7 +360,7 @@ class PsoSummaryController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        $businessDate = $request->query('date', $this->reconService->getBusinessDate());
+        $businessDate = $this->resolveBusinessDate($request);
         $user = auth()->user();
         $psoQuery = PsoConfig::where('is_closed', true);
         if ($user && $user->isOperator()) {
@@ -276,39 +370,55 @@ class PsoSummaryController extends Controller
             });
         }
         $psoConfigs = $psoQuery->orderBy('code')->get();
-        $metrics = $this->reconService->getMetrics($businessDate);
+        $metrics = $this->reconService->getMetrics($businessDate === 'ALL' ? null : $businessDate);
 
         $matrixRows = [];
-        foreach ($psoConfigs as $pso) {
-            $bills = Bill::whereDate('business_date', $businessDate)
-                ->where('pso_code', $pso->code)
-                ->where('is_post_cutoff', false)
-                ->get();
+        $masterTotalGross = 0; $masterTotalCash = 0; $masterTotalPaytm = 0;
+        $masterTotalCheck = 0; $masterTotalCredit = 0; $masterTotalCancelled = 0;
+        $masterTotalCd = 0; $masterTotalRefund = 0; $masterTotalNet = 0; $masterTotalBills = 0;
 
-            $gross = $bills->sum('amount');
-            $cash = $bills->where('is_split_payment', true)->sum('cash_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Cash')->sum('net_amount');
-            $paytm = $bills->where('is_split_payment', true)->sum('paytm_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Paytm')->sum('net_amount');
-            $check = $bills->where('payment_type', 'Check')->sum('net_amount') + $bills->where('payment_type', 'Cheque')->sum('net_amount');
-            $credit = $bills->where('payment_type', 'Credit')->sum('net_amount');
-            $cancelled = $bills->where('payment_type', 'Cancelled')->sum('amount');
-            $cd = $bills->sum('cd_amount');
-            $refund = $bills->sum('refund_amount');
-            $net = $bills->where('status', '!=', 'Missing')->sum('net_amount');
+        foreach ($psoConfigs as $pso) {
+            $bills = $this->getPsoBillsQuery($pso, $businessDate)->get();
+            $stats = $this->computeBillStats($bills);
+
+            $masterTotalGross += $stats['gross'];
+            $masterTotalCash += $stats['cash'];
+            $masterTotalPaytm += $stats['paytm'];
+            $masterTotalCheck += $stats['check'];
+            $masterTotalCredit += $stats['credit'];
+            $masterTotalCancelled += $stats['cancelled'];
+            $masterTotalCd += $stats['cd'];
+            $masterTotalRefund += $stats['refund'];
+            $masterTotalNet += $stats['net'];
+            $masterTotalBills += $bills->count();
 
             $matrixRows[] = [
                 'pso' => $pso,
                 'bills' => $bills,
                 'billsCount' => $bills->count(),
-                'gross' => $gross,
-                'cash' => $cash,
-                'paytm' => $paytm,
-                'check' => $check,
-                'credit' => $credit,
-                'cancelled' => $cancelled,
-                'cd' => $cd,
-                'refund' => $refund,
-                'net' => $net,
+                'gross' => $stats['gross'],
+                'cash' => $stats['cash'],
+                'paytm' => $stats['paytm'],
+                'check' => $stats['check'],
+                'credit' => $stats['credit'],
+                'cancelled' => $stats['cancelled'],
+                'cd' => $stats['cd'],
+                'refund' => $stats['refund'],
+                'net' => $stats['net'],
             ];
+        }
+
+        if ($masterTotalBills > 0 || empty($metrics['totalBillsCount'])) {
+            $metrics['totalBillsCount'] = $masterTotalBills;
+            $metrics['tallyTotal'] = $masterTotalGross;
+            $metrics['totCash'] = $masterTotalCash;
+            $metrics['totPaytm'] = $masterTotalPaytm;
+            $metrics['totCheck'] = $masterTotalCheck;
+            $metrics['totCredit'] = $masterTotalCredit;
+            $metrics['totCancelled'] = $masterTotalCancelled;
+            $metrics['totCd'] = $masterTotalCd;
+            $metrics['totRefund'] = $masterTotalRefund;
+            $metrics['psoCollection'] = $masterTotalNet;
         }
 
         return view('summary.print', compact('matrixRows', 'metrics', 'businessDate'));
@@ -319,14 +429,12 @@ class PsoSummaryController extends Controller
      */
     public function exportSingleExcel($id, Request $request): StreamedResponse
     {
-        $businessDate = $this->reconService->getBusinessDate();
+        $businessDate = $this->resolveBusinessDate($request);
         $pso = is_numeric($id)
             ? PsoConfig::findOrFail($id)
             : PsoConfig::where('code', $id)->firstOrFail();
 
-        $bills = Bill::whereDate('business_date', $businessDate)
-            ->where('pso_code', $pso->code)
-            ->where('is_post_cutoff', false)
+        $bills = $this->getPsoBillsQuery($pso, $businessDate)
             ->orderBy('id', 'asc')
             ->get();
 
@@ -414,41 +522,31 @@ class PsoSummaryController extends Controller
      */
     public function exportSinglePdf($id, Request $request)
     {
-        $businessDate = $this->reconService->getBusinessDate();
+        $businessDate = $this->resolveBusinessDate($request);
         $pso = is_numeric($id)
             ? PsoConfig::findOrFail($id)
             : PsoConfig::where('code', $id)->firstOrFail();
 
-        $bills = Bill::whereDate('business_date', $businessDate)
-            ->where('pso_code', $pso->code)
-            ->where('is_post_cutoff', false)
+        $bills = $this->getPsoBillsQuery($pso, $businessDate)
             ->orderBy('id', 'asc')
             ->get();
 
-        $gross = $bills->sum('amount');
-        $cash = $bills->where('is_split_payment', true)->sum('cash_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Cash')->sum('net_amount');
-        $paytm = $bills->where('is_split_payment', true)->sum('paytm_amount') + $bills->where('is_split_payment', false)->where('payment_type', 'Paytm')->sum('net_amount');
-        $check = $bills->where('payment_type', 'Check')->sum('net_amount') + $bills->where('payment_type', 'Cheque')->sum('net_amount');
-        $credit = $bills->where('payment_type', 'Credit')->sum('net_amount');
-        $cancelled = $bills->where('payment_type', 'Cancelled')->sum('amount');
-        $cd = $bills->sum('cd_amount');
-        $refund = $bills->sum('refund_amount');
-        $net = $bills->where('status', '!=', 'Missing')->sum('net_amount');
+        $statsCalculated = $this->computeBillStats($bills);
 
         $stats = [
             'totalBills' => $bills->count(),
             'matchedCount' => $bills->where('status', 'Matched')->count(),
             'missingCount' => $bills->where('status', 'Missing')->count(),
             'cancelledCount' => $bills->where('payment_type', 'Cancelled')->count(),
-            'gross' => $gross,
-            'cash' => $cash,
-            'paytm' => $paytm,
-            'check' => $check,
-            'credit' => $credit,
-            'cancelled' => $cancelled,
-            'cd' => $cd,
-            'refund' => $refund,
-            'net' => $net,
+            'gross' => $statsCalculated['gross'],
+            'cash' => $statsCalculated['cash'],
+            'paytm' => $statsCalculated['paytm'],
+            'check' => $statsCalculated['check'],
+            'credit' => $statsCalculated['credit'],
+            'cancelled' => $statsCalculated['cancelled'],
+            'cd' => $statsCalculated['cd'],
+            'refund' => $statsCalculated['refund'],
+            'net' => $statsCalculated['net'],
         ];
 
         return view('summary.print_single', compact('pso', 'bills', 'stats', 'businessDate'));
