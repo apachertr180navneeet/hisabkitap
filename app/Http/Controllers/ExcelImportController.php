@@ -51,9 +51,9 @@ class ExcelImportController extends Controller
             ->toArray();
 
         // Filter out any PSO that already has bills imported on this date
-        return $closedPsos->filter(function ($pso) use ($importedPsoCodes, $importedPsoConfigIds) {
+        return $closedPsos->filter(function ($pso) use ($importedPsoCodes, $importedPsoIds) {
             return !in_array($pso->code, $importedPsoCodes, true) &&
-                   !in_array($pso->id, $importedPsoConfigIds, true);
+                   !in_array($pso->id, $importedPsoIds, true);
         })->values();
     }
 
