@@ -107,6 +107,7 @@ class HisabKitapDeepModuleTest extends TestCase
 
     public function test_tally_import_without_file_creates_mock_record(): void
     {
+        $this->makePso('PSO-1', 'CB');
         $response = $this->post('/admin/import', [
             'business_date' => '2026-08-14',
             'pso_id' => 'PSO-1',
@@ -118,6 +119,32 @@ class HisabKitapDeepModuleTest extends TestCase
         $this->assertEquals('2026-08-14', $import->business_date->format('Y-m-d'));
         $this->assertEquals(32, $import->total_records);
         $this->assertDatabaseHas('audit_logs', ['action' => 'EXCEL_IMPORT']);
+    }
+
+    public function test_import_requires_pso_selection(): void
+    {
+        // Missing pso_id
+        $response = $this->post('/admin/import', [
+            'business_date' => '2026-08-14',
+        ]);
+        $response->assertSessionHasErrors('pso_id');
+        $this->assertEquals(0, TallyImport::count());
+
+        // 'ALL' is rejected
+        $responseAll = $this->post('/admin/import', [
+            'business_date' => '2026-08-14',
+            'pso_id' => 'ALL',
+        ]);
+        $responseAll->assertSessionHasErrors('pso_id');
+        $this->assertEquals(0, TallyImport::count());
+
+        // Non-existent PSO is rejected
+        $responseInvalid = $this->post('/admin/import', [
+            'business_date' => '2026-08-14',
+            'pso_id' => 'PSO-NONEXISTENT',
+        ]);
+        $responseInvalid->assertSessionHas('error');
+        $this->assertEquals(0, TallyImport::count());
     }
 
     public function test_tally_import_with_uploaded_file(): void
@@ -143,6 +170,7 @@ class HisabKitapDeepModuleTest extends TestCase
 
     public function test_tally_import_rejects_invalid_headers(): void
     {
+        $this->makePso('PSO-1', 'CB');
         $csvContent = "ColA,ColB\n1,2\n";
         $file = UploadedFile::fake()->createWithContent('Invalid_Header.csv', $csvContent);
         $response = $this->post('/admin/import', [

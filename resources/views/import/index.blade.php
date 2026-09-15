@@ -117,9 +117,9 @@
           <input type="date" name="business_date" class="form-control font-mono" value="{{ $businessDate }}" required>
         </div>
         <div class="mb-3">
-          <label class="form-label fw-semibold">Target PSO Assignment</label>
-          <select name="pso_id" class="form-select">
-            <option value="ALL" selected>All PSOs (Auto-map by Series Prefix: CB, RB, etc.)</option>
+          <label class="form-label fw-semibold" for="pso_id_select">Target PSO Assignment <span class="text-danger">*</span></label>
+          <select name="pso_id" id="pso_id_select" class="form-select @error('pso_id') is-invalid @enderror" required>
+            <option value="" disabled {{ old('pso_id') ? '' : 'selected' }}>-- Select Target PSO (Required) --</option>
             @foreach($psoList as $pso)
               @php
                 $ranges = $pso->getAllSeriesRanges();
@@ -130,12 +130,20 @@
                   $rangeSummary = $pso->prefix . ' ' . sprintf('%02d', $pso->start_no) . '-' . sprintf('%02d', $pso->end_no);
                 }
               @endphp
-              <option value="{{ $pso->code }}">{{ $pso->code }} ({{ $rangeSummary }})</option>
+              <option value="{{ $pso->code }}" {{ old('pso_id') == $pso->code ? 'selected' : '' }}>{{ $pso->code }} ({{ $rangeSummary }})</option>
             @endforeach
           </select>
+          @error('pso_id')
+            <div class="invalid-feedback">{{ $message }}</div>
+          @enderror
           @if($psoList->isEmpty())
+            <div class="alert alert-warning py-2 px-3 small mt-2 mb-0 d-flex align-items-center gap-2">
+              <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+              <div>Only closed PSOs can receive imports. No closed PSOs found. Please close a PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a> before importing bills.</div>
+            </div>
+          @else
             <div class="form-text text-muted small mt-1">
-              <i class="bi bi-info-circle me-1"></i> Only closed PSOs appear here. No closed PSOs found for this date.
+              <i class="bi bi-info-circle me-1"></i> Import is restricted to the selected PSO. Select a closed PSO to proceed.
             </div>
           @endif
         </div>
@@ -170,7 +178,7 @@
         </div>
 
         <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-success flex-grow-1 py-2 fw-semibold">
+          <button type="submit" id="btn-import-submit" class="btn btn-success flex-grow-1 py-2 fw-semibold" {{ $psoList->isEmpty() ? 'disabled' : '' }}>
             <i class="bi bi-arrow-repeat me-1"></i> Ingest & Process Import
           </button>
           <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary py-2">Cancel</a>
@@ -392,6 +400,22 @@ document.addEventListener('DOMContentLoaded', function () {
         dropzoneArea.classList.add('border-success', 'bg-success-subtle');
       }
     }, false);
+  // Enforce PSO selection on form submit
+  const importForm = document.querySelector('form[action="{{ route('admin.import.process') }}"]') || document.querySelector('form');
+  const psoSelect = document.getElementById('pso_id_select');
+  if (importForm && psoSelect) {
+    importForm.addEventListener('submit', function (e) {
+      if (!psoSelect.value || psoSelect.value === 'ALL' || psoSelect.value.trim() === '') {
+        e.preventDefault();
+        psoSelect.classList.add('is-invalid');
+        psoSelect.focus();
+      }
+    });
+    psoSelect.addEventListener('change', function () {
+      if (this.value && this.value !== 'ALL') {
+        this.classList.remove('is-invalid');
+      }
+    });
   }
 });
 </script>

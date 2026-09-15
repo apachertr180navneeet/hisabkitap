@@ -47,21 +47,27 @@ class ExcelImportController extends Controller
     {
         $request->validate([
             'business_date' => 'required|date',
-            'pso_id' => 'required|string',
+            'pso_id' => 'required|string|not_in:ALL,all',
             'excel_file' => 'nullable|file|mimes:xlsx,xls,csv,txt,xml|max:10240',
         ], [
+            'pso_id.required' => 'Please select a PSO before importing.',
+            'pso_id.not_in' => 'Please select a specific PSO before importing.',
             'excel_file.mimes' => 'The uploaded file must be an Excel spreadsheet (.xlsx, .xls) or CSV file (.csv).',
             'excel_file.max' => 'The uploaded file size must not exceed 10 MB.',
             'business_date.required' => 'Please select a valid business date.',
         ]);
 
         $businessDate = $request->business_date;
-        $targetPsoId = $request->pso_id;
+        $targetPsoId = trim((string)$request->pso_id);
         $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
         $operatorName = session('active_user.name', 'Suresh Gupta');
 
+        if (empty($targetPsoId) || strtoupper($targetPsoId) === 'ALL') {
+            return redirect()->back()->withInput()->with('error', 'Please select a target PSO before importing.');
+        }
+
         $user = auth()->user();
-        $query = PsoConfig::where('is_closed', true);
+        $query = PsoConfig::query();
         if ($user && $user->isOperator()) {
             $query->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
@@ -69,8 +75,11 @@ class ExcelImportController extends Controller
             });
         }
         $psoConfigs = $query->get();
-        if ($psoConfigs->isEmpty()) {
-            $psoConfigs = PsoConfig::all();
+        $selectedPso = $psoConfigs->where('code', $targetPsoId)->first()
+            ?: PsoConfig::where('code', $targetPsoId)->orWhere('id', $targetPsoId)->first();
+
+        if (!$selectedPso) {
+            return redirect()->back()->withInput()->with('error', "The selected PSO '{$targetPsoId}' is invalid or could not be found. Please select a valid closed PSO.");
         }
 
         if ($request->hasFile('excel_file')) {
@@ -199,34 +208,9 @@ class ExcelImportController extends Controller
                     $paymentTypeNormalized = 'Cancelled';
                 }
 
-                // Determine PSO Mapping
-                $assignedPsoCode = 'PSO-1';
-                $psoConfigId = null;
-
-                if ($targetPsoId !== 'ALL') {
-                    $matchedPso = $psoConfigs->firstWhere('code', $targetPsoId);
-                    if ($matchedPso) {
-                        $assignedPsoCode = $matchedPso->code;
-                        $psoConfigId = $matchedPso->id;
-                    }
-                } else {
-                    foreach ($psoConfigs as $pso) {
-                        if (!empty($pso->prefix) && stripos($billNo, $pso->prefix) === 0) {
-                            $assignedPsoCode = $pso->code;
-                            $psoConfigId = $pso->id;
-                            break;
-                        }
-                        if (!empty($pso->series_ranges)) {
-                            foreach ($pso->series_ranges as $sr) {
-                                if (!empty($sr['prefix']) && stripos($billNo, $sr['prefix']) === 0) {
-                                    $assignedPsoCode = $pso->code;
-                                    $psoConfigId = $pso->id;
-                                    break 2;
-                                }
-                            }
-                        }
-                    }
-                }
+                // Determine PSO Mapping (assigned to the specifically selected PSO)
+                $assignedPsoCode = $selectedPso->code;
+                $psoConfigId = $selectedPso->id;
 
                 // Check post-cutoff
                 $isPostCutoff = false;
