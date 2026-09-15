@@ -24,10 +24,75 @@ class ExcelImportController extends Controller
     }
 
     /**
+     * Standardize any date input into YYYY-MM-DD
+     */
+    protected function normalizeDateInput(?string $date): string
+    {
+        if (empty($date)) {
+            return $this->reconService->getBusinessDate();
+        }
+        $date = trim($date);
+        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/', $date, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+        }
+        if (preg_match('/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/', $date, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]);
+        }
+        $ts = strtotime($date);
+        return $ts ? date('Y-m-d', $ts) : $date;
+    }
+
+    /**
+     * Check if a PSO already has imported bills for a given date
+     */
+    protected function isPsoImportedOnDate(PsoConfig $pso, string $normalizedDate, $billsOnDate): bool
+    {
+        // 1. Direct ID match
+        if ($billsOnDate->where('pso_config_id', $pso->id)->isNotEmpty()) {
+            return true;
+        }
+
+        // 2. Code match (e.g. PSO-1, PSO 1, pso-1, pso1)
+        $cleanPsoCode = strtolower(preg_replace('/[^a-z0-9]/i', '', (string)$pso->code));
+        foreach ($billsOnDate as $b) {
+            if (!empty($b->pso_code)) {
+                $bCode = strtolower(preg_replace('/[^a-z0-9]/i', '', (string)$b->pso_code));
+                if ($bCode !== '' && $bCode === $cleanPsoCode) {
+                    return true;
+                }
+            }
+        }
+
+        // 3. Series / Bill Number range match
+        $ranges = $pso->getAllSeriesRanges();
+        foreach ($billsOnDate as $b) {
+            if (empty($b->bill_no)) continue;
+            $parsed = PsoConfig::parseBillNumber($b->bill_no);
+            if ($parsed['number'] > 0) {
+                foreach ($ranges as $r) {
+                    $rPrefix = trim($r['prefix'] ?? $pso->prefix ?? '');
+                    $rStart = (int)($r['start_no'] ?? 0);
+                    $rEnd = (int)($r['end_no'] ?? 0);
+                    if ($rEnd < $rStart) $rEnd = $rStart;
+
+                    $pfxMatches = empty($rPrefix) || empty($parsed['prefix']) || strcasecmp($rPrefix, $parsed['prefix']) === 0;
+                    if ($pfxMatches && $parsed['number'] >= $rStart && $parsed['number'] <= $rEnd) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Get closed PSOs available for import on a specific date (excludes PSOs that already have bills imported for that date)
      */
     public function getAvailablePsosForDate(string $businessDate, $user = null)
     {
+        $normalizedDate = $this->normalizeDateInput($businessDate);
+
         $query = PsoConfig::where('is_closed', true);
         if ($user && $user->isOperator()) {
             $query->where(function ($q) use ($user) {
@@ -37,23 +102,24 @@ class ExcelImportController extends Controller
         }
         $closedPsos = $query->orderBy('code')->get();
 
-        // Get PSOs that already have bills imported for this business date
-        $importedPsoCodes = Bill::whereDate('business_date', $businessDate)
-            ->whereNotNull('pso_code')
-            ->pluck('pso_code')
-            ->unique()
-            ->toArray();
+        // Fetch all bills for this date with date variations
+        $dmyDate = date('d-m-Y', strtotime($normalizedDate));
+        $slashDate = date('d/m/Y', strtotime($normalizedDate));
 
-        $importedPsoIds = Bill::whereDate('business_date', $businessDate)
-            ->whereNotNull('pso_config_id')
-            ->pluck('pso_config_id')
-            ->unique()
-            ->toArray();
+        $billsOnDate = Bill::where(function ($q) use ($normalizedDate, $dmyDate, $slashDate) {
+            $q->whereDate('business_date', $normalizedDate)
+              ->orWhere('business_date', 'like', $normalizedDate . '%')
+              ->orWhere('business_date', 'like', $dmyDate . '%')
+              ->orWhere('business_date', 'like', $slashDate . '%');
+        })->select('id', 'bill_no', 'pso_code', 'pso_config_id', 'business_date')->get();
 
-        // Filter out any PSO that already has bills imported on this date
-        return $closedPsos->filter(function ($pso) use ($importedPsoCodes, $importedPsoIds) {
-            return !in_array($pso->code, $importedPsoCodes, true) &&
-                   !in_array($pso->id, $importedPsoIds, true);
+        if ($billsOnDate->isEmpty()) {
+            return $closedPsos;
+        }
+
+        // Filter out any PSO that has bills on this date
+        return $closedPsos->filter(function ($pso) use ($normalizedDate, $billsOnDate) {
+            return !$this->isPsoImportedOnDate($pso, $normalizedDate, $billsOnDate);
         })->values();
     }
 

@@ -538,6 +538,14 @@ document.addEventListener('DOMContentLoaded', function () {
     dateInput.addEventListener('change', function () {
       reloadPsosForDate(this.value);
     });
+    dateInput.addEventListener('input', function () {
+      reloadPsosForDate(this.value);
+    });
+
+    // Initial sync on page load if date is set
+    if (dateInput.value) {
+      reloadPsosForDate(dateInput.value);
+    }
   }
 
   if (btnRefreshPsos && dateInput) {
