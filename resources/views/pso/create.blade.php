@@ -487,9 +487,9 @@
           <div id="quick-prefix-alert" class="alert alert-danger py-2 small d-none"></div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Prefix Code <span class="text-danger">*</span></label>
-            <input type="text" name="prefix" id="quick-input-prefix" class="form-control font-mono fw-bold text-uppercase" 
-                   placeholder="e.g. SC, IB, RET" maxlength="10" required>
-            <div class="form-text">Will be automatically uppercase (e.g. SC).</div>
+            <input type="text" name="prefix" id="quick-input-prefix" class="form-control font-mono fw-bold" 
+                   placeholder="e.g. SC, ib, ret" maxlength="10" required>
+            <div class="form-text">Prefix code (e.g. SC, ib).</div>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Prefix Name <span class="text-danger">*</span></label>
@@ -811,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (quickForm) {
     quickForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      const codeVal = quickPrefixIn.value.trim().toUpperCase();
+      const codeVal = quickPrefixIn.value.trim();
       const nameVal = quickNameIn.value.trim();
       const descVal = quickDescIn ? quickDescIn.value.trim() : '';
 

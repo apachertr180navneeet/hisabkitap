@@ -201,7 +201,7 @@
                   <div class="modal-body">
                     <div class="mb-3">
                       <label class="form-label fw-semibold">Prefix Code <span class="text-danger">*</span></label>
-                      <input type="text" name="prefix" class="form-control text-uppercase" value="{{ $pfx->prefix }}" maxlength="10" required>
+                      <input type="text" name="prefix" class="form-control" value="{{ $pfx->prefix }}" maxlength="10" required>
                       <div class="form-text">Must be unique across all prefixes.</div>
                     </div>
                     <div class="mb-3">
@@ -273,7 +273,7 @@
       <div class="text-muted" style="font-size: 0.82rem;">
         <ul class="mb-0 ps-3">
           <li>Prefixes assigned to active PSO configs <strong>cannot be deleted</strong></li>
-          <li>All prefix values are stored in <strong>UPPERCASE</strong></li>
+          <li>Prefixes can be entered in <strong>any case</strong></li>
           <li>Each prefix code must be <strong>unique</strong> across the system</li>
         </ul>
       </div>

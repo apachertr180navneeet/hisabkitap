@@ -38,7 +38,7 @@ class PrefixMasterController extends Controller
 
         $prefix = Prefix::create([
             'code'        => $code,
-            'prefix'      => strtoupper(trim($validated['prefix'])),
+            'prefix'      => trim($validated['prefix']),
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
             'is_active'   => true,
@@ -83,7 +83,7 @@ class PrefixMasterController extends Controller
         ]);
 
         $oldPrefix = $prefix->prefix;
-        $newPrefix = strtoupper(trim($validated['prefix']));
+        $newPrefix = trim($validated['prefix']);
 
         $prefix->update([
             'prefix'      => $newPrefix,

@@ -237,8 +237,8 @@
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label fw-semibold">Prefix Code <span class="text-danger">*</span></label>
-            <input type="text" name="prefix" class="form-control text-uppercase" placeholder="e.g. CB, RB, ITC" maxlength="10" required>
-            <div class="form-text">Unique bill prefix code. Will be stored in UPPERCASE.</div>
+            <input type="text" name="prefix" class="form-control" placeholder="e.g. CB, rb, itc" maxlength="10" required>
+            <div class="form-text">Unique bill prefix code.</div>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Prefix Name <span class="text-danger">*</span></label>
