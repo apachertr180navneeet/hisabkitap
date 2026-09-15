@@ -11,6 +11,7 @@ class PsoConfig extends Model
 
     protected $fillable = [
         'code',
+        'business_date',
         'prefix',
         'financial_year',
         'series_ranges',
@@ -37,6 +38,7 @@ class PsoConfig extends Model
     ];
 
     protected $casts = [
+        'business_date' => 'date',
         'specials' => 'array',
         'series_ranges' => 'array',
         'is_active' => 'boolean',

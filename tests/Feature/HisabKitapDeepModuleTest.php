@@ -107,37 +107,65 @@ class HisabKitapDeepModuleTest extends TestCase
 
     public function test_import_ajax_psos_for_date_filters_by_selected_date(): void
     {
-        $today = date('Y-m-d');
-        PsoConfig::create([
-            'code' => 'PSO-TODAY-CLOSED',
+        $date1 = '2026-09-01';
+        $date2 = '2026-09-02';
+
+        $pso = PsoConfig::create([
+            'code' => 'PSO-DATE1-CLOSED',
             'prefix' => 'TD',
             'start_no' => 1,
             'end_no' => 10,
-            'operator_name' => 'Today Operator',
+            'operator_name' => 'Test Operator',
             'is_active' => false,
             'is_closed' => true,
-            'closed_at' => now(),
+            'created_at' => $date1 . ' 10:00:00',
+            'closed_at' => $date1 . ' 18:00:00',
         ]);
 
-        // 1. Fetching for a past date with no PSOs (e.g. 2026-09-03) returns 0 PSOs
-        $pastResponse = $this->get('/admin/import/psos-for-date?date=2026-09-03');
-        $pastResponse->assertStatus(200);
-        $pastResponse->assertJson([
-            'success' => true,
-            'available_count' => 0,
-            'total_closed_count' => 0,
-            'psos' => [],
-        ]);
-
-        // 2. Fetching for today returns the closed PSO
-        $todayResponse = $this->get('/admin/import/psos-for-date?date=' . $today);
-        $todayResponse->assertStatus(200);
-        $todayResponse->assertJson([
+        // 1. Date 1 (2026-09-01): PSO is available
+        $resDate1 = $this->get('/admin/import/psos-for-date?date=' . $date1);
+        $resDate1->assertStatus(200);
+        $resDate1->assertJson([
             'success' => true,
             'available_count' => 1,
             'total_closed_count' => 1,
+            'imported_count' => 0,
         ]);
-        $this->assertEquals('PSO-TODAY-CLOSED', $todayResponse->json('psos.0.code'));
+        $this->assertEquals('PSO-DATE1-CLOSED', $resDate1->json('psos.0.code'));
+
+        // 2. Date 2 (2026-09-02): Data is not there, so it must return 0 PSOs (does NOT show date 1 data)
+        $resDate2 = $this->get('/admin/import/psos-for-date?date=' . $date2);
+        $resDate2->assertStatus(200);
+        $resDate2->assertJson([
+            'success' => true,
+            'available_count' => 0,
+            'total_closed_count' => 0,
+            'imported_count' => 0,
+            'psos' => [],
+        ]);
+
+        // 3. Import bills for this PSO on Date 1
+        Bill::create([
+            'bill_no' => 'TD 01',
+            'pso_config_id' => $pso->id,
+            'pso_code' => $pso->code,
+            'business_date' => $date1,
+            'customer_name' => 'Sample Cust',
+            'amount' => 500,
+            'net_amount' => 500,
+            'payment_type' => 'Cash',
+        ]);
+
+        // 4. After import on Date 1: PSO is filtered out from available list for Date 1
+        $resAfter = $this->get('/admin/import/psos-for-date?date=' . $date1);
+        $resAfter->assertStatus(200);
+        $resAfter->assertJson([
+            'success' => true,
+            'available_count' => 0,
+            'total_closed_count' => 1,
+            'imported_count' => 1,
+            'psos' => [],
+        ]);
     }
 
     public function test_tally_import_without_file_creates_mock_record(): void

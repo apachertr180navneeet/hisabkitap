@@ -58,12 +58,15 @@ class PsoManagementController extends Controller
             ->unique()->filter()->values();
         $gadiOptions = PsoConfig::whereNotNull('gadi_number')->where('gadi_number', '!=', '')->distinct()->pluck('gadi_number')->values();
 
-        return view('pso.create', compact('prefixes', 'suggestedCode', 'operators', 'drivers', 'helpers', 'gadiOptions'));
+        $defaultBusinessDate = (new \App\Services\ReconciliationService())->getBusinessDate();
+
+        return view('pso.create', compact('prefixes', 'suggestedCode', 'operators', 'drivers', 'helpers', 'gadiOptions', 'defaultBusinessDate'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'business_date' => 'nullable|date',
             'prefix' => 'nullable',
             'financial_year' => 'nullable',
             'start_no' => 'nullable',
@@ -153,9 +156,12 @@ class PsoManagementController extends Controller
 
         $primary = $seriesList[0];
         $createdByUserId = auth()->id();
+        $reconService = new \App\Services\ReconciliationService();
+        $businessDate = $request->input('business_date') ? $reconService->normalizeDate($request->input('business_date')) : date('Y-m-d');
 
         $pso = PsoConfig::create([
             'code' => $code,
+            'business_date' => $businessDate,
             'prefix' => $primary['prefix'],
             'financial_year' => $primary['financial_year'],
             'series_ranges' => $seriesList,
@@ -222,6 +228,7 @@ class PsoManagementController extends Controller
         }
 
         $validated = $request->validate([
+            'business_date' => 'nullable|date',
             'prefix' => 'nullable',
             'financial_year' => 'nullable',
             'start_no' => 'nullable',
@@ -296,8 +303,11 @@ class PsoManagementController extends Controller
         }
 
         $primary = $seriesList[0];
+        $reconService = new \App\Services\ReconciliationService();
+        $businessDate = $request->input('business_date') ? $reconService->normalizeDate($request->input('business_date')) : $pso->business_date;
 
         $pso->update([
+            'business_date' => $businessDate,
             'prefix' => $primary['prefix'],
             'financial_year' => $primary['financial_year'],
             'series_ranges' => $seriesList,

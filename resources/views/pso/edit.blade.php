@@ -56,9 +56,9 @@
         </div>
         <div class="card-body p-4">
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label fw-semibold" for="code">
-                PSO Identifier Code <span class="badge bg-secondary ms-1 font-mono">System Assigned</span>
+                PSO Code <span class="badge bg-secondary ms-1 font-mono">Assigned</span>
               </label>
               <div class="input-group">
                 <span class="input-group-text bg-light font-mono"><i class="bi bi-hash"></i></span>
@@ -66,12 +66,24 @@
                        value="{{ $pso->code }}" readonly>
                 <span class="input-group-text bg-light text-muted" title="Read-only identifier"><i class="bi bi-lock-fill"></i></span>
               </div>
-              <div class="form-text small text-muted"><i class="bi bi-info-circle me-1"></i>System unique identifier (Read-only).</div>
+              <div class="form-text small text-muted"><i class="bi bi-info-circle me-1"></i>System identifier.</div>
             </div>
 
-            <div class="col-md-5">
+            <div class="col-md-3">
+              <label class="form-label fw-semibold" for="business_date">
+                Business Date <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
+                <input type="date" name="business_date" id="business_date" class="form-control font-mono" 
+                       value="{{ old('business_date', $pso->business_date ? (is_string($pso->business_date) ? substr($pso->business_date, 0, 10) : $pso->business_date->format('Y-m-d')) : (is_string($pso->created_at) ? substr($pso->created_at, 0, 10) : $pso->created_at->format('Y-m-d'))) }}" required>
+              </div>
+              <div class="form-text small">Date of operation / billing.</div>
+            </div>
+
+            <div class="col-md-4">
               <label class="form-label fw-semibold" for="operator_name">
-                Assigned Operator / Staff <span class="text-danger">*</span>
+                Assigned Operator <span class="text-danger">*</span>
               </label>
               <div class="input-group">
                 <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
@@ -85,23 +97,22 @@
                   @endforeach
                 </datalist>
               </div>
-              <div class="form-text small">Operator responsible for counter bills and reconciliation.</div>
+              <div class="form-text small">Operator responsible for counter bills.</div>
               @error('operator_name')
                 <div class="text-danger small mt-1">{{ $message }}</div>
               @enderror
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-2">
               <label class="form-label fw-semibold" for="is_active">Status</label>
               <div class="form-check form-switch pt-1">
                 <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" 
                        {{ old('is_active', $pso->is_active ? '1' : '0') == '1' ? 'checked' : '' }} 
                        style="width: 2.5em; height: 1.3em;">
-                <label class="form-check-label ms-2 fw-semibold {{ $pso->is_active ? 'text-success' : 'text-muted' }}" for="is_active" id="status-label">
-                  {{ $pso->is_active ? 'Active (Operational)' : 'Inactive (Disabled)' }}
+                <label class="form-check-label ms-1 fw-semibold {{ $pso->is_active ? 'text-success' : 'text-muted' }}" for="is_active" id="status-label">
+                  {{ $pso->is_active ? 'Active' : 'Inactive' }}
                 </label>
               </div>
-              <div class="form-text small">Include in daily verification sheet.</div>
             </div>
           </div>
         </div>

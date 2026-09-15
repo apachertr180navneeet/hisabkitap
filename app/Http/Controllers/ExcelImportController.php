@@ -68,14 +68,15 @@ class ExcelImportController extends Controller
         foreach ($billsOnDate as $b) {
             if (empty($b->bill_no)) continue;
             $parsed = PsoConfig::parseBillNumber($b->bill_no);
-            if ($parsed['number'] > 0) {
+            if ($parsed['number'] !== null && $parsed['number'] > 0) {
+                $billPfx = strtoupper(trim((string)($parsed['prefix'] ?? '')));
                 foreach ($ranges as $r) {
-                    $rPrefix = trim($r['prefix'] ?? $pso->prefix ?? '');
+                    $rPrefix = strtoupper(trim((string)($r['prefix'] ?? $pso->prefix ?? '')));
                     $rStart = (int)($r['start_no'] ?? 0);
                     $rEnd = (int)($r['end_no'] ?? 0);
                     if ($rEnd < $rStart) $rEnd = $rStart;
 
-                    $pfxMatches = empty($rPrefix) || empty($parsed['prefix']) || strcasecmp($rPrefix, $parsed['prefix']) === 0;
+                    $pfxMatches = ($rPrefix === $billPfx);
                     if ($pfxMatches && $parsed['number'] >= $rStart && $parsed['number'] <= $rEnd) {
                         return true;
                     }
@@ -87,18 +88,22 @@ class ExcelImportController extends Controller
     }
 
     /**
-     * Get closed PSOs active/closed on or relevant to a specific business date
+     * Get closed PSOs available for import on a specific date (only PSOs configured/closed on this date and not yet imported)
      */
-    public function getClosedPsosForDate(string $businessDate, $user = null)
+    public function getAvailablePsosForDate(string $businessDate, $user = null)
     {
         $normalizedDate = $this->normalizeDateInput($businessDate);
 
+        // ONLY retrieve closed PSOs belonging to THIS specific business date
         $query = PsoConfig::where('is_closed', true)
             ->where(function ($q) use ($normalizedDate) {
-                $q->whereDate('created_at', $normalizedDate)
-                  ->orWhereDate('closed_at', $normalizedDate)
-                  ->orWhereHas('bills', function ($bQ) use ($normalizedDate) {
-                      $bQ->whereDate('business_date', $normalizedDate);
+                $q->whereDate('business_date', $normalizedDate)
+                  ->orWhere(function ($sub) use ($normalizedDate) {
+                      $sub->whereNull('business_date')
+                          ->where(function ($inner) use ($normalizedDate) {
+                              $inner->whereDate('created_at', $normalizedDate)
+                                    ->orWhereDate('closed_at', $normalizedDate);
+                          });
                   });
             });
 
@@ -108,18 +113,9 @@ class ExcelImportController extends Controller
                   ->orWhere('operator_name', $user->name);
             });
         }
+        $closedPsos = $query->orderBy('code')->get();
 
-        return $query->orderBy('code')->get();
-    }
-
-    /**
-     * Get closed PSOs available for import on a specific date (excludes PSOs that already have bills imported for that date)
-     */
-    public function getAvailablePsosForDate(string $businessDate, $user = null)
-    {
-        $normalizedDate = $this->normalizeDateInput($businessDate);
-        $closedPsos = $this->getClosedPsosForDate($normalizedDate, $user);
-
+        // If no closed PSOs exist for this date, return empty collection (0 available)
         if ($closedPsos->isEmpty()) {
             return collect();
         }
@@ -139,7 +135,7 @@ class ExcelImportController extends Controller
             return $closedPsos;
         }
 
-        // Filter out any PSO that has bills on this date
+        // Filter out any closed PSO that already has bills imported on this date
         return $closedPsos->filter(function ($pso) use ($normalizedDate, $billsOnDate) {
             return !$this->isPsoImportedOnDate($pso, $normalizedDate, $billsOnDate);
         })->values();
@@ -154,8 +150,27 @@ class ExcelImportController extends Controller
         $businessDate = $this->reconService->normalizeDate($rawDate);
         $user = auth()->user();
 
-        $closedPsos = $this->getClosedPsosForDate($businessDate, $user);
-        $totalClosedCount = $closedPsos->count();
+        // Total closed PSOs specifically configured/closed for this date
+        $totalClosedQuery = PsoConfig::where('is_closed', true)
+            ->where(function ($q) use ($businessDate) {
+                $q->whereDate('business_date', $businessDate)
+                  ->orWhere(function ($sub) use ($businessDate) {
+                      $sub->whereNull('business_date')
+                          ->where(function ($inner) use ($businessDate) {
+                              $inner->whereDate('created_at', $businessDate)
+                                    ->orWhereDate('closed_at', $businessDate);
+                          });
+                  });
+            });
+
+        if ($user && $user->isOperator()) {
+            $totalClosedQuery->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $totalClosedCount = $totalClosedQuery->count();
+
         $availablePsos = $this->getAvailablePsosForDate($businessDate, $user);
         $availableCount = $availablePsos->count();
         $importedCount = max(0, $totalClosedCount - $availableCount);
@@ -203,8 +218,26 @@ class ExcelImportController extends Controller
         $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
         
         $user = auth()->user();
-        $closedPsos = $this->getClosedPsosForDate($businessDate, $user);
-        $totalClosedCount = $closedPsos->count();
+        $totalClosedQuery = PsoConfig::where('is_closed', true)
+            ->where(function ($q) use ($businessDate) {
+                $q->whereDate('business_date', $businessDate)
+                  ->orWhere(function ($sub) use ($businessDate) {
+                      $sub->whereNull('business_date')
+                          ->where(function ($inner) use ($businessDate) {
+                              $inner->whereDate('created_at', $businessDate)
+                                    ->orWhereDate('closed_at', $businessDate);
+                          });
+                  });
+            });
+
+        if ($user && $user->isOperator()) {
+            $totalClosedQuery->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $totalClosedCount = $totalClosedQuery->count();
+
         $psoList = $this->getAvailablePsosForDate($businessDate, $user);
         $importedCount = max(0, $totalClosedCount - $psoList->count());
 

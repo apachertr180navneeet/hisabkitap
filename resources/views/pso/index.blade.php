@@ -39,8 +39,11 @@
           <tr>
             <td>
               <span class="badge bg-primary font-mono fs-6">{{ $pso->code }}</span>
+              <div class="text-muted font-mono small mt-1" style="font-size: 0.75rem;">
+                <i class="bi bi-calendar-event text-primary me-1"></i>{{ $pso->business_date ? (is_string($pso->business_date) ? date('d/m/Y', strtotime($pso->business_date)) : $pso->business_date->format('d/m/Y')) : ($pso->created_at ? $pso->created_at->format('d/m/Y') : '—') }}
+              </div>
               @if($pso->description)
-                <div class="text-muted small mt-1" style="font-size: 0.76rem;">{{ Str::limit($pso->description, 50) }}</div>
+                <div class="text-muted small mt-0.5" style="font-size: 0.72rem;">{{ Str::limit($pso->description, 40) }}</div>
               @endif
             </td>
             <td>
