@@ -3,77 +3,110 @@
 @section('title', 'Master Reconciliation')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
   <div>
     <h4 class="fw-bold mb-1">Master Reconciliation Engine</h4>
     <p class="text-muted mb-0">Final mathematical comparison between Tally Total and Total Verified PSO Collection.</p>
   </div>
-  <a href="{{ route('reconciliation.index') }}" class="btn btn-outline-primary">
-    <i class="bi bi-arrow-clockwise me-1"></i> Re-Calculate
-  </a>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <!-- Date Filter Form -->
+    <form action="{{ route('admin.reconciliation.index') }}" method="GET" class="d-flex align-items-center gap-2">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light"><i class="bi bi-calendar3 me-1"></i> Date</span>
+        <input type="date" name="date" class="form-control font-mono" value="{{ $businessDate }}" onchange="this.form.submit()" title="Select Business Date">
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">
+        <i class="bi bi-search"></i>
+      </button>
+    </form>
+
+    <a href="{{ route('admin.reconciliation.index', ['date' => $businessDate]) }}" class="btn btn-sm btn-outline-primary" title="Re-calculate metrics">
+      <i class="bi bi-arrow-clockwise me-1"></i> Re-Calculate
+    </a>
+  </div>
 </div>
+
+<!-- Quick Date Navigation Bar -->
+@if(!empty($availableDates) && count($availableDates) > 0)
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 bg-light rounded border">
+    <small class="text-muted fw-semibold me-1"><i class="bi bi-clock-history me-1"></i>Available Dates:</small>
+    @foreach(array_slice($availableDates, 0, 8) as $ad)
+      <a href="{{ route('admin.reconciliation.index', ['date' => $ad]) }}" 
+         class="badge {{ $businessDate === $ad ? 'bg-primary text-white shadow-sm' : 'bg-white text-dark border text-decoration-none' }} px-2 py-1 font-mono">
+        {{ date('d/m/Y', strtotime($ad)) }}
+      </a>
+    @endforeach
+  </div>
+@endif
 
 <!-- Master Status Banner -->
 @if(!$metrics['hasBills'])
-  <div class="recon-banner" style="background: #f8fafc; border-left: 5px solid #64748b; border: 1px solid #e2e8f0;">
-    <div class="d-flex align-items-center gap-3">
-      <div class="rounded-circle p-3 bg-white shadow-sm text-secondary">
-        <i class="bi bi-inbox fs-1"></i>
+  <div class="recon-banner mb-4" style="background: #f8fafc; border-left: 5px solid #64748b; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle p-3 bg-white shadow-sm text-secondary">
+          <i class="bi bi-inbox fs-1"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1 text-dark">AWAITING TALLY DAYBOOK IMPORT</h4>
+          <p class="mb-0 text-muted">
+            No bill records found for business date <strong>{{ date('d/m/Y', strtotime($businessDate)) }}</strong>. Please configure PSO counter series and import your DayBook Excel file, or choose another date above.
+          </p>
+        </div>
       </div>
       <div>
-        <h4 class="fw-bold mb-1 text-dark">AWAITING TALLY DAYBOOK IMPORT</h4>
-        <p class="mb-0 text-muted">
-          No bill records found for business date <strong>{{ date('d/m/Y', strtotime($metrics['businessDate'])) }}</strong>. Please configure PSO counter series and import your DayBook Excel file to begin reconciliation.
-        </p>
+        <a href="{{ route('admin.import.index') }}" class="btn btn-primary">
+          <i class="bi bi-cloud-arrow-up me-1"></i> Import Tally DayBook
+        </a>
       </div>
-    </div>
-    <div>
-      <a href="{{ route('admin.import.index') }}" class="btn btn-primary">
-        <i class="bi bi-cloud-arrow-up me-1"></i> Import Tally DayBook
-      </a>
     </div>
   </div>
 @elseif(!$metrics['isReconciled'])
-  <div class="recon-banner failed">
-    <div class="d-flex align-items-center gap-3">
-      <div class="rounded-circle p-3 bg-white shadow-sm text-danger">
-        <i class="bi bi-shield-x fs-1"></i>
+  <div class="recon-banner failed mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle p-3 bg-white shadow-sm text-danger">
+          <i class="bi bi-shield-x fs-1"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1">RECONCILIATION FAILED (VARIANCE DETECTED)</h4>
+          <p class="mb-0 text-muted">
+            Tally Total (₹{{ number_format($metrics['tallyTotal'], 2) }}) does not match Total PSO Collection (₹{{ number_format($metrics['psoCollection'], 2) }}). Difference: <span class="fw-bold text-danger">₹{{ number_format($metrics['difference'], 2) }}</span>.
+            Approval and sealing are strictly blocked until discrepancy is cleared.
+          </p>
+        </div>
       </div>
       <div>
-        <h4 class="fw-bold mb-1">RECONCILIATION FAILED (VARIANCE DETECTED)</h4>
-        <p class="mb-0 text-muted">
-          Tally Total (₹{{ number_format($metrics['tallyTotal'], 2) }}) does not match Total PSO Collection (₹{{ number_format($metrics['psoCollection'], 2) }}). Difference: <span class="fw-bold text-danger">₹{{ number_format($metrics['difference'], 2) }}</span>.
-          Approval and sealing are strictly blocked until discrepancy is cleared.
-        </p>
+        <form action="{{ route('admin.reconciliation.resolve') }}" method="POST">
+          @csrf
+          <input type="hidden" name="date" value="{{ $businessDate }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-tools me-1"></i> Resolve Discrepancy (Match Missing)
+          </button>
+        </form>
       </div>
-    </div>
-    <div>
-      <form action="{{ route('admin.reconciliation.resolve') }}" method="POST">
-        @csrf
-        <button type="submit" class="btn btn-danger">
-          <i class="bi bi-tools me-1"></i> Resolve Discrepancy (Match Missing)
-        </button>
-      </form>
     </div>
   </div>
 @else
-  <div class="recon-banner success">
-    <div class="d-flex align-items-center gap-3">
-      <div class="rounded-circle p-3 bg-white shadow-sm text-success">
-        <i class="bi bi-shield-check fs-1"></i>
+  <div class="recon-banner success mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle p-3 bg-white shadow-sm text-success">
+          <i class="bi bi-shield-check fs-1"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1 text-success">RECONCILIATION 100% BALANCED</h4>
+          <p class="mb-0 text-muted">
+            Tally Total matches Total PSO Collection perfectly at <strong>₹{{ number_format($metrics['tallyTotal'], 2) }}</strong> (Difference: <span class="fw-bold text-success">₹0.00</span>).
+            All compliance prerequisite gates are passed.
+          </p>
+        </div>
       </div>
       <div>
-        <h4 class="fw-bold mb-1 text-success">RECONCILIATION 100% BALANCED</h4>
-        <p class="mb-0 text-muted">
-          Tally Total matches Total PSO Collection perfectly at <strong>₹{{ number_format($metrics['tallyTotal'], 2) }}</strong> (Difference: <span class="fw-bold text-success">₹0.00</span>).
-          All compliance prerequisite gates are passed.
-        </p>
+        <a href="{{ route('admin.approval.index', ['date' => $businessDate]) }}" class="btn btn-success">
+          <i class="bi bi-lock-fill me-1"></i> Proceed to Sealing & Sign-Off
+        </a>
       </div>
-    </div>
-    <div>
-      <a href="{{ route('admin.approval.index') }}" class="btn btn-success">
-        <i class="bi bi-lock-fill me-1"></i> Proceed to Sealing & Sign-Off
-      </a>
     </div>
   </div>
 @endif
@@ -94,7 +127,7 @@
         </li>
         <li class="list-group-item d-flex justify-content-between px-0">
           <span>Business Accounting Date</span>
-          <span class="fw-bold font-mono">{{ date('d/m/Y', strtotime($metrics['businessDate'])) }}</span>
+          <span class="fw-bold font-mono">{{ date('d/m/Y', strtotime($businessDate)) }}</span>
         </li>
         <li class="list-group-item d-flex justify-content-between px-0">
           <span>Gross Debit/Credit Check</span>
@@ -119,18 +152,32 @@
       </div>
       <div class="display-6 fw-bold font-mono text-success mb-3">₹{{ number_format($metrics['psoCollection'], 2) }}</div>
       <ul class="list-group list-group-flush small">
-        <li class="list-group-item d-flex justify-content-between px-0">
-          <span>PSO 1 (CB 01 - CB 10)</span>
-          <span class="fw-bold font-mono">₹{{ number_format($metrics['pso1Total'], 2) }}</span>
-        </li>
-        <li class="list-group-item d-flex justify-content-between px-0">
-          <span>PSO 2 (CB 11 - CB 20 + ITC)</span>
-          <span class="fw-bold font-mono">₹{{ number_format($metrics['pso2Total'], 2) }}</span>
-        </li>
-        <li class="list-group-item d-flex justify-content-between px-0">
-          <span>PSO 3 (RB 01 - RB 10)</span>
-          <span class="fw-bold font-mono">₹{{ number_format($metrics['pso3Total'], 2) }}</span>
-        </li>
+        @if(!empty($metrics['psoBreakdown']) && count($metrics['psoBreakdown']) > 0)
+          @foreach($metrics['psoBreakdown'] as $pb)
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span>
+                <strong>{{ $pb['code'] }}</strong>
+                @if(!empty($pb['series_summary']))
+                  <small class="text-muted">({{ $pb['series_summary'] }})</small>
+                @endif
+              </span>
+              <span class="fw-bold font-mono">₹{{ number_format($pb['total'], 2) }}</span>
+            </li>
+          @endforeach
+        @else
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span>PSO 1</span>
+            <span class="fw-bold font-mono">₹{{ number_format($metrics['pso1Total'] ?? 0, 2) }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span>PSO 2</span>
+            <span class="fw-bold font-mono">₹{{ number_format($metrics['pso2Total'] ?? 0, 2) }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span>PSO 3</span>
+            <span class="fw-bold font-mono">₹{{ number_format($metrics['pso3Total'] ?? 0, 2) }}</span>
+          </li>
+        @endif
       </ul>
     </div>
   </div>
@@ -143,7 +190,7 @@
       <h5 class="fw-bold mb-1"><i class="bi bi-wallet2 text-primary me-2"></i>Cash vs Paytm Split & Driver Reconciliation Matrix</h5>
       <p class="text-muted small mb-0">Separate tracking of physical cash, Paytm QR settlements, driver travel deductions, and pending cash shortages.</p>
     </div>
-    <a href="{{ route('admin.denomination.index', ['date' => $metrics['businessDate']]) }}" class="btn btn-sm btn-outline-primary">
+    <a href="{{ route('admin.denomination.index', ['date' => $businessDate]) }}" class="btn btn-sm btn-outline-primary">
       <i class="bi bi-calculator me-1"></i> Open Cash Denomination Counter
     </a>
   </div>
@@ -240,7 +287,7 @@
     <div class="d-flex gap-2">
       <form action="{{ route('admin.verification.revalidate_series') }}" method="POST" class="d-inline">
         @csrf
-        <input type="hidden" name="date" value="{{ $metrics['businessDate'] }}">
+        <input type="hidden" name="date" value="{{ $businessDate }}">
         <button type="submit" class="btn btn-sm btn-outline-secondary">
           <i class="bi bi-arrow-repeat me-1"></i> Re-validate All Series
         </button>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Bill;
 use App\Models\PsoDailySeal;
 use App\Models\AuditLog;
 use App\Services\ReconciliationService;
@@ -16,12 +17,35 @@ class ApprovalSealingController extends Controller
         $this->reconService = $reconService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $businessDate = $this->reconService->getBusinessDate();
+        $requestedDate = $request->query('date') ?: $request->input('date');
+
+        $availableDates = [];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('bills')) {
+                $availableDates = Bill::selectRaw('DISTINCT business_date')
+                    ->whereNotNull('business_date')
+                    ->pluck('business_date')
+                    ->map(fn($d) => is_string($d) ? substr($d, 0, 10) : (is_object($d) ? $d->format('Y-m-d') : substr((string)$d, 0, 10)))
+                    ->filter()
+                    ->unique()
+                    ->sortDesc()
+                    ->values()
+                    ->toArray();
+            }
+        } catch (\Throwable $e) {
+            $availableDates = [];
+        }
+
+        $businessDate = $this->reconService->getBusinessDate($requestedDate);
+        if (!$requestedDate && !empty($availableDates) && !in_array($businessDate, $availableDates)) {
+            $businessDate = $availableDates[0];
+        }
+
         $metrics = $this->reconService->getMetrics($businessDate);
 
-        return view('approval.index', compact('metrics'));
+        return view('approval.index', compact('metrics', 'businessDate', 'availableDates'));
     }
 
     public function sealDay(Request $request)
@@ -31,7 +55,7 @@ class ApprovalSealingController extends Controller
             return redirect()->back()->with('error', 'Access Denied: You do not have permission to approve and seal daily records.');
         }
 
-        $businessDate = $this->reconService->getBusinessDate();
+        $businessDate = $request->input('date') ?: $this->reconService->getBusinessDate();
         $metrics = $this->reconService->getMetrics($businessDate);
 
         if (!empty($metrics['unapprovedMismatchCount']) && $metrics['unapprovedMismatchCount'] > 0) {
@@ -75,7 +99,7 @@ class ApprovalSealingController extends Controller
             return redirect()->back()->with('error', 'Access Denied: You do not have permission to unseal records.');
         }
 
-        $businessDate = $this->reconService->getBusinessDate();
+        $businessDate = $request->input('date') ?: $this->reconService->getBusinessDate();
         $activeUser = $user?->name ?? session('active_user.name', 'Authorized Signatory');
         $reason = $request->reason ?: 'Administrative correction requested';
 
@@ -91,6 +115,7 @@ class ApprovalSealingController extends Controller
 
         AuditLog::log('UNSEAL_DAY', "Emergency unseal executed for date {$businessDate} by {$activeUser}. Reason: {$reason}");
 
-        return redirect()->back()->with('success', "Records for {$businessDate} have been UNSEALED for emergency edits. Audit remark logged.");
+        return redirect()->route('admin.approval.index', ['date' => $businessDate])
+            ->with('success', "Records for {$businessDate} have been UNSEALED for emergency edits. Audit remark logged.");
     }
 }

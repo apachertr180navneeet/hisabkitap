@@ -14,24 +14,20 @@ use App\Models\User;
 class ReconciliationService
 {
     /**
-     * Get active business date (defaults to current date)
+     * Get active business date (setting date or today, or requested date)
      */
-    public function getBusinessDate(): string
+    public function getBusinessDate(?string $requestedDate = null): string
     {
+        if ($requestedDate && $requestedDate !== 'ALL') {
+            return $requestedDate;
+        }
+
         $settingDate = SystemSetting::getVal('business_date');
         if ($settingDate) {
-            return $settingDate;
+            return is_string($settingDate) ? substr($settingDate, 0, 10) : (is_object($settingDate) ? $settingDate->format('Y-m-d') : (string)$settingDate);
         }
 
-        $today = date('Y-m-d');
-        if (Bill::whereDate('business_date', $today)->exists() || CashDenomination::whereDate('business_date', $today)->exists()) {
-            return $today;
-        }
-
-        $latestDate = Bill::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date')
-            ?: CashDenomination::whereNotNull('business_date')->orderBy('business_date', 'desc')->value('business_date');
-
-        return $latestDate ? (is_string($latestDate) ? substr($latestDate, 0, 10) : $latestDate->format('Y-m-d')) : $today;
+        return date('Y-m-d');
     }
 
     /**
@@ -39,7 +35,7 @@ class ReconciliationService
      */
     public function getMetrics(?string $businessDate = null): array
     {
-        $date = $businessDate ?: $this->getBusinessDate();
+        $date = $this->getBusinessDate($businessDate);
 
         $tallyTotal = 0;
         $psoCollection = 0;
@@ -66,6 +62,7 @@ class ReconciliationService
         $unapprovedMismatchCount = 0;
         $approvedMismatchCount = 0;
         $mismatchBills = [];
+        $psoBreakdown = [];
 
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('bills')) {
@@ -104,23 +101,25 @@ class ReconciliationService
                             $unapprovedMismatchCount++;
                         }
 
-                        $mismatchBills[] = [
+                        $mismatchBills[] = (object) [
                             'id' => $bill->id,
                             'pso_code' => $bill->pso_code,
                             'bill_no' => $bill->bill_no,
                             'expected_series' => $bill->expected_series ?: ($bill->psoConfig?->formatted_series_summary ?? '—'),
                             'entered_bill_no' => $bill->bill_no,
-                            'mismatch_status' => $bill->isPsoMismatch() ? 'Duplicate / PSO Mismatch' : 'Bill Series Mismatch',
+                            'status' => $bill->status,
+                            'mismatch_status' => $bill->isPsoMismatch() ? 'Duplicate / PSO Mismatch' : ($bill->mismatch_status ?: 'Bill Series Mismatch'),
                             'amount' => (float)$bill->amount,
                             'net_amount' => (float)$effectiveAmt,
                             'customer_name' => $bill->customer_name,
                             'salesman_name' => $bill->salesman_name,
+                            'is_mismatch_approved' => $isApproved,
                             'is_approved' => $isApproved,
-                            'approved_by' => $bill->mismatch_approved_by,
-                            'approved_at' => $bill->mismatch_approved_at,
-                            'approval_reason' => $bill->mismatch_approval_reason,
-                            'rejected_by' => $bill->mismatch_rejected_by,
-                            'rejected_at' => $bill->mismatch_rejected_at,
+                            'mismatch_approved_by' => $bill->mismatch_approved_by,
+                            'mismatch_approved_at' => $bill->mismatch_approved_at,
+                            'mismatch_approval_reason' => $bill->mismatch_approval_reason,
+                            'mismatch_rejected_by' => $bill->mismatch_rejected_by,
+                            'mismatch_rejected_at' => $bill->mismatch_rejected_at,
                             'rejection_reason' => $bill->mismatch_rejection_reason,
                             'remark' => $bill->remark,
                         ];
@@ -157,15 +156,42 @@ class ReconciliationService
                     $psoAmt = $isValid ? $effectiveAmt : 0;
                     $psoCollection += $psoAmt;
 
-                    // Explicit breakdown for standard PSO codes
+                    // Standard PSO code mapping
                     if ($isValid) {
-                        if ($bill->pso_code === 'PSO-1') {
+                        if ($bill->pso_code === 'PSO-1' || $bill->pso_code === 'PSO-01' || $bill->pso_code === 'PSO 1') {
                             $pso1Total += $psoAmt;
-                        } elseif ($bill->pso_code === 'PSO-2') {
+                        } elseif ($bill->pso_code === 'PSO-2' || $bill->pso_code === 'PSO-02' || $bill->pso_code === 'PSO 2') {
                             $pso2Total += $psoAmt;
-                        } elseif ($bill->pso_code === 'PSO-3') {
+                        } elseif ($bill->pso_code === 'PSO-3' || $bill->pso_code === 'PSO-03' || $bill->pso_code === 'PSO 3') {
                             $pso3Total += $psoAmt;
                         }
+                    }
+                }
+
+                // Dynamic breakdown for all configured PSOs
+                if (\Illuminate\Support\Facades\Schema::hasTable('pso_configs')) {
+                    $configs = PsoConfig::orderBy('code')->get();
+                    foreach ($configs as $cfg) {
+                        $cfgBills = $bills->where('pso_code', $cfg->code);
+                        $cfgAmt = 0;
+                        $cfgCount = $cfgBills->count();
+                        foreach ($cfgBills as $cb) {
+                            if ($cb->isValidForReconciliation()) {
+                                $isCancelled = ($cb->status === 'Cancelled' || $cb->payment_type === 'Cancelled');
+                                if (!$isCancelled) {
+                                    $cNet = max(0, (float)$cb->amount - (float)$cb->cd_amount - (float)$cb->refund_amount);
+                                    $cfgAmt += (float) ($cb->net_amount > 0 ? $cb->net_amount : $cNet);
+                                }
+                            }
+                        }
+                        $psoBreakdown[] = [
+                            'pso' => $cfg,
+                            'code' => $cfg->code,
+                            'name' => $cfg->name,
+                            'series_summary' => $cfg->formatted_series_summary ?? '',
+                            'total' => $cfgAmt,
+                            'bills_count' => $cfgCount,
+                        ];
                     }
                 }
             }
@@ -287,6 +313,7 @@ class ReconciliationService
             'totalExcessCash' => $totalExcessCash,
             'denominationCount' => $denominationCount,
             'cashVariance' => $cashVariance,
+            'psoBreakdown' => $psoBreakdown,
         ];
     }
 

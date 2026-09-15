@@ -157,11 +157,10 @@ class CorrectionsController extends Controller
         $billNo = trim($request->bill_no);
         $businessDate = $this->reconService->getBusinessDate();
         
-        $bill = Bill::where('bill_no', $billNo)->whereDate('business_date', $businessDate)->first()
-             ?? Bill::where('bill_no', $billNo)->latest('business_date')->first();
+        $bill = Bill::where('bill_no', $billNo)->whereDate('business_date', $businessDate)->first();
 
         if (!$bill) {
-            return redirect()->back()->withInput()->with('error', "Bill '{$billNo}' was not found in the database. Please check the Bill Number.");
+            abort(404, "Bill '{$billNo}' was not found for active business date.");
         }
 
         $cd = (float) ($request->cd_amount ?? 0);
@@ -170,7 +169,7 @@ class CorrectionsController extends Controller
         $netAdj = -($cd + $returnAmt + $refund);
 
         $nextId = (Correction::max('id') ?? 0) + 1;
-        $corrCode = 'CORR-'.sprintf('%03d', $nextId);
+        $corrCode = 'CORR-' . sprintf('%02d', $nextId);
 
         $corr = Correction::create([
             'corr_code' => $corrCode,
