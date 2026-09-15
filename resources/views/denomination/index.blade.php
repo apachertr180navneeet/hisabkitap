@@ -204,7 +204,7 @@
                         <input type="number" min="0" name="{{ $d['name'] }}" id="{{ $d['name'] }}" 
                                data-val="{{ $d['value'] }}" 
                                class="form-control form-control-sm text-center font-mono note-input" 
-                               value="{{ $activeDenom ? ($activeDenom->{$d['name']} ?? 0) : 0 }}" 
+                               value="{{ $activeDenom ? ($activeDenom->{$d['name']} ?? 0) : ($allDenomTotals[$d['name']] ?? 0) }}" 
                                style="max-width: 90px;" 
                                oninput="calculateTotal()">
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="adjustCount('{{ $d['name'] }}', 1)">+</button>
@@ -221,7 +221,7 @@
                   <td>
                     <input type="number" step="0.50" min="0" name="coins_total" id="coins_total" 
                            class="form-control form-control-sm text-center font-mono" 
-                           value="{{ $activeDenom ? (float)$activeDenom->coins_total : 0 }}" 
+                           value="{{ $activeDenom ? (float)$activeDenom->coins_total : (float)($allDenomTotals['coins_total'] ?? 0) }}" 
                            style="max-width: 140px; margin: 0 auto;" 
                            oninput="calculateTotal()">
                   </td>
@@ -244,7 +244,7 @@
               <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Total Trip KM</label>
                 <div class="input-group input-group-sm">
-                  <input type="number" step="0.1" min="0" name="total_km" id="total_km" class="form-control font-mono" value="{{ $activeDenom ? (float)$activeDenom->total_km : 0 }}" placeholder="e.g. 200" oninput="calculateTotal()">
+                  <input type="number" step="0.1" min="0" name="total_km" id="total_km" class="form-control font-mono" value="{{ $activeDenom ? (float)$activeDenom->total_km : (float)($allDenomTotals['total_km'] ?? 0) }}" placeholder="e.g. 200" oninput="calculateTotal()">
                   <span class="input-group-text bg-white">KM</span>
                 </div>
               </div>
@@ -538,6 +538,7 @@
 <script>
 const recordedDenominations = @json($denominations);
 const psoBookCashMap = @json($psoBookCashMap);
+const allDenomTotals = @json($allDenomTotals ?? []);
 let currentSelectedSlip = null;
 
 function adjustCount(inputId, delta) {
@@ -582,8 +583,13 @@ function calculateTotal() {
   // KM Allowance Calculation
   const totalKm = parseFloat(document.getElementById('total_km')?.value || 0) || 0;
   const kmRate = parseFloat(document.getElementById('km_rate')?.value || 0) || 0;
-  const kmAllowance = totalKm * kmRate;
+  let kmAllowance = totalKm * kmRate;
   
+  const psoSelect = document.getElementById('denom_pso_code');
+  if (kmAllowance <= 0 && (!psoSelect || !psoSelect.value) && allDenomTotals && (parseFloat(allDenomTotals.km_allowance_amount) || 0) > 0) {
+    kmAllowance = parseFloat(allDenomTotals.km_allowance_amount) || 0;
+  }
+
   const kmDisplay = document.getElementById('km_allowance_display');
   if (kmDisplay) {
     kmDisplay.textContent = '₹' + kmAllowance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -595,7 +601,6 @@ function calculateTotal() {
   }
 
   // 1. Calculate Total Cash Amount for selected PSO
-  const psoSelect = document.getElementById('denom_pso_code');
   const selectedPsoCode = psoSelect ? psoSelect.value : '';
   let totalCash = 0;
   if (psoBookCashMap && psoBookCashMap[selectedPsoCode] !== undefined) {
@@ -690,6 +695,18 @@ function autoFillDriver(selectEl) {
   if (!opt) return;
   const psoCode = selectEl.value;
 
+  if (!psoCode) {
+    // General / ALL selected -> load aggregated collections or general slip
+    const generalSlip = recordedDenominations.find(d => !d.pso_code || d.pso_code === 'General');
+    if (generalSlip) {
+      loadDenominationIntoForm(generalSlip);
+      return;
+    } else if (allDenomTotals && (allDenomTotals.total_physical_cash > 0 || allDenomTotals.notes_500 > 0)) {
+      loadDenominationIntoForm(allDenomTotals);
+      return;
+    }
+  }
+
   // Check if a saved denomination slip exists for this PSO
   const existing = recordedDenominations.find(d => d.pso_code === psoCode);
   if (existing) {
@@ -715,8 +732,8 @@ function loadDenominationIntoForm(denom) {
   if (!denom) return;
 
   const psoSelect = document.getElementById('denom_pso_code');
-  if (psoSelect && denom.pso_code) {
-    psoSelect.value = denom.pso_code;
+  if (psoSelect && denom.pso_code !== undefined) {
+    psoSelect.value = denom.pso_code || '';
   }
 
   if (document.getElementById('denom_driver_name')) {
@@ -862,6 +879,9 @@ document.addEventListener('DOMContentLoaded', function() {
       loadDenominationIntoForm(existing);
       return;
     }
+  } else if (allDenomTotals && (allDenomTotals.total_physical_cash > 0 || allDenomTotals.notes_500 > 0)) {
+    loadDenominationIntoForm(allDenomTotals);
+    return;
   }
   calculateTotal();
 });

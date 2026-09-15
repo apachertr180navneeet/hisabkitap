@@ -142,6 +142,19 @@ class CashDenominationController extends Controller
         rsort($allDates);
         $availableDates = array_map(fn($d) => is_string($d) ? substr($d, 0, 10) : $d->format('Y-m-d'), $allDates);
 
+        $allDenomTotals = [
+            'notes_500' => (int) $denominations->sum('notes_500'),
+            'notes_200' => (int) $denominations->sum('notes_200'),
+            'notes_100' => (int) $denominations->sum('notes_100'),
+            'notes_50'  => (int) $denominations->sum('notes_50'),
+            'notes_20'  => (int) $denominations->sum('notes_20'),
+            'notes_10'  => (int) $denominations->sum('notes_10'),
+            'coins_total' => (float) $denominations->sum('coins_total'),
+            'total_km'    => (float) $denominations->sum('total_km'),
+            'km_allowance_amount' => (float) $denominations->sum('km_allowance_amount'),
+            'total_physical_cash' => (float) $denominations->sum('total_physical_cash'),
+        ];
+
         return view('denomination.index', compact(
             'businessDate',
             'selectedPso',
@@ -150,6 +163,7 @@ class CashDenominationController extends Controller
             'psoBookCashMap',
             'denominations',
             'activeDenom',
+            'allDenomTotals',
             'scopedBookCash',
             'scopedPaytm',
             'scopedTotalBills',
