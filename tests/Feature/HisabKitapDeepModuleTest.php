@@ -105,6 +105,41 @@ class HisabKitapDeepModuleTest extends TestCase
         $response->assertDontSee('PSO-ACTIVE-OPEN');
     }
 
+    public function test_import_ajax_psos_for_date_filters_by_selected_date(): void
+    {
+        $today = date('Y-m-d');
+        PsoConfig::create([
+            'code' => 'PSO-TODAY-CLOSED',
+            'prefix' => 'TD',
+            'start_no' => 1,
+            'end_no' => 10,
+            'operator_name' => 'Today Operator',
+            'is_active' => false,
+            'is_closed' => true,
+            'closed_at' => now(),
+        ]);
+
+        // 1. Fetching for a past date with no PSOs (e.g. 2026-09-03) returns 0 PSOs
+        $pastResponse = $this->get('/admin/import/psos-for-date?date=2026-09-03');
+        $pastResponse->assertStatus(200);
+        $pastResponse->assertJson([
+            'success' => true,
+            'available_count' => 0,
+            'total_closed_count' => 0,
+            'psos' => [],
+        ]);
+
+        // 2. Fetching for today returns the closed PSO
+        $todayResponse = $this->get('/admin/import/psos-for-date?date=' . $today);
+        $todayResponse->assertStatus(200);
+        $todayResponse->assertJson([
+            'success' => true,
+            'available_count' => 1,
+            'total_closed_count' => 1,
+        ]);
+        $this->assertEquals('PSO-TODAY-CLOSED', $todayResponse->json('psos.0.code'));
+    }
+
     public function test_tally_import_without_file_creates_mock_record(): void
     {
         $this->makePso('PSO-1', 'CB');

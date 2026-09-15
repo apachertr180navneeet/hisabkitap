@@ -159,9 +159,9 @@
             <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
             <div id="pso-status-text">
               @if(($totalClosedCount ?? 0) == 0)
-                Only closed PSOs can receive imports. No closed PSOs found. Please close a PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.
+                Only closed PSOs can receive imports. No closed PSOs found for <strong>{{ date('d/m/Y', strtotime($businessDate)) }}</strong>. Please configure and close a PSO for this date in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.
               @else
-                All closed PSOs have already had bills imported for this date. Change the business date or close a new PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.
+                All closed PSOs have already had bills imported for <strong>{{ date('d/m/Y', strtotime($businessDate)) }}</strong>. Change the business date or close a new PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.
               @endif
             </div>
           </div>
@@ -518,9 +518,9 @@ document.addEventListener('DOMContentLoaded', function () {
           psoStatusAlert.classList.remove('d-none');
           if (psoStatusText) {
             if (data.total_closed_count === 0) {
-              psoStatusText.innerHTML = 'Only closed PSOs can receive imports. No closed PSOs found. Please close a PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a> before importing bills.';
+              psoStatusText.innerHTML = 'Only closed PSOs can receive imports. No closed PSOs found for <strong>' + data.business_date_formatted + '</strong>. Please configure and close a PSO for this date in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.';
             } else {
-              psoStatusText.innerHTML = 'All closed PSOs have already had bills imported for ' + data.business_date_formatted + '. Change the business date or close a new PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.';
+              psoStatusText.innerHTML = 'All closed PSOs have already had bills imported for <strong>' + data.business_date_formatted + '</strong>. Change the business date or close a new PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.';
             }
           }
         }
