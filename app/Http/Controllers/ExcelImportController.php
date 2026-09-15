@@ -95,18 +95,11 @@ class ExcelImportController extends Controller
 
         $query = PsoConfig::where('is_closed', true)
             ->where(function ($q) use ($normalizedDate) {
-                $q->where(function ($sub) use ($normalizedDate) {
-                    $sub->whereDate('created_at', '<=', $normalizedDate)
-                        ->where(function ($inner) use ($normalizedDate) {
-                            $inner->whereNull('closed_at')
-                                  ->orWhereDate('closed_at', '>=', $normalizedDate);
-                        });
-                })
-                ->orWhereDate('created_at', $normalizedDate)
-                ->orWhereDate('closed_at', $normalizedDate)
-                ->orWhereHas('bills', function ($bQ) use ($normalizedDate) {
-                    $bQ->whereDate('business_date', $normalizedDate);
-                });
+                $q->whereDate('created_at', $normalizedDate)
+                  ->orWhereDate('closed_at', $normalizedDate)
+                  ->orWhereHas('bills', function ($bQ) use ($normalizedDate) {
+                      $bQ->whereDate('business_date', $normalizedDate);
+                  });
             });
 
         if ($user && $user->isOperator()) {
