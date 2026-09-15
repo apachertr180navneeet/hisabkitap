@@ -68,12 +68,12 @@
   <div class="col-md">
     <div class="card border p-3 bg-white h-100 border-start border-4 border-primary shadow-sm">
       <div class="d-flex justify-content-between align-items-start mb-1">
-        <span class="badge bg-primary">Book Cash</span>
+        <span class="badge bg-primary">{{ $selectedPso === 'ALL' ? 'Total Cash Collected' : 'PSO Book Cash' }}</span>
         <i class="bi bi-journal-text fs-4 text-primary"></i>
       </div>
-      <h6 class="text-muted small mb-1">Total Cash Bills</h6>
+      <h6 class="text-muted small mb-1">{{ $selectedPso === 'ALL' ? 'All Cash Collected (All PSOs)' : 'Cash Collected for ' . $selectedPso }}</h6>
       <div class="fs-4 fw-bold font-mono text-primary">₹{{ number_format($scopedBookCash, 2) }}</div>
-      <small class="text-muted">Expected gross cash from verified bills</small>
+      <small class="text-muted">Total verified cash collections from bills</small>
     </div>
   </div>
 
@@ -147,7 +147,7 @@
             <div class="col-md-4">
               <label class="form-label small fw-semibold text-muted">PSO Counter / Series</label>
               <select name="pso_code" id="denom_pso_code" class="form-select form-select-sm" onchange="autoFillDriver(this)">
-                <option value="">-- General / Cashier --</option>
+                <option value="" data-driver="" data-gadi="">-- General / All Cash (₹{{ number_format($psoBookCashMap['ALL'] ?? $scopedBookCash, 2) }}) --</option>
                 @foreach($psoList as $pso)
                   @php
                     $isPsoSelected = ($activeDenom && $activeDenom->pso_code === $pso->code) || ($selectedPso === $pso->code);
@@ -156,7 +156,7 @@
                           data-driver="{{ $pso->driver_name }}" 
                           data-gadi="{{ $pso->gadi_number }}"
                           {{ $isPsoSelected ? 'selected' : '' }}>
-                    {{ $pso->code }} ({{ $pso->prefix }})
+                    {{ $pso->code }} ({{ $pso->prefix }} - Cash: ₹{{ number_format($psoBookCashMap[$pso->code] ?? 0, 2) }})
                   </option>
                 @endforeach
               </select>

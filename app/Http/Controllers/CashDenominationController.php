@@ -58,7 +58,11 @@ class CashDenominationController extends Controller
         $denominations = $denominationsQuery->orderBy('id', 'desc')->get();
 
         // Calculate Book Cash for the selected scope
-        $billsQuery = Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false);
+        $billsQuery = Bill::whereDate('business_date', $businessDate)
+            ->where('is_post_cutoff', false)
+            ->where('payment_type', '!=', 'Cancelled')
+            ->where('status', '!=', 'Cancelled');
+
         if ($selectedPso !== 'ALL') {
             $billsQuery->where('pso_code', $selectedPso);
         }
@@ -84,7 +88,12 @@ class CashDenominationController extends Controller
         }
 
         // Build a complete per-PSO book cash map for dynamic client-side reconciliation
-        $allBills = Bill::whereDate('business_date', $businessDate)->where('is_post_cutoff', false)->get();
+        $allBills = Bill::whereDate('business_date', $businessDate)
+            ->where('is_post_cutoff', false)
+            ->where('payment_type', '!=', 'Cancelled')
+            ->where('status', '!=', 'Cancelled')
+            ->get();
+
         $psoBookCashMap = [];
         $totalAllCash = 0;
 
