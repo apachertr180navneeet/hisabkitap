@@ -114,39 +114,63 @@
         @csrf
         <div class="mb-3">
           <label class="form-label fw-semibold">Business Date <span class="text-danger">*</span></label>
-          <input type="date" name="business_date" class="form-control font-mono" value="{{ $businessDate }}" required>
+          <div class="input-group">
+            <input type="date" name="business_date" id="business_date_input" class="form-control font-mono" value="{{ $businessDate }}" required>
+            <button class="btn btn-outline-secondary" type="button" id="btn-refresh-psos" title="Reload PSOs for this date">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+          <small class="text-muted" id="date-helper-text">
+            Filtering PSOs for <strong class="text-primary" id="label-selected-date">{{ date('d/m/Y', strtotime($businessDate)) }}</strong>
+          </small>
         </div>
+
         <div class="mb-3">
-          <label class="form-label fw-semibold" for="pso_id_select">Target PSO Assignment <span class="text-danger">*</span></label>
-          <select name="pso_id" id="pso_id_select" class="form-select @error('pso_id') is-invalid @enderror" required>
-            <option value="" disabled {{ old('pso_id') ? '' : 'selected' }}>-- Select Target PSO (Required) --</option>
-            @foreach($psoList as $pso)
-              @php
-                $ranges = $pso->getAllSeriesRanges();
-                $rangeSummary = collect($ranges)->map(function($r) {
-                  return ($r['prefix'] ?? '') . ' ' . sprintf('%02d', $r['start_no'] ?? 0) . '-' . sprintf('%02d', $r['end_no'] ?? 0);
-                })->implode(', ');
-                if (empty($rangeSummary)) {
-                  $rangeSummary = $pso->prefix . ' ' . sprintf('%02d', $pso->start_no) . '-' . sprintf('%02d', $pso->end_no);
-                }
-              @endphp
-              <option value="{{ $pso->code }}" {{ old('pso_id') == $pso->code ? 'selected' : '' }}>{{ $pso->code }} ({{ $rangeSummary }})</option>
-            @endforeach
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label fw-semibold mb-0" for="pso_id_select">Target PSO Assignment <span class="text-danger">*</span></label>
+            <span class="badge {{ $psoList->isEmpty() ? 'bg-danger' : 'bg-success' }} font-mono" id="pso-count-badge">
+              {{ $psoList->count() }} Available
+            </span>
+          </div>
+          <select name="pso_id" id="pso_id_select" class="form-select @error('pso_id') is-invalid @enderror" required {{ $psoList->isEmpty() ? 'disabled' : '' }}>
+            @if($psoList->isEmpty())
+              <option value="" disabled selected>-- No Available PSOs for this Date --</option>
+            @else
+              <option value="" disabled {{ old('pso_id') ? '' : 'selected' }}>-- Select Target PSO (Required) --</option>
+              @foreach($psoList as $pso)
+                @php
+                  $ranges = $pso->getAllSeriesRanges();
+                  $rangeSummary = collect($ranges)->map(function($r) {
+                    return ($r['prefix'] ?? '') . ' ' . sprintf('%02d', $r['start_no'] ?? 0) . '-' . sprintf('%02d', $r['end_no'] ?? 0);
+                  })->implode(', ');
+                  if (empty($rangeSummary)) {
+                    $rangeSummary = $pso->prefix . ' ' . sprintf('%02d', $pso->start_no) . '-' . sprintf('%02d', $pso->end_no);
+                  }
+                @endphp
+                <option value="{{ $pso->code }}" {{ old('pso_id') == $pso->code ? 'selected' : '' }}>{{ $pso->code }} ({{ $rangeSummary }})</option>
+              @endforeach
+            @endif
           </select>
           @error('pso_id')
             <div class="invalid-feedback">{{ $message }}</div>
           @enderror
-          @if($psoList->isEmpty())
-            <div class="alert alert-warning py-2 px-3 small mt-2 mb-0 d-flex align-items-center gap-2">
-              <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
-              <div>Only closed PSOs can receive imports. No closed PSOs found. Please close a PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a> before importing bills.</div>
+
+          <div id="pso-status-alert" class="{{ $psoList->isEmpty() ? '' : 'd-none' }} alert alert-warning py-2 px-3 small mt-2 mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+            <div id="pso-status-text">
+              @if(($totalClosedCount ?? 0) == 0)
+                Only closed PSOs can receive imports. No closed PSOs found. Please close a PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.
+              @else
+                All closed PSOs have already had bills imported for this date. Change the business date or close a new PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.
+              @endif
             </div>
-          @else
-            <div class="form-text text-muted small mt-1">
-              <i class="bi bi-info-circle me-1"></i> Import is restricted to the selected PSO. Select a closed PSO to proceed.
-            </div>
-          @endif
+          </div>
+
+          <div id="pso-info-note" class="{{ $psoList->isEmpty() ? 'd-none' : '' }} form-text text-muted small mt-1">
+            <i class="bi bi-info-circle me-1"></i> Showing only closed PSOs that do not have bills imported for this date.
+          </div>
         </div>
+
         <div class="mb-3">
           <label class="form-label fw-semibold">Cutoff Time Applied</label>
           <input type="text" class="form-control bg-light" value="{{ $cutoffTime }} IST" readonly>
@@ -199,7 +223,7 @@
         <i class="bi bi-info-circle fs-4 text-info"></i>
         <div>
           <strong>Ingestion Pipeline Status</strong>
-          <div style="font-size: 0.8rem;">Current scan for {{ date('d/m/Y', strtotime($businessDate)) }}: {{ $metrics['totalBillsCount'] }} records found across configured PSO ranges.</div>
+          <div style="font-size: 0.8rem;">Current scan for <span id="diag-scan-date">{{ date('d/m/Y', strtotime($businessDate)) }}</span>: <span id="diag-bills-count">{{ $metrics['totalBillsCount'] }}</span> records found across configured PSO ranges.</div>
         </div>
       </div>
 
@@ -207,25 +231,13 @@
         <div class="col-6">
           <div class="p-2.5 border rounded bg-light">
             <small class="text-muted d-block">Total Records</small>
-            <span class="fs-5 fw-bold font-mono text-dark">{{ $metrics['totalBillsCount'] }} Bills</span>
+            <span class="fs-5 fw-bold font-mono text-dark" id="diag-total-records">{{ $metrics['totalBillsCount'] }} Bills</span>
           </div>
         </div>
         <div class="col-6">
           <div class="p-2.5 border rounded bg-light">
             <small class="text-muted d-block">Total Tally Amount</small>
-            <span class="fs-5 fw-bold font-mono text-primary">₹{{ number_format($metrics['tallyTotal'], 2) }}</span>
-          </div>
-        </div>
-        <div class="col-6">
-          <div class="p-2.5 border rounded bg-light">
-            <small class="text-muted d-block">First Bill Number</small>
-            <span class="fw-bold font-mono">CB 01</span>
-          </div>
-        </div>
-        <div class="col-6">
-          <div class="p-2.5 border rounded bg-light">
-            <small class="text-muted d-block">Last Bill Number</small>
-            <span class="fw-bold font-mono">RB 10</span>
+            <span class="fs-5 fw-bold font-mono text-primary" id="diag-total-amount">₹{{ number_format($metrics['tallyTotal'], 2) }}</span>
           </div>
         </div>
       </div>
@@ -238,7 +250,7 @@
         </li>
         <li class="list-group-item d-flex justify-content-between align-items-center">
           <span><i class="bi bi-exclamation-circle text-danger me-2"></i> Missing Sequence Gaps</span>
-          <span class="badge {{ $metrics['missingCount'] > 0 ? 'bg-danger' : 'bg-success' }}">
+          <span class="badge {{ $metrics['missingCount'] > 0 ? 'bg-danger' : 'bg-success' }}" id="diag-missing-badge">
             {{ $metrics['missingCount'] > 0 ? ($metrics['missingCount'] . ' Gap') : '0 Gaps' }}
           </span>
         </li>
@@ -403,6 +415,137 @@ document.addEventListener('DOMContentLoaded', function () {
   // Enforce PSO selection on form submit
   const importForm = document.querySelector('form[action="{{ route('admin.import.process') }}"]') || document.querySelector('form');
   const psoSelect = document.getElementById('pso_id_select');
+  const dateInput = document.getElementById('business_date_input');
+  const btnRefreshPsos = document.getElementById('btn-refresh-psos');
+  const psoCountBadge = document.getElementById('pso-count-badge');
+  const psoStatusAlert = document.getElementById('pso-status-alert');
+  const psoStatusText = document.getElementById('pso-status-text');
+  const psoInfoNote = document.getElementById('pso-info-note');
+  const btnImportSubmit = document.getElementById('btn-import-submit');
+  const labelSelectedDate = document.getElementById('label-selected-date');
+
+  const diagScanDate = document.getElementById('diag-scan-date');
+  const diagBillsCount = document.getElementById('diag-bills-count');
+  const diagTotalRecords = document.getElementById('diag-total-records');
+  const diagTotalAmount = document.getElementById('diag-total-amount');
+  const diagMissingBadge = document.getElementById('diag-missing-badge');
+
+  function reloadPsosForDate(selectedDate) {
+    if (!selectedDate) return;
+
+    if (btnRefreshPsos) {
+      btnRefreshPsos.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+      btnRefreshPsos.disabled = true;
+    }
+
+    const apiUrl = '{{ route(request()->routeIs('admin.*') ? 'admin.import.psos_for_date' : 'import.psos_for_date') }}?date=' + encodeURIComponent(selectedDate);
+
+    fetch(apiUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (btnRefreshPsos) {
+        btnRefreshPsos.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
+        btnRefreshPsos.disabled = false;
+      }
+
+      if (!data || !data.success) return;
+
+      // Update date labels
+      if (labelSelectedDate) labelSelectedDate.textContent = data.business_date_formatted;
+      if (diagScanDate) diagScanDate.textContent = data.business_date_formatted;
+
+      // Update diagnostics panel
+      if (diagBillsCount) diagBillsCount.textContent = data.metrics.total_bills_count;
+      if (diagTotalRecords) diagTotalRecords.textContent = data.metrics.total_bills_count + ' Bills';
+      if (diagTotalAmount) diagTotalAmount.textContent = '₹' + data.metrics.tally_total_formatted;
+      if (diagMissingBadge) {
+        diagMissingBadge.textContent = data.metrics.missing_count > 0 ? (data.metrics.missing_count + ' Gap') : '0 Gaps';
+        diagMissingBadge.className = 'badge ' + (data.metrics.missing_count > 0 ? 'bg-danger' : 'bg-success');
+      }
+
+      // Rebuild PSO Select
+      psoSelect.innerHTML = '';
+
+      if (data.psos && data.psos.length > 0) {
+        psoSelect.disabled = false;
+        if (btnImportSubmit) btnImportSubmit.disabled = false;
+
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.disabled = true;
+        defaultOpt.selected = true;
+        defaultOpt.textContent = '-- Select Target PSO (Required) --';
+        psoSelect.appendChild(defaultOpt);
+
+        data.psos.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.code;
+          opt.textContent = `${p.code} (${p.range_summary})`;
+          psoSelect.appendChild(opt);
+        });
+
+        if (psoCountBadge) {
+          psoCountBadge.textContent = data.psos.length + ' Available';
+          psoCountBadge.className = 'badge bg-success font-mono';
+        }
+
+        if (psoStatusAlert) psoStatusAlert.classList.add('d-none');
+        if (psoInfoNote) psoInfoNote.classList.remove('d-none');
+      } else {
+        psoSelect.disabled = true;
+        if (btnImportSubmit) btnImportSubmit.disabled = true;
+
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.disabled = true;
+        emptyOpt.selected = true;
+        emptyOpt.textContent = '-- No Available PSOs for this Date --';
+        psoSelect.appendChild(emptyOpt);
+
+        if (psoCountBadge) {
+          psoCountBadge.textContent = '0 Available';
+          psoCountBadge.className = 'badge bg-danger font-mono';
+        }
+
+        if (psoStatusAlert) {
+          psoStatusAlert.classList.remove('d-none');
+          if (psoStatusText) {
+            if (data.total_closed_count === 0) {
+              psoStatusText.innerHTML = 'Only closed PSOs can receive imports. No closed PSOs found. Please close a PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a> before importing bills.';
+            } else {
+              psoStatusText.innerHTML = 'All closed PSOs have already had bills imported for ' + data.business_date_formatted + '. Change the business date or close a new PSO in <a href="{{ route('admin.pso.index') }}" class="alert-link fw-semibold">PSO Management</a>.';
+            }
+          }
+        }
+        if (psoInfoNote) psoInfoNote.classList.add('d-none');
+      }
+    })
+    .catch(err => {
+      console.error('Error fetching PSOs for date:', err);
+      if (btnRefreshPsos) {
+        btnRefreshPsos.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
+        btnRefreshPsos.disabled = false;
+      }
+    });
+  }
+
+  if (dateInput) {
+    dateInput.addEventListener('change', function () {
+      reloadPsosForDate(this.value);
+    });
+  }
+
+  if (btnRefreshPsos && dateInput) {
+    btnRefreshPsos.addEventListener('click', function () {
+      reloadPsosForDate(dateInput.value);
+    });
+  }
+
   if (importForm && psoSelect) {
     importForm.addEventListener('submit', function (e) {
       if (!psoSelect.value || psoSelect.value === 'ALL' || psoSelect.value.trim() === '') {

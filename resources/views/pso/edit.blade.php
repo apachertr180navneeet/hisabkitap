@@ -281,8 +281,8 @@
                   <div class="d-md-none text-muted small fw-semibold mb-1">Bill Prefix <span class="text-danger">*</span></div>
                   <div class="input-group input-group-sm">
                     <span class="input-group-text bg-light text-muted"><i class="bi bi-tag"></i></span>
-                    <select name="series[{{ $idx }}][prefix]" class="form-select form-select-sm font-mono fw-bold text-uppercase select-prefix" required>
-                      <option value="">-- SELECT PREFIX --</option>
+                    <select name="series[{{ $idx }}][prefix]" class="form-select form-select-sm font-mono fw-bold select-prefix" required>
+                      <option value="">-- Select Prefix --</option>
                       @php $matched = false; @endphp
                       @foreach($prefixes as $pfx)
                         @php
@@ -611,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (firstSelect) {
       return firstSelect.innerHTML;
     }
-    return `<option value="">-- SELECT PREFIX --</option>
+    return `<option value="">-- Select Prefix --</option>
             <option value="CB" selected>CB – Counter Wholesale</option>
             <option value="RB">RB – Retail Walk-in</option>
             <option value="SC">SC – School Counter</option>
@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="d-md-none text-muted small fw-semibold mb-1">Bill Prefix <span class="text-danger">*</span></div>
           <div class="input-group input-group-sm">
             <span class="input-group-text bg-light text-muted"><i class="bi bi-tag"></i></span>
-            <select name="series[${idx}][prefix]" class="form-select form-select-sm font-mono fw-bold text-uppercase select-prefix" required>
+            <select name="series[${idx}][prefix]" class="form-select form-select-sm font-mono fw-bold select-prefix" required>
               ${getPrefixOptionsHtml()}
             </select>
             <button type="button" class="btn btn-sm btn-outline-primary btn-quick-add-trigger" title="Quick Add Prefix to Master">
@@ -771,7 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const startIn = row.querySelector('.input-start');
       const endIn = row.querySelector('.input-end');
 
-      let prefix = sel ? sel.value.trim().toUpperCase() : '{{ $pso->prefix }}';
+      let prefix = sel ? sel.value.trim() : '{{ $pso->prefix }}';
       if (prefix === '__quick_add_prefix__' || !prefix) prefix = '{{ $pso->prefix }}';
 
       const start = parseInt(startIn ? startIn.value : 1) || 1;

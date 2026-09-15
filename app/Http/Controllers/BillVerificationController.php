@@ -145,46 +145,52 @@ class BillVerificationController extends Controller
             default => 'Cash'
         };
 
-        $bill->cd_amount = floatval($request->input('cd_amount', 0));
-        $bill->refund_amount = floatval($request->input('refund_amount', 0));
-        $bill->net_amount = max(0, floatval($bill->amount) - $bill->cd_amount - $bill->refund_amount);
-
-        // Handle Split Payment vs Standard Payment
-        $cashAmt = floatval($request->input('cash_amount', 0));
-        $paytmAmt = floatval($request->input('paytm_amount', 0));
-        $isSplit = (bool) $request->input('is_split_payment', false) || ($normalizedPaymentType === 'Split');
-
-        if (($isSplit && $cashAmt > 0 && $paytmAmt > 0) || ($cashAmt > 0 && $paytmAmt > 0)) {
-            $bill->is_split_payment = true;
-            $bill->cash_amount = $cashAmt;
-            $bill->paytm_amount = $paytmAmt;
-            $bill->payment_type = 'Cash'; // Primary accounting bucket
-        } elseif ($normalizedPaymentType === 'Paytm' || ($paytmAmt > 0 && $cashAmt == 0)) {
-            $bill->is_split_payment = false;
-            $bill->payment_type = 'Paytm';
-            $bill->paytm_amount = $bill->net_amount;
-            $bill->cash_amount = 0;
-        } elseif ($normalizedPaymentType === 'Check') {
-            $bill->is_split_payment = false;
-            $bill->payment_type = 'Check';
-            $bill->cash_amount = 0;
-            $bill->paytm_amount = 0;
-        } elseif ($normalizedPaymentType === 'Credit') {
-            $bill->is_split_payment = false;
-            $bill->payment_type = 'Credit';
-            $bill->cash_amount = 0;
-            $bill->paytm_amount = 0;
-        } elseif ($normalizedPaymentType === 'Cancelled') {
+        if ($normalizedPaymentType === 'Cancelled') {
             $bill->is_split_payment = false;
             $bill->payment_type = 'Cancelled';
+            $bill->status = 'Cancelled';
+            $bill->cd_amount = 0;
+            $bill->refund_amount = floatval($bill->amount);
+            $bill->net_amount = 0;
             $bill->cash_amount = 0;
             $bill->paytm_amount = 0;
         } else {
-            // Default: Cash
-            $bill->is_split_payment = false;
-            $bill->payment_type = 'Cash';
-            $bill->cash_amount = $bill->net_amount;
-            $bill->paytm_amount = 0;
+            $bill->cd_amount = floatval($request->input('cd_amount', 0));
+            $bill->refund_amount = floatval($request->input('refund_amount', 0));
+            $bill->net_amount = max(0, floatval($bill->amount) - $bill->cd_amount - $bill->refund_amount);
+
+            // Handle Split Payment vs Standard Payment
+            $cashAmt = floatval($request->input('cash_amount', 0));
+            $paytmAmt = floatval($request->input('paytm_amount', 0));
+            $isSplit = (bool) $request->input('is_split_payment', false) || ($normalizedPaymentType === 'Split');
+
+            if (($isSplit && $cashAmt > 0 && $paytmAmt > 0) || ($cashAmt > 0 && $paytmAmt > 0)) {
+                $bill->is_split_payment = true;
+                $bill->cash_amount = $cashAmt;
+                $bill->paytm_amount = $paytmAmt;
+                $bill->payment_type = 'Cash'; // Primary accounting bucket
+            } elseif ($normalizedPaymentType === 'Paytm' || ($paytmAmt > 0 && $cashAmt == 0)) {
+                $bill->is_split_payment = false;
+                $bill->payment_type = 'Paytm';
+                $bill->paytm_amount = $bill->net_amount;
+                $bill->cash_amount = 0;
+            } elseif ($normalizedPaymentType === 'Check') {
+                $bill->is_split_payment = false;
+                $bill->payment_type = 'Check';
+                $bill->cash_amount = 0;
+                $bill->paytm_amount = 0;
+            } elseif ($normalizedPaymentType === 'Credit') {
+                $bill->is_split_payment = false;
+                $bill->payment_type = 'Credit';
+                $bill->cash_amount = 0;
+                $bill->paytm_amount = 0;
+            } else {
+                // Default: Cash
+                $bill->is_split_payment = false;
+                $bill->payment_type = 'Cash';
+                $bill->cash_amount = $bill->net_amount;
+                $bill->paytm_amount = 0;
+            }
         }
 
         // Update Salesperson
@@ -294,7 +300,15 @@ class BillVerificationController extends Controller
         $cashAmount = 0;
         $paytmAmount = 0;
 
-        if ($isSplit) {
+        if ($paymentType === 'Cancelled') {
+            $cdAmount = 0;
+            $refundAmount = $amount;
+            $netAmount = 0;
+            $cashAmount = 0;
+            $paytmAmount = 0;
+            $isSplit = false;
+            $billStatus = 'Cancelled';
+        } elseif ($isSplit) {
             $isSplit = true;
             $paymentType = 'Cash';
             $cashAmount = floatval($request->input('cash_amount', 0));
@@ -537,7 +551,16 @@ class BillVerificationController extends Controller
         $updatedCount = 0;
         foreach ($bills as $bill) {
             if ($normalizedPaymentType !== null) {
-                if ($normalizedPaymentType === 'Split') {
+                if ($normalizedPaymentType === 'Cancelled') {
+                    $bill->is_split_payment = false;
+                    $bill->payment_type = 'Cancelled';
+                    $bill->status = 'Cancelled';
+                    $bill->cd_amount = 0;
+                    $bill->refund_amount = floatval($bill->amount);
+                    $bill->net_amount = 0;
+                    $bill->cash_amount = 0;
+                    $bill->paytm_amount = 0;
+                } elseif ($normalizedPaymentType === 'Split') {
                     $bill->is_split_payment = true;
                     $bill->payment_type = 'Cash';
                 } else {
@@ -626,7 +649,18 @@ class BillVerificationController extends Controller
             ->whereDate('business_date', $businessDate)
             ->firstOrFail();
 
-        $bill->status = ($request->reason === 'Cancelled Bill') ? 'Cancelled' : 'Matched';
+        if ($request->reason === 'Cancelled Bill') {
+            $bill->status = 'Cancelled';
+            $bill->payment_type = 'Cancelled';
+            $bill->cd_amount = 0;
+            $bill->refund_amount = floatval($bill->amount);
+            $bill->net_amount = 0;
+            $bill->cash_amount = 0;
+            $bill->paytm_amount = 0;
+            $bill->is_split_payment = false;
+        } else {
+            $bill->status = 'Matched';
+        }
         $bill->remark = "Resolved: " . $request->reason . ($request->remark ? " - {$request->remark}" : "");
         $bill->verified_by = session('active_user.name', 'Pooja Verma');
         $bill->verified_at = now();

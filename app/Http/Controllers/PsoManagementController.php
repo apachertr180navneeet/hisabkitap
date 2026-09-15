@@ -111,7 +111,7 @@ class PsoManagementController extends Controller
                     $end = isset($item['end_no']) ? (int)$item['end_no'] : 10;
                     if ($end < $start) $end = $start;
                     $seriesList[] = [
-                        'prefix' => strtoupper(trim($item['prefix'])),
+                        'prefix' => trim($item['prefix']),
                         'financial_year' => !empty($item['financial_year']) ? trim($item['financial_year']) : $activeFy,
                         'start_no' => $start,
                         'end_no' => $end,
@@ -129,7 +129,7 @@ class PsoManagementController extends Controller
                     $end = isset($ends[$i]) ? (int)$ends[$i] : 10;
                     if ($end < $start) $end = $start;
                     $seriesList[] = [
-                        'prefix' => strtoupper(trim($pfx)),
+                        'prefix' => trim($pfx),
                         'financial_year' => !empty($fys[$i]) ? trim($fys[$i]) : $activeFy,
                         'start_no' => $start,
                         'end_no' => $end,
@@ -139,7 +139,7 @@ class PsoManagementController extends Controller
         }
 
         if (empty($seriesList)) {
-            $singlePrefix = strtoupper(trim((string)$request->input('prefix', 'CB')));
+            $singlePrefix = trim((string)$request->input('prefix', 'CB'));
             $singleStart = (int)$request->input('start_no', 1);
             $singleEnd = (int)$request->input('end_no', 10);
             if ($singleEnd < $singleStart) $singleEnd = $singleStart;
@@ -255,7 +255,7 @@ class PsoManagementController extends Controller
                     $end = isset($item['end_no']) ? (int)$item['end_no'] : 10;
                     if ($end < $start) $end = $start;
                     $seriesList[] = [
-                        'prefix' => strtoupper(trim($item['prefix'])),
+                        'prefix' => trim($item['prefix']),
                         'financial_year' => !empty($item['financial_year']) ? trim($item['financial_year']) : $activeFy,
                         'start_no' => $start,
                         'end_no' => $end,
@@ -273,7 +273,7 @@ class PsoManagementController extends Controller
                     $end = isset($ends[$i]) ? (int)$ends[$i] : 10;
                     if ($end < $start) $end = $start;
                     $seriesList[] = [
-                        'prefix' => strtoupper(trim($pfx)),
+                        'prefix' => trim($pfx),
                         'financial_year' => !empty($fys[$i]) ? trim($fys[$i]) : $activeFy,
                         'start_no' => $start,
                         'end_no' => $end,
@@ -283,7 +283,7 @@ class PsoManagementController extends Controller
         }
 
         if (empty($seriesList)) {
-            $singlePrefix = strtoupper(trim((string)$request->input('prefix', $pso->prefix)));
+            $singlePrefix = trim((string)$request->input('prefix', $pso->prefix));
             $singleStart = (int)$request->input('start_no', $pso->start_no);
             $singleEnd = (int)$request->input('end_no', $pso->end_no);
             if ($singleEnd < $singleStart) $singleEnd = $singleStart;

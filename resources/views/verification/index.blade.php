@@ -640,14 +640,23 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Auto-trigger Split modal when "Split" is selected in payment dropdown
+  // Auto-trigger Split modal or auto-refund on Cancelled in payment dropdown
   document.querySelectorAll('.inline-payment-select').forEach(sel => {
     sel.addEventListener('change', function () {
+      const row = this.closest('.bill-row');
       if (this.value === 'Split') {
-        const row = this.closest('.bill-row');
         const splitBtn = row?.querySelector('.btn-split-pay');
         if (splitBtn) {
           splitBtn.click();
+        }
+      } else if (this.value === 'Cancelled') {
+        if (row) {
+          const grossAmt = parseFloat(row.dataset.amount || 0);
+          const refundInput = row.querySelector('.inline-refund-input');
+          const cdInput = row.querySelector('.inline-cd-input');
+          if (cdInput) cdInput.value = (0).toFixed(2);
+          if (refundInput) refundInput.value = grossAmt.toFixed(2);
+          calculateRowNet(row);
         }
       }
     });
@@ -1348,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', function () {
               <label class="form-label fw-semibold">PSO Counter / Series <span class="text-danger">*</span></label>
               <select name="pso_code" id="manual_pso_code" class="form-select" required onchange="updateManualBillPrefix(this)">
                 @foreach($psoList as $pso)
-                  <option value="{{ $pso->code }}" data-prefix="{{ $pso->prefix }}" data-driver="{{ $pso->driver_name }}">
+                  <option value="{{ $pso->code }}" data-prefix="{{ $pso->prefix }}" data-fy="{{ $pso->financial_year ?? $activeFinancialYear ?? '2026-2027' }}" data-driver="{{ $pso->driver_name }}">
                     {{ $pso->code }} ({{ $pso->prefix }} - {{ $pso->operator_name }})
                   </option>
                 @endforeach
@@ -1356,7 +1365,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Bill Serial No. <span class="text-danger">*</span></label>
-              <input type="text" name="bill_no" id="manual_bill_no" class="form-control font-mono fw-bold" placeholder="e.g. CB 01" required>
+              <input type="text" name="bill_no" id="manual_bill_no" class="form-control font-mono fw-bold" placeholder="e.g. Sc/26-27/6376" required>
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Business Date <span class="text-danger">*</span></label>
@@ -1418,6 +1427,7 @@ document.addEventListener('DOMContentLoaded', function () {
               <option value="Split">✂️ Split Payment (Both Cash + Paytm / RTGS)</option>
               <option value="Check">Cheque / Demand Draft</option>
               <option value="Credit">Credit (Salesman Collection Register)</option>
+              <option value="Cancelled">Cancelled (Mark Void & Auto-Refund)</option>
             </select>
           </div>
 
@@ -1468,6 +1478,14 @@ document.addEventListener('DOMContentLoaded', function () {
 <script>
 function calculateManualNet() {
   const gross = parseFloat(document.getElementById('manual_gross_amount')?.value || 0);
+  const payType = document.getElementById('manual_payment_type')?.value;
+  if (payType === 'Cancelled') {
+    const cdInput = document.getElementById('manual_cd_amount');
+    const refundInput = document.getElementById('manual_refund_amount');
+    if (cdInput) cdInput.value = '0.00';
+    if (refundInput) refundInput.value = gross.toFixed(2);
+  }
+
   const cd = parseFloat(document.getElementById('manual_cd_amount')?.value || 0);
   const refund = parseFloat(document.getElementById('manual_refund_amount')?.value || 0);
   const net = Math.max(0, gross - cd - refund);
@@ -1477,7 +1495,6 @@ function calculateManualNet() {
     netDisplay.textContent = '₹' + net.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  const payType = document.getElementById('manual_payment_type')?.value;
   if (payType === 'Split') {
     const cashInput = document.getElementById('manual_cash_amount');
     const paytmInput = document.getElementById('manual_paytm_amount');
@@ -1495,8 +1512,17 @@ function toggleManualSplitInputs(selectEl) {
   if (selectEl.value === 'Split') {
     container?.classList.remove('d-none');
     calculateManualNet();
+  } else if (selectEl.value === 'Cancelled') {
+    container?.classList.add('d-none');
+    const gross = parseFloat(document.getElementById('manual_gross_amount')?.value || 0);
+    const cdInput = document.getElementById('manual_cd_amount');
+    const refundInput = document.getElementById('manual_refund_amount');
+    if (cdInput) cdInput.value = '0.00';
+    if (refundInput) refundInput.value = gross.toFixed(2);
+    calculateManualNet();
   } else {
     container?.classList.add('d-none');
+    calculateManualNet();
   }
 }
 
@@ -1514,12 +1540,32 @@ function syncManualSplitFromCash() {
 }
 
 function updateManualBillPrefix(selectEl) {
+  if (!selectEl) return;
   const opt = selectEl.options[selectEl.selectedIndex];
   const prefix = opt?.getAttribute('data-prefix');
-  const billNoInput = document.getElementById('manual_bill_no');
-  if (prefix && billNoInput && !billNoInput.value) {
-    billNoInput.value = prefix + ' ';
+  const fullFy = opt?.getAttribute('data-fy') || '2026-2027';
+  let shortFy = fullFy;
+  const fyMatch = fullFy.match(/^(\d{2})(\d{2})-(\d{2})(\d{2})$/);
+  if (fyMatch) {
+    shortFy = `${fyMatch[2]}-${fyMatch[4]}`;
   }
+  const billNoInput = document.getElementById('manual_bill_no');
+  if (prefix && billNoInput) {
+    if (!billNoInput.value || billNoInput.value.includes('/')) {
+      billNoInput.value = `${prefix}/${shortFy}/`;
+    }
+  }
+}
+
+const manualBillModalEl = document.getElementById('modal-add-manual-bill');
+if (manualBillModalEl) {
+  manualBillModalEl.addEventListener('shown.bs.modal', function () {
+    const psoSelect = document.getElementById('manual_pso_code');
+    const billNoInput = document.getElementById('manual_bill_no');
+    if (psoSelect && billNoInput && !billNoInput.value) {
+      updateManualBillPrefix(psoSelect);
+    }
+  });
 }
 
 // PSO Mismatch Approval & Rejection Modal Triggers

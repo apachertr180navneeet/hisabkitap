@@ -64,7 +64,7 @@
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label fw-semibold">Select Bill No. <span class="text-danger">*</span></label>
-            <input type="text" name="bill_no" class="form-control font-mono" placeholder="e.g. CB 01" required>
+            <input type="text" name="bill_no" list="correction-bill-list" class="form-control font-mono" placeholder="e.g. Sc/26-27/6376, CB 01" required>
           </div>
 
           <div class="mb-3">

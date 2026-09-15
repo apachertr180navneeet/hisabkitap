@@ -106,7 +106,7 @@ class PsoConfig extends Model
         $parts = [];
 
         foreach ($ranges as $r) {
-            $pfx = strtoupper(trim($r['prefix'] ?? 'CB'));
+            $pfx = trim($r['prefix'] ?? 'CB');
             $start = $r['start_no'] ?? 1;
             $end = $r['end_no'] ?? 10;
             $parts[] = "{$pfx} {$start} - {$end}";
@@ -121,6 +121,56 @@ class PsoConfig extends Model
         }
 
         return !empty($parts) ? implode(', ', $parts) : ($this->prefix . ' ' . $this->start_no . ' - ' . $this->end_no);
+    }
+
+    /**
+     * Parse a bill number into prefix and integer serial number.
+     * Supports formats such as:
+     * - "Sc/26-27/6376", "SC/2026-27/6376", "SC/2026-2027/6376", "SC-26-27-6376"
+     * - "CB 01", "CB-15", "CB/15", "CB15", "Sc/6376"
+     *
+     * @param string $rawBillNo
+     * @return array{prefix: string, number: int|null, fy: string|null}
+     */
+    public static function parseBillNumber(string $rawBillNo): array
+    {
+        $rawBillNo = trim($rawBillNo);
+        if (empty($rawBillNo)) {
+            return ['prefix' => '', 'number' => null, 'fy' => null];
+        }
+
+        // 1. Matches Prefix/FY/Number e.g. "Sc/26-27/6376", "SC/2026-27/005", "SC-26-27-6376"
+        if (preg_match('/^\s*([A-Za-z0-9]+)\s*[\/\-_]\s*(\d{2,4}\s*[\-\/]\s*\d{2,4})\s*[\/\-_]\s*0*(\d+)\s*$/i', $rawBillNo, $matches)) {
+            return [
+                'prefix' => $matches[1],
+                'fy'     => $matches[2],
+                'number' => (int)$matches[3],
+            ];
+        }
+
+        // 2. Matches Prefix / Number or Prefix-Number or Prefix/Number e.g. "CB 01", "SC/6376", "CB-15"
+        if (preg_match('/^\s*([A-Za-z0-9]+)[\s\-_\\/]+0*(\d+)\s*$/i', $rawBillNo, $matches)) {
+            return [
+                'prefix' => $matches[1],
+                'fy'     => null,
+                'number' => (int)$matches[2],
+            ];
+        }
+
+        // 3. Compact alphanumeric e.g. "CB15", "SC001"
+        if (preg_match('/^\s*([A-Za-z]+)0*(\d+)\s*$/i', $rawBillNo, $matches)) {
+            return [
+                'prefix' => $matches[1],
+                'fy'     => null,
+                'number' => (int)$matches[2],
+            ];
+        }
+
+        return [
+            'prefix' => '',
+            'fy'     => null,
+            'number' => null,
+        ];
     }
 
     /**
@@ -164,18 +214,19 @@ class PsoConfig extends Model
             }
         }
 
-        // 2. Parse Prefix and Serial Number (e.g. "CB 01" -> "CB", 1; "CB-15" -> "CB", 15; "CB15" -> "CB", 15)
+        // 2. Parse Prefix and Serial Number (supports "Sc/26-27/6376", "CB 01", "CB-15", etc.)
         if (!$matchesThisPso) {
-            if (preg_match('/^\s*([A-Za-z]+)[\s\-_]*0*(\d+)\s*$/', $rawBillNo, $matches)) {
-                $billPrefix = strtoupper(trim($matches[1]));
-                $billNum = (int)$matches[2];
+            $parsed = self::parseBillNumber($rawBillNo);
+            $billPrefix = $parsed['prefix'];
+            $billNum = $parsed['number'];
 
+            if ($billPrefix !== '' && $billNum !== null) {
                 foreach ($this->getAllSeriesRanges() as $range) {
-                    $rangePrefix = strtoupper(trim($range['prefix'] ?? ''));
+                    $rangePrefix = trim($range['prefix'] ?? '');
                     $rangeStart = (int)($range['start_no'] ?? 1);
                     $rangeEnd = (int)($range['end_no'] ?? 10);
 
-                    if ($rangePrefix === $billPrefix && $billNum >= $rangeStart && $billNum <= $rangeEnd) {
+                    if (strcasecmp($rangePrefix, $billPrefix) === 0 && $billNum >= $rangeStart && $billNum <= $rangeEnd) {
                         $matchesThisPso = true;
                         break;
                     }
@@ -238,11 +289,11 @@ class PsoConfig extends Model
             // Check ranges of other PSO
             if ($billPrefix !== '' && $billNum !== null) {
                 foreach ($otherPso->getAllSeriesRanges() as $range) {
-                    $rangePrefix = strtoupper(trim($range['prefix'] ?? ''));
+                    $rangePrefix = trim($range['prefix'] ?? '');
                     $rangeStart = (int)($range['start_no'] ?? 1);
                     $rangeEnd = (int)($range['end_no'] ?? 10);
 
-                    if ($rangePrefix === $billPrefix && $billNum >= $rangeStart && $billNum <= $rangeEnd) {
+                    if (strcasecmp($rangePrefix, $billPrefix) === 0 && $billNum >= $rangeStart && $billNum <= $rangeEnd) {
                         return [
                             'valid' => false,
                             'mismatch_type' => 'Duplicate / PSO Mismatch',

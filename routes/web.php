@@ -85,6 +85,7 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     // 2. Tally Excel Import
     Route::get('/import', [ExcelImportController::class, 'index'])->name('admin.import.index');
+    Route::get('/import/psos-for-date', [ExcelImportController::class, 'getPsosForDate'])->name('admin.import.psos_for_date');
     Route::post('/import', [ExcelImportController::class, 'import'])->middleware(['read.only', 'permission:can_import_excel'])->name('admin.import.process');
     Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('admin.import.sample');
 
@@ -207,6 +208,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/pso/{id}/reopen', [PsoManagementController::class, 'reopenPso'])->middleware('read.only')->name('pso.reopen');
     Route::delete('/pso/{id}', [PsoManagementController::class, 'destroy'])->middleware('read.only')->name('pso.delete');
     Route::get('/import', [ExcelImportController::class, 'index'])->name('import.index');
+    Route::get('/import/psos-for-date', [ExcelImportController::class, 'getPsosForDate'])->name('import.psos_for_date');
     Route::post('/import', [ExcelImportController::class, 'import'])->middleware('read.only')->name('import.process');
     Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('import.sample');
     Route::get('/verification', [BillVerificationController::class, 'index'])->name('verification.index');

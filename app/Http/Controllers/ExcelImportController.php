@@ -23,12 +23,11 @@ class ExcelImportController extends Controller
         $this->reconService = $reconService;
     }
 
-    public function index()
+    /**
+     * Get closed PSOs available for import on a specific date (excludes PSOs that already have bills imported for that date)
+     */
+    public function getAvailablePsosForDate(string $businessDate, $user = null)
     {
-        $businessDate = $this->reconService->getBusinessDate();
-        $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
-        
-        $user = auth()->user();
         $query = PsoConfig::where('is_closed', true);
         if ($user && $user->isOperator()) {
             $query->where(function ($q) use ($user) {
@@ -36,11 +35,107 @@ class ExcelImportController extends Controller
                   ->orWhere('operator_name', $user->name);
             });
         }
-        $psoList = $query->orderBy('code')->get();
+        $closedPsos = $query->orderBy('code')->get();
+
+        // Get PSOs that already have bills imported for this business date
+        $importedPsoCodes = Bill::whereDate('business_date', $businessDate)
+            ->whereNotNull('pso_code')
+            ->pluck('pso_code')
+            ->unique()
+            ->toArray();
+
+        $importedPsoIds = Bill::whereDate('business_date', $businessDate)
+            ->whereNotNull('pso_config_id')
+            ->pluck('pso_config_id')
+            ->unique()
+            ->toArray();
+
+        // Filter out any PSO that already has bills imported on this date
+        return $closedPsos->filter(function ($pso) use ($importedPsoCodes, $importedPsoConfigIds) {
+            return !in_array($pso->code, $importedPsoCodes, true) &&
+                   !in_array($pso->id, $importedPsoConfigIds, true);
+        })->values();
+    }
+
+    /**
+     * AJAX endpoint to fetch available PSOs and diagnostics for a selected date
+     */
+    public function getPsosForDate(Request $request)
+    {
+        $businessDate = $request->query('date') ?: $this->reconService->getBusinessDate();
+        $user = auth()->user();
+
+        $availablePsos = $this->getAvailablePsosForDate($businessDate, $user);
+        
+        $totalClosedQuery = PsoConfig::where('is_closed', true);
+        if ($user && $user->isOperator()) {
+            $totalClosedQuery->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $totalClosedCount = $totalClosedQuery->count();
+        $availableCount = $availablePsos->count();
+        $importedCount = $totalClosedCount - $availableCount;
+
+        $psoData = $availablePsos->map(function ($pso) {
+            $ranges = $pso->getAllSeriesRanges();
+            $rangeSummary = collect($ranges)->map(function ($r) {
+                return ($r['prefix'] ?? '') . ' ' . sprintf('%02d', $r['start_no'] ?? 0) . '-' . sprintf('%02d', $r['end_no'] ?? 0);
+            })->implode(', ');
+            if (empty($rangeSummary)) {
+                $rangeSummary = $pso->prefix . ' ' . sprintf('%02d', $pso->start_no) . '-' . sprintf('%02d', $pso->end_no);
+            }
+
+            return [
+                'id' => $pso->id,
+                'code' => $pso->code,
+                'range_summary' => $rangeSummary,
+                'operator_name' => $pso->operator_name,
+            ];
+        });
+
+        $metrics = $this->reconService->getMetrics($businessDate);
+
+        return response()->json([
+            'success' => true,
+            'business_date' => $businessDate,
+            'business_date_formatted' => date('d/m/Y', strtotime($businessDate)),
+            'psos' => $psoData,
+            'total_closed_count' => $totalClosedCount,
+            'available_count' => $availableCount,
+            'imported_count' => $importedCount,
+            'metrics' => [
+                'total_bills_count' => $metrics['totalBillsCount'] ?? 0,
+                'tally_total' => (float)($metrics['tallyTotal'] ?? 0),
+                'tally_total_formatted' => number_format((float)($metrics['tallyTotal'] ?? 0), 2),
+                'missing_count' => $metrics['missingCount'] ?? 0,
+            ],
+        ]);
+    }
+
+    public function index(Request $request)
+    {
+        $businessDate = $request->query('date') ?: $this->reconService->getBusinessDate();
+        $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
+        
+        $user = auth()->user();
+        $psoList = $this->getAvailablePsosForDate($businessDate, $user);
+
+        $totalClosedQuery = PsoConfig::where('is_closed', true);
+        if ($user && $user->isOperator()) {
+            $totalClosedQuery->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('operator_name', $user->name);
+            });
+        }
+        $totalClosedCount = $totalClosedQuery->count();
+        $importedCount = $totalClosedCount - $psoList->count();
+
         $recentImports = TallyImport::orderBy('id', 'desc')->take(10)->get();
         $metrics = $this->reconService->getMetrics($businessDate);
 
-        return view('import.index', compact('psoList', 'recentImports', 'metrics', 'businessDate', 'cutoffTime'));
+        return view('import.index', compact('psoList', 'recentImports', 'metrics', 'businessDate', 'cutoffTime', 'totalClosedCount', 'importedCount'));
     }
 
     public function import(Request $request)
@@ -265,10 +360,14 @@ class ExcelImportController extends Controller
 
                 // Create Credit Collection record if payment type is Credit
                 if ($paymentTypeNormalized === 'Credit' && $amount > 0) {
-                    $billPrefix = strtoupper(trim(explode(' ', $billNo)[0] ?? ''));
-                    $assignedSalesman = Salesperson::where('prefix_code', $billPrefix)
-                        ->orWhereHas('prefix', fn($q) => $q->where('prefix', $billPrefix))
-                        ->value('name') ?? 'Field Representative';
+                    $parsedPfx = PsoConfig::parseBillNumber($billNo);
+                    $billPrefix = $parsedPfx['prefix'] ?: trim(explode(' ', $billNo)[0] ?? '');
+                    $assignedSalesman = Salesperson::where(function($q) use ($billPrefix) {
+                            $q->where('prefix_code', $billPrefix)
+                              ->orWhere('prefix_code', strtoupper($billPrefix))
+                              ->orWhere('prefix_code', strtolower($billPrefix))
+                              ->orWhereHas('prefix', fn($sq) => $sq->where('prefix', $billPrefix)->orWhere('prefix', strtoupper($billPrefix))->orWhere('prefix', strtolower($billPrefix)));
+                        })->value('name') ?? 'Field Representative';
 
                     CreditCollection::updateOrCreate(
                         ['bill_id' => $bill->id],

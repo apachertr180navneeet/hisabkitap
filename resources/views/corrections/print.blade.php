@@ -55,7 +55,7 @@
         </div>
       </div>
       <div class="text-end">
-        <div class="badge bg-dark fs-6 px-3 py-2 font-mono mb-1">DATE: {{ date('d/m/Y', strtotime($businessDate)) }}</div>
+        <div class="badge bg-dark fs-6 px-3 py-2 font-mono mb-1">DATE: {{ $businessDate === 'All Dates' ? 'ALL DATES' : (strtotime($businessDate) ? date('d/m/Y', strtotime($businessDate)) : $businessDate) }}</div>
         <div class="text-muted small">Generated: {{ now()->format('d/m/Y h:i A') }}</div>
       </div>
     </div>
@@ -118,7 +118,15 @@
             <td class="text-end font-mono fw-bold text-danger">{{ $c->net_adjustment < 0 ? ('-₹' . number_format(abs($c->net_adjustment), 2)) : ('₹' . number_format($c->net_adjustment, 2)) }}</td>
             <td class="text-start small">{{ $c->reason }}</td>
             <td class="small">{{ $c->approved_by }}</td>
-            <td class="font-mono small">{{ $c->created_at ? $c->created_at->format('d/m/Y H:i') : '' }}</td>
+            <td class="font-mono small">
+              @if(is_object($c->created_at))
+                {{ $c->created_at->format('d/m/Y H:i') }}
+              @elseif($c->created_at)
+                {{ date('d/m/Y H:i', strtotime($c->created_at)) }}
+              @else
+                —
+              @endif
+            </td>
           </tr>
         @empty
           <tr>

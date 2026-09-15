@@ -76,12 +76,17 @@ class ReconciliationService
                 $totalBillsCount = $bills->count();
 
                 foreach ($bills as $bill) {
-                    $calculatedNet = max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount);
-                    $effectiveAmt = (float) ($bill->net_amount > 0 ? $bill->net_amount : $calculatedNet);
+                    $isCancelled = ($bill->status === 'Cancelled' || $bill->payment_type === 'Cancelled');
+                    $calculatedNet = $isCancelled ? 0 : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount);
+                    $effectiveAmt = (float) ($isCancelled ? 0 : ($bill->net_amount > 0 ? $bill->net_amount : $calculatedNet));
 
                     $tallyTotal += (float) $bill->amount;
-                    $totCd += (float) $bill->cd_amount;
-                    $totRefund += (float) $bill->refund_amount;
+                    if ($isCancelled) {
+                        $totCancelled += (float) $bill->amount;
+                    } else {
+                        $totCd += (float) $bill->cd_amount;
+                        $totRefund += (float) $bill->refund_amount;
+                    }
 
                     $isMismatch = $bill->isSeriesMismatch() || $bill->isPsoMismatch() || in_array($bill->status, ['Bill Series Mismatch', 'Duplicate / PSO Mismatch', 'Mismatch']) || (bool)$bill->is_mismatch_approved || !empty($bill->mismatch_rejected_by);
                     $isApproved = $bill->isMismatchApproved();
@@ -125,25 +130,25 @@ class ReconciliationService
                         $matchedCount++;
                     } elseif ($bill->status === 'Missing') {
                         $missingCount++;
-                    } elseif ($bill->status === 'Cancelled') {
+                    } elseif ($bill->status === 'Cancelled' || $bill->payment_type === 'Cancelled') {
                         $cancelledCount++;
                     }
 
                     // Payment breakdown (handling split Cash + Paytm or standard payment_type)
-                    if ($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0)) {
-                        $totCash += (float) $bill->cash_amount;
-                        $totPaytm += (float) $bill->paytm_amount;
-                    } else {
-                        if ($bill->payment_type === 'Cash') {
-                            $totCash += $effectiveAmt;
-                        } elseif ($bill->payment_type === 'Paytm') {
-                            $totPaytm += $effectiveAmt;
-                        } elseif ($bill->payment_type === 'Check') {
-                            $totCheck += $effectiveAmt;
-                        } elseif ($bill->payment_type === 'Credit') {
-                            $totCredit += $effectiveAmt;
-                        } elseif ($bill->payment_type === 'Cancelled') {
-                            $totCancelled += (float) $bill->amount;
+                    if (!$isCancelled) {
+                        if ($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0)) {
+                            $totCash += (float) $bill->cash_amount;
+                            $totPaytm += (float) $bill->paytm_amount;
+                        } else {
+                            if ($bill->payment_type === 'Cash') {
+                                $totCash += $effectiveAmt;
+                            } elseif ($bill->payment_type === 'Paytm') {
+                                $totPaytm += $effectiveAmt;
+                            } elseif ($bill->payment_type === 'Check') {
+                                $totCheck += $effectiveAmt;
+                            } elseif ($bill->payment_type === 'Credit') {
+                                $totCredit += $effectiveAmt;
+                            }
                         }
                     }
 
