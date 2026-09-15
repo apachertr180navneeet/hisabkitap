@@ -412,6 +412,8 @@ document.addEventListener('DOMContentLoaded', function () {
         dropzoneArea.classList.add('border-success', 'bg-success-subtle');
       }
     }, false);
+  }
+
   // Enforce PSO selection on form submit
   const importForm = document.querySelector('form[action="{{ route('admin.import.process') }}"]') || document.querySelector('form');
   const psoSelect = document.getElementById('pso_id_select');
