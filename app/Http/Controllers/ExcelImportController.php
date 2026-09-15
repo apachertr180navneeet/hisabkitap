@@ -128,7 +128,8 @@ class ExcelImportController extends Controller
      */
     public function getPsosForDate(Request $request)
     {
-        $businessDate = $request->query('date') ?: $this->reconService->getBusinessDate();
+        $rawDate = $request->query('date') ?: $this->reconService->getBusinessDate();
+        $businessDate = $this->reconService->normalizeDate($rawDate);
         $user = auth()->user();
 
         $availablePsos = $this->getAvailablePsosForDate($businessDate, $user);
@@ -182,7 +183,8 @@ class ExcelImportController extends Controller
 
     public function index(Request $request)
     {
-        $businessDate = $request->query('date') ?: $this->reconService->getBusinessDate();
+        $rawDate = $request->query('date') ?: $this->reconService->getBusinessDate();
+        $businessDate = $this->reconService->normalizeDate($rawDate);
         $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
         
         $user = auth()->user();
@@ -218,7 +220,7 @@ class ExcelImportController extends Controller
             'business_date.required' => 'Please select a valid business date.',
         ]);
 
-        $businessDate = $request->business_date;
+        $businessDate = $this->reconService->normalizeDate($request->business_date);
         $targetPsoId = trim((string)$request->pso_id);
         $cutoffTime = SystemSetting::getVal('cutoff_time', '19:00');
         $operatorName = session('active_user.name', 'Suresh Gupta');

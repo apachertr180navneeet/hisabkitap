@@ -14,17 +14,36 @@ use App\Models\User;
 class ReconciliationService
 {
     /**
+     * Standardize any date input into YYYY-MM-DD format
+     */
+    public function normalizeDate(?string $date): string
+    {
+        if (empty($date) || $date === 'ALL') {
+            return $date ?? '';
+        }
+        $date = trim($date);
+        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/', $date, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+        }
+        if (preg_match('/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/', $date, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]);
+        }
+        $ts = strtotime($date);
+        return $ts ? date('Y-m-d', $ts) : $date;
+    }
+
+    /**
      * Get active business date (setting date or today, or requested date)
      */
     public function getBusinessDate(?string $requestedDate = null): string
     {
         if ($requestedDate && $requestedDate !== 'ALL') {
-            return $requestedDate;
+            return $this->normalizeDate($requestedDate);
         }
 
         $settingDate = SystemSetting::getVal('business_date');
         if ($settingDate) {
-            return is_string($settingDate) ? substr($settingDate, 0, 10) : (is_object($settingDate) ? $settingDate->format('Y-m-d') : (string)$settingDate);
+            return $this->normalizeDate(is_string($settingDate) ? substr($settingDate, 0, 10) : (is_object($settingDate) ? $settingDate->format('Y-m-d') : (string)$settingDate));
         }
 
         return date('Y-m-d');
