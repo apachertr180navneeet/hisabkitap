@@ -88,13 +88,16 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::post('/import', [ExcelImportController::class, 'import'])->middleware(['read.only', 'permission:can_import_excel'])->name('admin.import.process');
     Route::get('/import/sample-download', [ExcelImportController::class, 'downloadSample'])->name('admin.import.sample');
 
-    // 3. Bill Verification
+    // 3. Bill Verification & PSO Series Validation
     Route::get('/verification', [BillVerificationController::class, 'index'])->name('admin.verification.index');
     Route::post('/verification/store-manual', [BillVerificationController::class, 'storeManualBill'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.store_manual');
     Route::post('/verification/update-row', [BillVerificationController::class, 'updateBill'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.update');
     Route::post('/verification/bulk-update', [BillVerificationController::class, 'bulkUpdate'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.bulk_update');
     Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.resolve');
     Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.auto_verify');
+    Route::post('/verification/approve-mismatch', [BillVerificationController::class, 'approveMismatch'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.approve_mismatch');
+    Route::post('/verification/reject-mismatch', [BillVerificationController::class, 'rejectMismatch'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.reject_mismatch');
+    Route::post('/verification/revalidate-series', [BillVerificationController::class, 'revalidateSeries'])->middleware(['read.only', 'permission:can_edit_bills'])->name('admin.verification.revalidate_series');
     Route::get('/verification/export', [BillVerificationController::class, 'exportCsv'])->name('admin.verification.export');
 
     // 3.5 Cash Denomination & Driver Handover
@@ -212,6 +215,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/verification/bulk-update', [BillVerificationController::class, 'bulkUpdate'])->middleware('read.only')->name('verification.bulk_update');
     Route::post('/verification/resolve-missing', [BillVerificationController::class, 'resolveMissing'])->middleware('read.only')->name('verification.resolve');
     Route::post('/verification/auto-verify', [BillVerificationController::class, 'autoVerifyAll'])->middleware('read.only')->name('verification.auto_verify');
+    Route::post('/verification/approve-mismatch', [BillVerificationController::class, 'approveMismatch'])->middleware('read.only')->name('verification.approve_mismatch');
+    Route::post('/verification/reject-mismatch', [BillVerificationController::class, 'rejectMismatch'])->middleware('read.only')->name('verification.reject_mismatch');
+    Route::post('/verification/revalidate-series', [BillVerificationController::class, 'revalidateSeries'])->middleware('read.only')->name('verification.revalidate_series');
     Route::get('/verification/export', [BillVerificationController::class, 'exportCsv'])->name('verification.export');
     Route::get('/cash-denomination', [CashDenominationController::class, 'index'])->name('denomination.index');
     Route::post('/cash-denomination/store', [CashDenominationController::class, 'store'])->middleware('read.only')->name('denomination.store');

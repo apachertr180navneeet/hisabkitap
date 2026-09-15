@@ -34,6 +34,10 @@ class ApprovalSealingController extends Controller
         $businessDate = $this->reconService->getBusinessDate();
         $metrics = $this->reconService->getMetrics($businessDate);
 
+        if (!empty($metrics['unapprovedMismatchCount']) && $metrics['unapprovedMismatchCount'] > 0) {
+            return redirect()->back()->with('error', "Cannot seal day: {$metrics['unapprovedMismatchCount']} unapproved Bill Series / PSO Mismatch(es) remain. Please approve or reject all mismatches first.");
+        }
+
         if (!$metrics['isReconciled']) {
             return redirect()->back()->with('error', 'Cannot seal day while Reconciliation variance is non-zero or missing bills remain.');
         }

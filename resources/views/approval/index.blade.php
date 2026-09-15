@@ -14,7 +14,7 @@
 <div class="card border p-4 bg-white shadow-sm mb-4">
   <h5 class="fw-bold mb-3">Approval Prerequisite Checks</h5>
   <div class="row g-3">
-    <div class="col-md-3">
+    <div class="col-md">
       <div class="p-3 border rounded bg-light">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="fw-semibold">1. Bill Verification</span>
@@ -27,7 +27,7 @@
         <small class="text-muted">{{ $metrics['totalBillsCount'] > 0 ? ($metrics['totalBillsCount'] . ' bills imported') : '0 bills imported' }}</small>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md">
       <div class="p-3 border rounded bg-light">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="fw-semibold">2. Missing Bills</span>
@@ -44,27 +44,50 @@
         </small>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md">
       <div class="p-3 border rounded bg-light">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <span class="fw-semibold">3. Master Recon</span>
+          <span class="fw-semibold">3. PSO Series Checks</span>
           @if($metrics['totalBillsCount'] === 0)
             <i class="bi bi-dash-circle text-secondary fs-5"></i>
-          @elseif($metrics['difference'] == 0)
+          @elseif(($metrics['unapprovedMismatchCount'] ?? 0) === 0)
+            <i class="bi bi-check-circle-fill text-success fs-5"></i>
+          @else
+            <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
+          @endif
+        </div>
+        <small class="text-muted">
+          @if(($metrics['unapprovedMismatchCount'] ?? 0) > 0)
+            <span class="text-danger fw-bold">{{ $metrics['unapprovedMismatchCount'] }} unapproved mismatch(es)</span>
+          @elseif(($metrics['approvedMismatchCount'] ?? 0) > 0)
+            <span class="text-success">{{ $metrics['approvedMismatchCount'] }} approved override(s)</span>
+          @else
+            All in series
+          @endif
+        </small>
+      </div>
+    </div>
+    <div class="col-md">
+      <div class="p-3 border rounded bg-light">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-semibold">4. Master Recon</span>
+          @if($metrics['totalBillsCount'] === 0)
+            <i class="bi bi-dash-circle text-secondary fs-5"></i>
+          @elseif($metrics['difference'] == 0 && ($metrics['unapprovedMismatchCount'] ?? 0) === 0)
             <i class="bi bi-check-circle-fill text-success fs-5"></i>
           @else
             <i class="bi bi-x-circle-fill text-danger fs-5"></i>
           @endif
         </div>
         <small class="text-muted">
-          {{ $metrics['totalBillsCount'] === 0 ? 'Awaiting bills' : ($metrics['difference'] == 0 ? 'Difference ₹0 (Balanced)' : ('Difference ₹' . number_format($metrics['difference']))) }}
+          {{ $metrics['totalBillsCount'] === 0 ? 'Awaiting bills' : ($metrics['difference'] == 0 && ($metrics['unapprovedMismatchCount'] ?? 0) === 0 ? 'Difference ₹0 (Balanced)' : ('Difference ₹' . number_format($metrics['difference']))) }}
         </small>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md">
       <div class="p-3 border rounded bg-light">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <span class="fw-semibold">4. Corrections</span>
+          <span class="fw-semibold">5. Deductions</span>
           <i class="bi bi-check-circle-fill text-success fs-5"></i>
         </div>
         <small class="text-muted">{{ $metrics['correctionsCount'] ?? 0 }} authorized deductions</small>
@@ -72,6 +95,23 @@
     </div>
   </div>
 </div>
+
+@if(($metrics['unapprovedMismatchCount'] ?? 0) > 0)
+  <div class="alert alert-danger d-flex align-items-center justify-content-between mb-4 shadow-sm border-danger">
+    <div class="d-flex align-items-center gap-3">
+      <i class="bi bi-shield-slash-fill fs-2"></i>
+      <div>
+        <h6 class="fw-bold mb-1">PSO Bill Series Mismatches Blocking Final Seal</h6>
+        <p class="mb-0 small">
+          <strong>{{ $metrics['unapprovedMismatchCount'] }} bill(s)</strong> fall outside their assigned PSO range or belong to another PSO and have not been approved. Review and approve/reject them before sealing.
+        </p>
+      </div>
+    </div>
+    <a href="{{ route('admin.reconciliation.index') }}" class="btn btn-sm btn-danger text-nowrap">
+      <i class="bi bi-arrow-right-circle me-1"></i> Review Mismatches
+    </a>
+  </div>
+@endif
 
 <!-- Sealing Action Card -->
 <div class="card border p-4 bg-white shadow-sm text-center">

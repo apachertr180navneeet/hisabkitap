@@ -230,19 +230,157 @@
   </div>
 </div>
 
+<!-- PSO Bill Series Validation Section -->
+<div class="card border p-4 bg-white shadow-sm mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="fw-bold mb-1"><i class="bi bi-shield-exclamation text-danger me-2"></i>PSO Bill Series & Duplicate Validation</h5>
+      <p class="text-muted small mb-0">Validates entered bill numbers against configured PSO ranges and cross-PSO duplicates.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <form action="{{ route('admin.verification.revalidate_series') }}" method="POST" class="d-inline">
+        @csrf
+        <input type="hidden" name="date" value="{{ $metrics['businessDate'] }}">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-arrow-repeat me-1"></i> Re-validate All Series
+        </button>
+      </form>
+    </div>
+  </div>
+
+  @php
+    $mismatchList = $metrics['mismatchBills'] ?? [];
+  @endphp
+
+  @if(count($mismatchList) > 0)
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover align-middle mb-0">
+        <thead class="table-light small text-uppercase">
+          <tr>
+            <th>PSO Number</th>
+            <th>Entered Bill No.</th>
+            <th>Expected Bill Series</th>
+            <th>Mismatch Status</th>
+            <th class="text-end">Amount</th>
+            <th>Approval State</th>
+            <th class="text-end" style="min-width: 140px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($mismatchList as $mb)
+            <tr class="{{ $mb->is_mismatch_approved ? 'table-light' : 'table-danger' }}">
+              <td>
+                <span class="badge bg-primary fs-6">{{ $mb->pso_code }}</span>
+              </td>
+              <td>
+                <strong class="font-mono fs-6 text-dark">{{ $mb->bill_no }}</strong>
+                @if($mb->customer_name)
+                  <small class="text-muted d-block">{{ $mb->customer_name }}</small>
+                @endif
+              </td>
+              <td>
+                <span class="badge bg-light text-dark border font-mono fs-6">
+                  {{ $mb->expected_series ?: 'No defined series' }}
+                </span>
+              </td>
+              <td>
+                @if($mb->status === 'Bill Series Mismatch')
+                  <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>Bill Series Mismatch</span>
+                @elseif($mb->status === 'Duplicate / PSO Mismatch')
+                  <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-octagon-fill me-1"></i>Duplicate / PSO Mismatch</span>
+                @else
+                  <span class="badge bg-secondary">{{ $mb->status }}</span>
+                @endif
+                @if($mb->mismatch_status)
+                  <small class="text-muted d-block font-monospace mt-1">{{ $mb->mismatch_status }}</small>
+                @endif
+              </td>
+              <td class="font-mono text-end fw-bold">
+                ₹{{ number_format($mb->amount, 2) }}
+              </td>
+              <td>
+                @if($mb->is_mismatch_approved)
+                  <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Approved Override</span>
+                  <div class="small text-muted fst-italic mt-1">
+                    By {{ $mb->mismatch_approved_by }} on {{ $mb->mismatch_approved_at ? $mb->mismatch_approved_at->format('d/m H:i') : '' }}
+                    <br><strong>Reason:</strong> {{ $mb->mismatch_approval_reason }}
+                  </div>
+                @elseif($mb->mismatch_rejected_by)
+                  <span class="badge bg-danger"><i class="bi bi-x-octagon me-1"></i>Rejected</span>
+                  <div class="small text-muted fst-italic mt-1">
+                    By {{ $mb->mismatch_rejected_by }}
+                    <br><strong>Reason:</strong> {{ $mb->mismatch_rejection_reason }}
+                  </div>
+                @else
+                  <span class="badge bg-danger animate-pulse"><i class="bi bi-hourglass-split me-1"></i>Unapproved (Blocking)</span>
+                @endif
+              </td>
+              <td class="text-end text-nowrap">
+                @if(!$mb->is_mismatch_approved)
+                  <button type="button" class="btn btn-sm btn-success btn-open-approve" 
+                          data-id="{{ $mb->id }}" 
+                          data-pso="{{ $mb->pso_code }}" 
+                          data-bill="{{ $mb->bill_no }}" 
+                          data-expected="{{ $mb->expected_series }}" 
+                          data-status="{{ $mb->status }}">
+                    <i class="bi bi-check-lg me-1"></i> Approve
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-open-reject ms-1" 
+                          data-id="{{ $mb->id }}" 
+                          data-pso="{{ $mb->pso_code }}" 
+                          data-bill="{{ $mb->bill_no }}" 
+                          data-status="{{ $mb->status }}">
+                    <i class="bi bi-x-lg me-1"></i> Reject
+                  </button>
+                @else
+                  <button type="button" class="btn btn-sm btn-outline-secondary btn-open-reject" 
+                          data-id="{{ $mb->id }}" 
+                          data-pso="{{ $mb->pso_code }}" 
+                          data-bill="{{ $mb->bill_no }}" 
+                          data-status="{{ $mb->status }}">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Revoke / Reject
+                  </button>
+                @endif
+              </td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  @else
+    <div class="p-3 bg-light rounded text-center text-muted">
+      <i class="bi bi-shield-check text-success fs-3 d-block mb-1"></i>
+      <span class="fw-semibold text-dark">No Bill Series or Cross-PSO Mismatches</span>
+      <p class="small mb-0">All imported bills strictly conform to their assigned PSO series and are validated for reconciliation.</p>
+    </div>
+  @endif
+</div>
+
 <!-- Difference Breakdown Card -->
 <div class="card border p-4 bg-white shadow-sm">
   <h5 class="fw-bold mb-3">Discrepancy Breakdown & Resolution Checklist</h5>
   <div class="row g-3 align-items-center">
     <div class="col-md-4">
-      <div class="p-3 rounded {{ $metrics['difference'] == 0 ? 'bg-success-subtle text-success border border-success' : 'bg-danger-subtle text-danger border border-danger' }}">
+      <div class="p-3 rounded {{ $metrics['difference'] == 0 && ($metrics['unapprovedMismatchCount'] ?? 0) === 0 ? 'bg-success-subtle text-success border border-success' : 'bg-danger-subtle text-danger border border-danger' }}">
         <small class="d-block fw-semibold text-uppercase">Net Variance</small>
         <span class="fs-3 fw-bold font-mono">₹{{ number_format($metrics['difference'], 2) }}</span>
-        <small class="d-block mt-1">{{ $metrics['difference'] == 0 ? 'Zero Variance (Reconciled)' : 'Variance > ₹0 (Action Required)' }}</small>
+        <small class="d-block mt-1">{{ $metrics['difference'] == 0 && ($metrics['unapprovedMismatchCount'] ?? 0) === 0 ? 'Zero Variance (Reconciled)' : 'Action Required to Balance' }}</small>
       </div>
     </div>
     <div class="col-md-8">
       <div class="d-flex flex-column gap-2" style="font-size: 0.84rem;">
+        @if(($metrics['unapprovedMismatchCount'] ?? 0) > 0)
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-x-circle-fill text-danger"></i>
+            <span><strong class="text-danger">PSO Series Mismatches:</strong> {{ $metrics['unapprovedMismatchCount'] }} bill(s) outside assigned series or duplicated across PSOs.</span>
+          </div>
+        @else
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-check-circle-fill text-success"></i>
+            <span><strong>PSO Series Validation:</strong> All bills conform to assigned ranges or are approved.</span>
+          </div>
+        @endif
+
         @if($missingBills->count() > 0)
           @foreach($missingBills as $mb)
             <div class="d-flex align-items-center gap-2">
@@ -272,4 +410,105 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Approve Mismatch -->
+<div class="modal fade" id="modal-approve-mismatch-recon" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-check-circle-fill me-2"></i>Approve PSO Bill Series Mismatch</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ route('admin.verification.approve_mismatch') }}" method="POST">
+        @csrf
+        <input type="hidden" name="bill_id" id="approve_recon_bill_id">
+        <div class="modal-body p-4">
+          <div class="p-3 bg-light rounded border mb-3 small">
+            <div class="row g-2">
+              <div class="col-6"><strong>PSO Number:</strong> <span id="approve_recon_pso" class="font-mono badge bg-primary"></span></div>
+              <div class="col-6"><strong>Entered Bill:</strong> <span id="approve_recon_bill" class="font-mono fw-bold"></span></div>
+              <div class="col-12"><strong>Expected Series:</strong> <span id="approve_recon_expected" class="font-mono"></span></div>
+              <div class="col-12"><strong>Mismatch Status:</strong> <span id="approve_recon_status" class="badge bg-danger"></span></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Approval Reason / Authorization Note <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="Provide mandatory justification (e.g. Authorized emergency bill book handover by manager)" required></textarea>
+            <div class="form-text">Approval reason will be permanently recorded in the audit trail.</div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success fw-bold">
+            <i class="bi bi-check-circle-fill me-1"></i> Confirm & Approve Bill
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Reject Mismatch -->
+<div class="modal fade" id="modal-reject-mismatch-recon" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-x-circle-fill me-2"></i>Reject Bill / Mark Invalid</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ route('admin.verification.reject_mismatch') }}" method="POST">
+        @csrf
+        <input type="hidden" name="bill_id" id="reject_recon_bill_id">
+        <div class="modal-body p-4">
+          <div class="p-3 bg-light rounded border mb-3 small">
+            <div class="row g-2">
+              <div class="col-6"><strong>PSO Number:</strong> <span id="reject_recon_pso" class="font-mono badge bg-primary"></span></div>
+              <div class="col-6"><strong>Entered Bill:</strong> <span id="reject_recon_bill" class="font-mono fw-bold"></span></div>
+              <div class="col-12"><strong>Status:</strong> <span id="reject_recon_status" class="badge bg-danger"></span></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Rejection Reason / Note <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="Explain why this bill is rejected (e.g. Invalid series, bill belongs to branch B)" required></textarea>
+            <div class="form-text">The bill will remain excluded from reconciliation until corrected.</div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger fw-bold">
+            <i class="bi bi-x-circle-fill me-1"></i> Confirm Rejection
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const approveModal = new bootstrap.Modal(document.getElementById('modal-approve-mismatch-recon'));
+  const rejectModal = new bootstrap.Modal(document.getElementById('modal-reject-mismatch-recon'));
+
+  document.querySelectorAll('.btn-open-approve').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.getElementById('approve_recon_bill_id').value = this.dataset.id;
+      document.getElementById('approve_recon_pso').textContent = this.dataset.pso;
+      document.getElementById('approve_recon_bill').textContent = this.dataset.bill;
+      document.getElementById('approve_recon_expected').textContent = this.dataset.expected || 'None';
+      document.getElementById('approve_recon_status').textContent = this.dataset.status;
+      approveModal.show();
+    });
+  });
+
+  document.querySelectorAll('.btn-open-reject').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.getElementById('reject_recon_bill_id').value = this.dataset.id;
+      document.getElementById('reject_recon_pso').textContent = this.dataset.pso;
+      document.getElementById('reject_recon_bill').textContent = this.dataset.bill;
+      document.getElementById('reject_recon_status').textContent = this.dataset.status;
+      rejectModal.show();
+    });
+  });
+});
+</script>
 @endsection

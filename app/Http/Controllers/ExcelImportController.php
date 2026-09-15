@@ -212,9 +212,24 @@ class ExcelImportController extends Controller
                 $assignedPsoCode = $selectedPso->code;
                 $psoConfigId = $selectedPso->id;
 
+                // Validate Bill Number against assigned PSO series range and check duplicates
+                $validation = $selectedPso->validateBillNumber($billNo, $rowDate);
+                $expectedSeries = $validation['expected_series'];
+                $mismatchType = $validation['valid'] ? null : $validation['mismatch_type'];
+
                 // Check post-cutoff
                 $isPostCutoff = false;
                 $netAmount = max(0, $amount - $cdAmount - $refundAmount);
+
+                $billStatus = 'Matched';
+                if ($paymentTypeNormalized === 'Cancelled') {
+                    $billStatus = 'Cancelled';
+                } elseif (!$validation['valid']) {
+                    $billStatus = $mismatchType;
+                    $rowErrors[] = "Row {$rowNum} (Bill '{$billNo}'): {$validation['details']}";
+                } elseif ($isPostCutoff) {
+                    $billStatus = 'Next Day PSO';
+                }
 
                 $bill = Bill::updateOrCreate(
                     [
@@ -236,11 +251,13 @@ class ExcelImportController extends Controller
                         'net_amount' => $netAmount,
                         'cash_amount' => $paymentTypeNormalized === 'Cash' ? $netAmount : 0,
                         'paytm_amount' => $paymentTypeNormalized === 'Paytm' ? $netAmount : 0,
-                        'status' => $paymentTypeNormalized === 'Cancelled' ? 'Cancelled' : ($isPostCutoff ? 'Next Day PSO' : 'Matched'),
+                        'status' => $billStatus,
+                        'expected_series' => $expectedSeries,
+                        'mismatch_status' => $mismatchType,
                         'is_expected' => true,
                         'tally_found' => true,
                         'is_post_cutoff' => $isPostCutoff,
-                        'remark' => $remarks,
+                        'remark' => (!$validation['valid'] ? $validation['details'] : $remarks),
                         'verified_by' => $operatorName,
                         'verified_at' => now(),
                     ]
@@ -294,7 +311,7 @@ class ExcelImportController extends Controller
             $redirect = redirect()->route('admin.verification.index');
             if (!empty($rowErrors)) {
                 return $redirect->with('success', "Excel file '{$filename}' imported! {$importedRows} bills processed (Total: ₹" . number_format($totalAmount, 2) . ").")
-                                ->with('warning', count($rowErrors) . " row(s) had formatting errors and were skipped.")
+                                ->with('warning', count($rowErrors) . " row(s) flagged with series mismatches or warnings.")
                                 ->with('import_errors', $rowErrors);
             }
 

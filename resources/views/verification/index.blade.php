@@ -15,6 +15,13 @@
     <a href="{{ route('admin.verification.export', ['date' => $businessDate]) }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-file-earmark-arrow-down me-1"></i> Export Verification
     </a>
+    <form action="{{ route('admin.verification.revalidate_series') }}" method="POST" class="d-inline">
+      @csrf
+      <input type="hidden" name="date" value="{{ $businessDate }}">
+      <button type="submit" class="btn btn-outline-warning btn-sm" title="Revalidate all bills against PSO series definitions">
+        <i class="bi bi-arrow-repeat me-1"></i> Re-validate Series
+      </button>
+    </form>
     <form action="{{ route('admin.verification.auto_verify') }}" method="POST" class="d-inline">
       @csrf
       <input type="hidden" name="date" value="{{ $businessDate }}">
@@ -60,6 +67,9 @@
       <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="ALL">All Statuses</option>
         <option value="Matched" {{ request('status') === 'Matched' ? 'selected' : '' }}>Matched</option>
+        <option value="Bill Series Mismatch" {{ request('status') === 'Bill Series Mismatch' ? 'selected' : '' }}>Bill Series Mismatch</option>
+        <option value="Duplicate / PSO Mismatch" {{ request('status') === 'Duplicate / PSO Mismatch' ? 'selected' : '' }}>Duplicate / PSO Mismatch</option>
+        <option value="Mismatch Approved" {{ request('status') === 'Mismatch Approved' ? 'selected' : '' }}>Mismatch Approved</option>
         <option value="Missing" {{ request('status') === 'Missing' ? 'selected' : '' }}>Missing</option>
         <option value="Cancelled" {{ request('status') === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
       </select>
@@ -154,7 +164,7 @@
           <th>Bill No.</th>
           <th>PSO</th>
           <th style="min-width: 170px;">Sales Person</th>
-          <th>Expected</th>
+          <th>Expected Series</th>
           <th>Tally Found</th>
           <th>Bill Date / Time</th>
           <th>Customer</th>
@@ -165,13 +175,13 @@
           <th class="text-end">Net Amount</th>
           <th>Status</th>
           <th>Remark</th>
-          <th class="text-end" style="min-width: 120px;">Action</th>
+          <th class="text-end" style="min-width: 130px;">Action</th>
         </tr>
       </thead>
       <tbody>
         @forelse($bills as $bill)
           <tr id="bill-row-{{ $bill->id }}" 
-              class="bill-row {{ $bill->status === 'Missing' ? 'table-danger' : '' }}" 
+              class="bill-row {{ $bill->status === 'Missing' ? 'table-danger' : ($bill->hasUnapprovedMismatch() ? 'table-warning' : '') }}" 
               data-id="{{ $bill->id }}"
               data-bill-no="{{ $bill->bill_no }}"
               data-amount="{{ (float)$bill->amount }}"
@@ -212,7 +222,13 @@
             </td>
 
             <!-- Expected / Tally Found -->
-            <td><i class="bi bi-check-circle-fill text-success"></i></td>
+            <td>
+              @if($bill->expected_series)
+                <span class="badge bg-light text-dark border font-mono small">{{ $bill->expected_series }}</span>
+              @else
+                <span class="text-muted small">—</span>
+              @endif
+            </td>
             <td><i class="bi bi-check-circle-fill text-success"></i></td>
 
             <!-- Bill Date & Time -->
@@ -284,6 +300,16 @@
             <td>
               @if($bill->status === 'Matched')
                 <span class="badge badge-matched"><i class="bi bi-check-circle me-1"></i>Matched</span>
+              @elseif($bill->status === 'Bill Series Mismatch')
+                <span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>Series Mismatch</span>
+                @if($bill->is_mismatch_approved)
+                  <span class="badge bg-success mt-1 d-block"><i class="bi bi-check-circle me-1"></i>Approved</span>
+                @endif
+              @elseif($bill->status === 'Duplicate / PSO Mismatch')
+                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-octagon-fill me-1"></i>PSO Mismatch</span>
+                @if($bill->is_mismatch_approved)
+                  <span class="badge bg-success mt-1 d-block"><i class="bi bi-check-circle me-1"></i>Approved</span>
+                @endif
               @elseif($bill->status === 'Missing')
                 <span class="badge badge-missing"><i class="bi bi-exclamation-octagon me-1"></i>Missing</span>
               @elseif($bill->status === 'Cancelled')
@@ -293,10 +319,24 @@
               @endif
             </td>
 
-            <!-- Remark -->
-            <td class="small text-muted">{{ $bill->remark }}</td>
+            <!-- Remark & Mismatch details -->
+            <td class="small">
+              <div>{{ $bill->remark }}</div>
+              @if($bill->mismatch_status)
+                <div class="text-danger small font-monospace mt-1"><i class="bi bi-info-circle me-1"></i>{{ $bill->mismatch_status }}</div>
+              @endif
+              @if($bill->is_mismatch_approved)
+                <div class="text-success small fst-italic mt-1">
+                  <i class="bi bi-shield-check me-1"></i>Approved by {{ $bill->mismatch_approved_by }}: {{ $bill->mismatch_approval_reason }}
+                </div>
+              @elseif($bill->mismatch_rejected_by)
+                <div class="text-danger small fst-italic mt-1">
+                  <i class="bi bi-x-octagon me-1"></i>Rejected by {{ $bill->mismatch_rejected_by }}: {{ $bill->mismatch_rejection_reason }}
+                </div>
+              @endif
+            </td>
 
-            <!-- Actions (Edit button / Save & Cancel / Resolve / Split) -->
+            <!-- Actions (Edit button / Save & Cancel / Resolve / Split / Approve Mismatch) -->
             <td class="text-end text-nowrap">
               <!-- View Mode Action Buttons -->
               <div class="btn-group-view">
@@ -314,6 +354,25 @@
                         title="Split payment between Cash and Paytm">
                   <i class="bi bi-pie-chart-fill me-1"></i> Split
                 </button>
+                @if($bill->hasUnapprovedMismatch())
+                  <button type="button" class="btn btn-sm btn-success btn-verify-approve-mismatch ms-1" 
+                          data-id="{{ $bill->id }}" 
+                          data-pso="{{ $bill->pso_code }}" 
+                          data-bill="{{ $bill->bill_no }}" 
+                          data-expected="{{ $bill->expected_series }}" 
+                          data-status="{{ $bill->status }}"
+                          title="Approve Series Mismatch">
+                    <i class="bi bi-check-lg me-1"></i> Approve
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-verify-reject-mismatch ms-1" 
+                          data-id="{{ $bill->id }}" 
+                          data-pso="{{ $bill->pso_code }}" 
+                          data-bill="{{ $bill->bill_no }}" 
+                          data-status="{{ $bill->status }}"
+                          title="Reject Mismatch">
+                    <i class="bi bi-x-lg me-1"></i> Reject
+                  </button>
+                @endif
                 @if($bill->status === 'Missing')
                   <button type="button" class="btn btn-sm btn-danger btn-open-investigate ms-1" data-bill-no="{{ $bill->bill_no }}" data-customer="{{ $bill->customer_name }}" data-amount="₹{{ number_format($bill->amount, 2) }}" data-pso="{{ $bill->pso_code }}">
                     <i class="bi bi-search me-1"></i> Resolve
@@ -1462,5 +1521,105 @@ function updateManualBillPrefix(selectEl) {
     billNoInput.value = prefix + ' ';
   }
 }
+
+// PSO Mismatch Approval & Rejection Modal Triggers
+const verifApproveModalEl = document.getElementById('modal-approve-mismatch-verif');
+const verifRejectModalEl = document.getElementById('modal-reject-mismatch-verif');
+const verifApproveModal = verifApproveModalEl ? new bootstrap.Modal(verifApproveModalEl) : null;
+const verifRejectModal = verifRejectModalEl ? new bootstrap.Modal(verifRejectModalEl) : null;
+
+document.querySelectorAll('.btn-verify-approve-mismatch').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.getElementById('approve_verif_bill_id').value = this.dataset.id;
+    document.getElementById('approve_verif_pso').textContent = this.dataset.pso;
+    document.getElementById('approve_verif_bill').textContent = this.dataset.bill;
+    document.getElementById('approve_verif_expected').textContent = this.dataset.expected || 'None';
+    document.getElementById('approve_verif_status').textContent = this.dataset.status;
+    verifApproveModal?.show();
+  });
+});
+
+document.querySelectorAll('.btn-verify-reject-mismatch').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.getElementById('reject_verif_bill_id').value = this.dataset.id;
+    document.getElementById('reject_verif_pso').textContent = this.dataset.pso;
+    document.getElementById('reject_verif_bill').textContent = this.dataset.bill;
+    document.getElementById('reject_verif_status').textContent = this.dataset.status;
+    verifRejectModal?.show();
+  });
+});
 </script>
+
+<!-- Modal: Approve Mismatch (Verification) -->
+<div class="modal fade" id="modal-approve-mismatch-verif" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-check-circle-fill me-2"></i>Approve PSO Bill Series Mismatch</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ route('admin.verification.approve_mismatch') }}" method="POST">
+        @csrf
+        <input type="hidden" name="bill_id" id="approve_verif_bill_id">
+        <div class="modal-body p-4">
+          <div class="p-3 bg-light rounded border mb-3 small">
+            <div class="row g-2">
+              <div class="col-6"><strong>PSO Number:</strong> <span id="approve_verif_pso" class="font-mono badge bg-primary"></span></div>
+              <div class="col-6"><strong>Entered Bill:</strong> <span id="approve_verif_bill" class="font-mono fw-bold"></span></div>
+              <div class="col-12"><strong>Expected Series:</strong> <span id="approve_verif_expected" class="font-mono"></span></div>
+              <div class="col-12"><strong>Mismatch Status:</strong> <span id="approve_verif_status" class="badge bg-danger"></span></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Approval Reason / Authorization Note <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="Provide mandatory justification (e.g. Authorized emergency bill book handover by manager)" required></textarea>
+            <div class="form-text">Approval reason will be permanently recorded in the audit trail.</div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success fw-bold">
+            <i class="bi bi-check-circle-fill me-1"></i> Confirm & Approve Bill
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Reject Mismatch (Verification) -->
+<div class="modal fade" id="modal-reject-mismatch-verif" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-x-circle-fill me-2"></i>Reject Bill / Mark Invalid</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ route('admin.verification.reject_mismatch') }}" method="POST">
+        @csrf
+        <input type="hidden" name="bill_id" id="reject_verif_bill_id">
+        <div class="modal-body p-4">
+          <div class="p-3 bg-light rounded border mb-3 small">
+            <div class="row g-2">
+              <div class="col-6"><strong>PSO Number:</strong> <span id="reject_verif_pso" class="font-mono badge bg-primary"></span></div>
+              <div class="col-6"><strong>Entered Bill:</strong> <span id="reject_verif_bill" class="font-mono fw-bold"></span></div>
+              <div class="col-12"><strong>Status:</strong> <span id="reject_verif_status" class="badge bg-danger"></span></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Rejection Reason / Note <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="Explain why this bill is rejected (e.g. Invalid series, bill belongs to branch B)" required></textarea>
+            <div class="form-text">The bill will remain excluded from reconciliation until corrected.</div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger fw-bold">
+            <i class="bi bi-x-circle-fill me-1"></i> Confirm Rejection
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 @endsection

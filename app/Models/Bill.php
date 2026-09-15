@@ -34,6 +34,15 @@ class Bill extends Model
         'tally_found',
         'is_post_cutoff',
         'remark',
+        'expected_series',
+        'mismatch_status',
+        'is_mismatch_approved',
+        'mismatch_approved_by',
+        'mismatch_approved_at',
+        'mismatch_approval_reason',
+        'mismatch_rejected_by',
+        'mismatch_rejected_at',
+        'mismatch_rejection_reason',
         'verified_by',
         'verified_at',
     ];
@@ -50,8 +59,70 @@ class Bill extends Model
         'is_expected' => 'boolean',
         'tally_found' => 'boolean',
         'is_post_cutoff' => 'boolean',
+        'is_mismatch_approved' => 'boolean',
+        'mismatch_approved_at' => 'datetime',
+        'mismatch_rejected_at' => 'datetime',
         'verified_at' => 'datetime',
     ];
+
+    /**
+     * Check if the bill has a series mismatch
+     */
+    public function isSeriesMismatch(): bool
+    {
+        return $this->status === 'Bill Series Mismatch' 
+            || $this->mismatch_status === 'Bill Series Mismatch'
+            || stripos((string)$this->mismatch_status, 'Series Mismatch') !== false;
+    }
+
+    /**
+     * Check if the bill has a duplicate or cross-PSO mismatch
+     */
+    public function isPsoMismatch(): bool
+    {
+        return $this->status === 'Duplicate / PSO Mismatch' 
+            || $this->mismatch_status === 'Duplicate / PSO Mismatch'
+            || stripos((string)$this->mismatch_status, 'Duplicate') !== false
+            || stripos((string)$this->mismatch_status, 'PSO Mismatch') !== false;
+    }
+
+    /**
+     * Check if any mismatch has been formally approved by an authorized user
+     */
+    public function isMismatchApproved(): bool
+    {
+        return (bool) ($this->is_mismatch_approved || $this->mismatch_status === 'Approved');
+    }
+
+    /**
+     * Check if the bill currently has an active unapproved mismatch
+     */
+    public function hasUnapprovedMismatch(): bool
+    {
+        if ($this->isMismatchApproved()) {
+            return false;
+        }
+
+        return $this->isSeriesMismatch() 
+            || $this->isPsoMismatch() 
+            || in_array($this->status, ['Bill Series Mismatch', 'Duplicate / PSO Mismatch', 'Mismatch']);
+    }
+
+    /**
+     * Check if the bill is considered valid for PSO accounting & reconciliation
+     */
+    public function isValidForReconciliation(): bool
+    {
+        if ($this->status === 'Cancelled' || $this->status === 'Missing') {
+            return false;
+        }
+
+        if ($this->hasUnapprovedMismatch()) {
+            return false;
+        }
+
+        return true;
+    }
 
     public function psoConfig()
     {

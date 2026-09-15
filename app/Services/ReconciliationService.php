@@ -61,17 +61,65 @@ class ReconciliationService
         $cancelledCount = 0;
         $totalBillsCount = 0;
 
+        $seriesMismatchCount = 0;
+        $psoMismatchCount = 0;
+        $unapprovedMismatchCount = 0;
+        $approvedMismatchCount = 0;
+        $mismatchBills = [];
+
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('bills')) {
-                $bills = Bill::whereDate('business_date', $date)
+                $bills = Bill::with('psoConfig')
+                    ->whereDate('business_date', $date)
                     ->where('is_post_cutoff', false)
                     ->get();
                 $totalBillsCount = $bills->count();
 
                 foreach ($bills as $bill) {
+                    $calculatedNet = max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount);
+                    $effectiveAmt = (float) ($bill->net_amount > 0 ? $bill->net_amount : $calculatedNet);
+
                     $tallyTotal += (float) $bill->amount;
                     $totCd += (float) $bill->cd_amount;
                     $totRefund += (float) $bill->refund_amount;
+
+                    $isMismatch = $bill->isSeriesMismatch() || $bill->isPsoMismatch() || in_array($bill->status, ['Bill Series Mismatch', 'Duplicate / PSO Mismatch', 'Mismatch']) || (bool)$bill->is_mismatch_approved || !empty($bill->mismatch_rejected_by);
+                    $isApproved = $bill->isMismatchApproved();
+
+                    if ($isMismatch) {
+                        if ($bill->isPsoMismatch()) {
+                            $psoMismatchCount++;
+                        } else {
+                            $seriesMismatchCount++;
+                        }
+
+                        if ($isApproved) {
+                            $approvedMismatchCount++;
+                        } else {
+                            $unapprovedMismatchCount++;
+                        }
+
+                        $mismatchBills[] = [
+                            'id' => $bill->id,
+                            'pso_code' => $bill->pso_code,
+                            'bill_no' => $bill->bill_no,
+                            'expected_series' => $bill->expected_series ?: ($bill->psoConfig?->formatted_series_summary ?? '—'),
+                            'entered_bill_no' => $bill->bill_no,
+                            'mismatch_status' => $bill->isPsoMismatch() ? 'Duplicate / PSO Mismatch' : 'Bill Series Mismatch',
+                            'amount' => (float)$bill->amount,
+                            'net_amount' => (float)$effectiveAmt,
+                            'customer_name' => $bill->customer_name,
+                            'salesman_name' => $bill->salesman_name,
+                            'is_approved' => $isApproved,
+                            'approved_by' => $bill->mismatch_approved_by,
+                            'approved_at' => $bill->mismatch_approved_at,
+                            'approval_reason' => $bill->mismatch_approval_reason,
+                            'rejected_by' => $bill->mismatch_rejected_by,
+                            'rejected_at' => $bill->mismatch_rejected_at,
+                            'rejection_reason' => $bill->mismatch_rejection_reason,
+                            'remark' => $bill->remark,
+                        ];
+                    }
 
                     if ($bill->status === 'Matched') {
                         $matchedCount++;
@@ -82,9 +130,6 @@ class ReconciliationService
                     }
 
                     // Payment breakdown (handling split Cash + Paytm or standard payment_type)
-                    $calculatedNet = max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount);
-                    $effectiveAmt = (float) ($bill->net_amount > 0 ? $bill->net_amount : $calculatedNet);
-
                     if ($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0)) {
                         $totCash += (float) $bill->cash_amount;
                         $totPaytm += (float) $bill->paytm_amount;
@@ -102,17 +147,20 @@ class ReconciliationService
                         }
                     }
 
-                    // PSO breakdown (Only if non-missing)
-                    $psoAmt = ($bill->status === 'Missing') ? 0 : (float) $bill->net_amount;
+                    // PSO breakdown (Only if valid for reconciliation: non-missing, non-cancelled, non-unapproved mismatch)
+                    $isValid = $bill->isValidForReconciliation();
+                    $psoAmt = $isValid ? $effectiveAmt : 0;
                     $psoCollection += $psoAmt;
 
-                    // Explicit breakdown for the standard PSO-1/2/3 counters
-                    if ($bill->pso_code === 'PSO-1') {
-                        $pso1Total += $psoAmt;
-                    } elseif ($bill->pso_code === 'PSO-2') {
-                        $pso2Total += $psoAmt;
-                    } elseif ($bill->pso_code === 'PSO-3') {
-                        $pso3Total += $psoAmt;
+                    // Explicit breakdown for standard PSO codes
+                    if ($isValid) {
+                        if ($bill->pso_code === 'PSO-1') {
+                            $pso1Total += $psoAmt;
+                        } elseif ($bill->pso_code === 'PSO-2') {
+                            $pso2Total += $psoAmt;
+                        } elseif ($bill->pso_code === 'PSO-3') {
+                            $pso3Total += $psoAmt;
+                        }
                     }
                 }
             }
@@ -123,7 +171,7 @@ class ReconciliationService
         $expectedCollection = $tallyTotal - ($totCd + $totRefund + $totCancelled);
         $difference = $expectedCollection - $psoCollection;
         $hasBills = ($totalBillsCount > 0);
-        $isReconciled = ($hasBills && $difference == 0 && $missingCount === 0);
+        $isReconciled = ($hasBills && $difference == 0 && $missingCount === 0 && $unapprovedMismatchCount === 0);
 
         // Check daily seal state
         $seal = null;
@@ -214,6 +262,12 @@ class ReconciliationService
             'missingCount' => $missingCount,
             'cancelledCount' => $cancelledCount,
             'totalBillsCount' => $totalBillsCount,
+            // Mismatch metrics
+            'seriesMismatchCount' => $seriesMismatchCount,
+            'psoMismatchCount' => $psoMismatchCount,
+            'unapprovedMismatchCount' => $unapprovedMismatchCount,
+            'approvedMismatchCount' => $approvedMismatchCount,
+            'mismatchBills' => $mismatchBills,
             'activePsoCount' => $activePsoCount,
             'totalPsoCount' => $totalPsoCount,
             'correctionsCount' => $correctionsCount,
@@ -228,6 +282,55 @@ class ReconciliationService
             'totalExcessCash' => $totalExcessCash,
             'denominationCount' => $denominationCount,
             'cashVariance' => $cashVariance,
+        ];
+    }
+
+    /**
+     * Automatically scan and validate all bills for the given business date against PSO series
+     */
+    public function validateAndSyncAllBills(?string $businessDate = null): array
+    {
+        $date = $businessDate ?: $this->getBusinessDate();
+        $bills = Bill::whereDate('business_date', $date)->get();
+        $psoConfigs = PsoConfig::all()->keyBy('code');
+
+        $validatedCount = 0;
+        $mismatchFoundCount = 0;
+
+        foreach ($bills as $bill) {
+            // If already approved, preserve approval
+            if ($bill->isMismatchApproved()) {
+                continue;
+            }
+
+            $pso = $psoConfigs->get($bill->pso_code)
+                ?: PsoConfig::where('id', $bill->pso_config_id)->first();
+
+            if (!$pso) {
+                continue;
+            }
+
+            $validation = $pso->validateBillNumber($bill->bill_no, $date, $bill->id);
+            $bill->expected_series = $validation['expected_series'];
+
+            if (!$validation['valid']) {
+                $bill->status = $validation['mismatch_type'];
+                $bill->mismatch_status = $validation['mismatch_type'];
+                $mismatchFoundCount++;
+            } else {
+                if (in_array($bill->status, ['Bill Series Mismatch', 'Duplicate / PSO Mismatch', 'Mismatch'])) {
+                    $bill->status = 'Matched';
+                    $bill->mismatch_status = null;
+                }
+            }
+
+            $bill->save();
+            $validatedCount++;
+        }
+
+        return [
+            'total_scanned' => $validatedCount,
+            'mismatches_found' => $mismatchFoundCount,
         ];
     }
 }

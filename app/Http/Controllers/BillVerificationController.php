@@ -323,6 +323,12 @@ class BillVerificationController extends Controller
             $salespersonId = $sp ? $sp->id : null;
         }
 
+        // Validate bill number against chosen PSO series range & duplicate check
+        $expectedSeries = $pso ? $pso->formatted_series_summary : null;
+        $validation = $pso ? $pso->validateBillNumber($request->bill_no, $request->business_date) : ['valid' => true, 'mismatch_type' => null, 'expected_series' => $expectedSeries, 'details' => ''];
+        $mismatchStatus = $validation['valid'] ? null : $validation['details'];
+        $billStatus = $validation['valid'] ? 'Matched' : $validation['mismatch_type'];
+
         $bill = Bill::create([
             'bill_no' => $request->bill_no,
             'pso_config_id' => $pso ? $pso->id : null,
@@ -330,6 +336,7 @@ class BillVerificationController extends Controller
             'business_date' => $request->business_date,
             'bill_time' => $request->input('bill_time', date('H:i')),
             'customer_name' => $request->customer_name,
+            'particulars' => $request->customer_name,
             'amount' => $amount,
             'payment_type' => $paymentType,
             'voucher_type' => 'Sales',
@@ -341,11 +348,13 @@ class BillVerificationController extends Controller
             'cash_amount' => $cashAmount,
             'paytm_amount' => $paytmAmount,
             'is_split_payment' => $isSplit,
-            'status' => 'Matched',
+            'status' => $billStatus,
+            'expected_series' => $validation['expected_series'],
+            'mismatch_status' => $mismatchStatus,
             'is_expected' => true,
             'tally_found' => true,
             'is_post_cutoff' => false,
-            'remark' => $request->input('remark', 'Manual bill entry added via ERP'),
+            'remark' => $request->input('remark') ?: (!$validation['valid'] ? $validation['details'] : 'Manual bill entry added via ERP'),
             'verified_by' => session('active_user.name', 'Pooja Verma'),
             'verified_at' => now(),
         ]);
@@ -367,9 +376,130 @@ class BillVerificationController extends Controller
             ]);
         }
 
-        AuditLog::log('MANUAL_BILL_CREATED', "Added manual bill {$bill->bill_no} for ₹{$bill->amount} ({$paymentType}) on {$bill->business_date}");
+        AuditLog::log('MANUAL_BILL_CREATED', "Added manual bill {$bill->bill_no} for ₹{$bill->amount} ({$paymentType}) on {$bill->business_date}" . (!$validation['valid'] ? " [Flagged: {$billStatus}]" : ""));
+
+        if (!$validation['valid']) {
+            return redirect()->back()->with('warning', "Manual bill {$bill->bill_no} added but marked as '{$billStatus}' ({$validation['details']}). It requires authorized approval before reconciliation.");
+        }
 
         return redirect()->back()->with('success', "Manual bill {$bill->bill_no} added successfully!");
+    }
+
+    /**
+     * Approve a Bill Series Mismatch or Duplicate / PSO Mismatch (Mandatory Reason Required)
+     */
+    public function approveMismatch(Request $request)
+    {
+        $request->validate([
+            'bill_id' => 'required|exists:bills,id',
+            'reason' => 'required|string|min:3',
+        ], [
+            'reason.required' => 'A mandatory justification reason must be provided to approve a mismatch.',
+            'reason.min' => 'The approval reason must be at least 3 characters long.',
+        ]);
+
+        $bill = Bill::findOrFail($request->bill_id);
+        $approverName = auth()->user()?->name ?? session('active_user.name', 'Authorized Officer');
+        $oldStatus = $bill->status;
+
+        $bill->is_mismatch_approved = true;
+        $bill->mismatch_approved_by = $approverName;
+        $bill->mismatch_approved_at = now();
+        $bill->mismatch_approval_reason = trim($request->reason);
+        $bill->verified_by = $approverName;
+        $bill->verified_at = now();
+        $bill->remark = "Approved Mismatch: {$request->reason}" . ($bill->remark ? " (Orig: {$bill->remark})" : "");
+        $bill->save();
+
+        $businessDate = $bill->business_date ? $bill->business_date->format('Y-m-d') : $this->reconService->getBusinessDate();
+        $metrics = $this->reconService->getMetrics($businessDate);
+
+        $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
+        if ($seal) {
+            $seal->tally_total = $metrics['tallyTotal'];
+            $seal->pso_total = $metrics['psoCollection'];
+            $seal->difference = $metrics['difference'];
+            $seal->is_reconciled = $metrics['isReconciled'];
+            $seal->save();
+        }
+
+        AuditLog::log('MISMATCH_APPROVED', "Approved mismatch on bill {$bill->bill_no} (PSO: {$bill->pso_code}, was: {$oldStatus}) by {$approverName}. Reason: {$request->reason}");
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Bill {$bill->bill_no} mismatch successfully approved.",
+                'bill' => $bill,
+                'metrics' => $metrics,
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Mismatch for bill '{$bill->bill_no}' has been officially approved. Bill is now valid for PSO {$bill->pso_code}.");
+    }
+
+    /**
+     * Reject a Bill Series Mismatch or Duplicate / PSO Mismatch (Mandatory Reason Required)
+     */
+    public function rejectMismatch(Request $request)
+    {
+        $request->validate([
+            'bill_id' => 'required|exists:bills,id',
+            'reason' => 'required|string|min:3',
+        ], [
+            'reason.required' => 'A mandatory rejection reason must be provided.',
+            'reason.min' => 'The rejection reason must be at least 3 characters long.',
+        ]);
+
+        $bill = Bill::findOrFail($request->bill_id);
+        $officerName = auth()->user()?->name ?? session('active_user.name', 'Authorized Officer');
+        $oldStatus = $bill->status;
+
+        $bill->is_mismatch_approved = false;
+        $bill->mismatch_status = 'Rejected';
+        $bill->mismatch_rejected_by = $officerName;
+        $bill->mismatch_rejected_at = now();
+        $bill->mismatch_rejection_reason = trim($request->reason);
+        $bill->status = 'Cancelled';
+        $bill->remark = "Rejected Mismatch: {$request->reason}" . ($bill->remark ? " (Orig: {$bill->remark})" : "");
+        $bill->save();
+
+        $businessDate = $bill->business_date ? $bill->business_date->format('Y-m-d') : $this->reconService->getBusinessDate();
+        $metrics = $this->reconService->getMetrics($businessDate);
+
+        $seal = PsoDailySeal::whereDate('business_date', $businessDate)->first();
+        if ($seal) {
+            $seal->tally_total = $metrics['tallyTotal'];
+            $seal->pso_total = $metrics['psoCollection'];
+            $seal->difference = $metrics['difference'];
+            $seal->is_reconciled = $metrics['isReconciled'];
+            $seal->save();
+        }
+
+        AuditLog::log('MISMATCH_REJECTED', "Rejected mismatch on bill {$bill->bill_no} (PSO: {$bill->pso_code}, was: {$oldStatus}) by {$officerName}. Status marked Cancelled. Reason: {$request->reason}");
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Bill {$bill->bill_no} mismatch rejected and marked as Cancelled.",
+                'bill' => $bill,
+                'metrics' => $metrics,
+            ]);
+        }
+
+        return redirect()->back()->with('warning', "Mismatch for bill '{$bill->bill_no}' was rejected and marked as Cancelled.");
+    }
+
+    /**
+     * Revalidate and sync all bills against PSO series for the selected business date
+     */
+    public function revalidateSeries(Request $request)
+    {
+        $businessDate = $request->input('date') ?: $this->reconService->getBusinessDate();
+        $res = $this->reconService->validateAndSyncAllBills($businessDate);
+
+        AuditLog::log('SERIES_REVALIDATE', "Revalidated all bills for date {$businessDate}. Scanned: {$res['total_scanned']}, Mismatches found: {$res['mismatches_found']}");
+
+        return redirect()->back()->with('success', "Revalidated {$res['total_scanned']} bills. {$res['mismatches_found']} mismatch(es) identified.");
     }
 
     public function bulkUpdate(Request $request)
@@ -580,7 +710,7 @@ class BillVerificationController extends Controller
 
         return response()->stream(function () use ($bills) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Bill No', 'PSO', 'Sales Person', 'Date', 'Time', 'Customer', 'Amount', 'Payment Type', 'CD', 'Refund', 'Net Amount', 'Status', 'Remark', 'Verified By']);
+            fputcsv($handle, ['Bill No', 'PSO', 'Sales Person', 'Date', 'Time', 'Customer', 'Amount', 'Payment Type', 'CD', 'Refund', 'Net Amount', 'Status', 'Expected Series', 'Mismatch Status', 'Approved By', 'Remark', 'Verified By']);
             foreach ($bills as $b) {
                 fputcsv($handle, [
                     $b->bill_no,
@@ -595,6 +725,9 @@ class BillVerificationController extends Controller
                     $b->refund_amount,
                     $b->net_amount,
                     $b->status,
+                    $b->expected_series ?? '—',
+                    $b->mismatch_status ?? '—',
+                    $b->mismatch_approved_by ?? '—',
                     $b->remark,
                     $b->verified_by
                 ]);

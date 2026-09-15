@@ -89,11 +89,179 @@ class PsoConfig extends Model
 
         return [
             [
-                'prefix' => $this->prefix,
+                'prefix' => $this->prefix ?: 'CB',
                 'financial_year' => $this->financial_year ?? '2026-2027',
-                'start_no' => (int) $this->start_no,
-                'end_no' => (int) $this->end_no,
+                'start_no' => (int) ($this->start_no ?: 1),
+                'end_no' => (int) ($this->end_no ?: 10),
             ]
+        ];
+    }
+
+    /**
+     * Human-readable summary of all allowed series ranges and specials for this PSO
+     */
+    public function getFormattedSeriesSummaryAttribute(): string
+    {
+        $ranges = $this->getAllSeriesRanges();
+        $parts = [];
+
+        foreach ($ranges as $r) {
+            $pfx = strtoupper(trim($r['prefix'] ?? 'CB'));
+            $start = $r['start_no'] ?? 1;
+            $end = $r['end_no'] ?? 10;
+            $parts[] = "{$pfx} {$start} - {$end}";
+        }
+
+        if (!empty($this->specials) && is_array($this->specials)) {
+            foreach ($this->specials as $sp) {
+                if (trim((string)$sp) !== '') {
+                    $parts[] = trim((string)$sp);
+                }
+            }
+        }
+
+        return !empty($parts) ? implode(', ', $parts) : ($this->prefix . ' ' . $this->start_no . ' - ' . $this->end_no);
+    }
+
+    /**
+     * Validate whether a bill number belongs to this PSO's assigned series range or specials,
+     * and check for cross-PSO duplicate or assignment mismatches.
+     *
+     * @param string $billNo
+     * @param string|null $businessDate
+     * @param int|null $ignoreBillId
+     * @return array
+     */
+    public function validateBillNumber(string $billNo, ?string $businessDate = null, ?int $ignoreBillId = null): array
+    {
+        $rawBillNo = trim($billNo);
+        $expectedSeries = $this->formatted_series_summary;
+
+        if (empty($rawBillNo)) {
+            return [
+                'valid' => false,
+                'mismatch_type' => 'Bill Series Mismatch',
+                'expected_series' => $expectedSeries,
+                'details' => 'Empty or blank bill number.',
+                'matched_pso' => null,
+            ];
+        }
+
+        // Normalize bill number parts
+        $billPrefix = '';
+        $billNum = null;
+        $matchesThisPso = false;
+
+        // 1. Check against specials (e.g. "ITC 01", "SPL-5")
+        if (!empty($this->specials) && is_array($this->specials)) {
+            foreach ($this->specials as $special) {
+                $cleanSpecial = strtoupper(preg_replace('/\s+/', ' ', trim((string)$special)));
+                $cleanInput = strtoupper(preg_replace('/\s+/', ' ', $rawBillNo));
+                if ($cleanSpecial !== '' && $cleanSpecial === $cleanInput) {
+                    $matchesThisPso = true;
+                    break;
+                }
+            }
+        }
+
+        // 2. Parse Prefix and Serial Number (e.g. "CB 01" -> "CB", 1; "CB-15" -> "CB", 15; "CB15" -> "CB", 15)
+        if (!$matchesThisPso) {
+            if (preg_match('/^\s*([A-Za-z]+)[\s\-_]*0*(\d+)\s*$/', $rawBillNo, $matches)) {
+                $billPrefix = strtoupper(trim($matches[1]));
+                $billNum = (int)$matches[2];
+
+                foreach ($this->getAllSeriesRanges() as $range) {
+                    $rangePrefix = strtoupper(trim($range['prefix'] ?? ''));
+                    $rangeStart = (int)($range['start_no'] ?? 1);
+                    $rangeEnd = (int)($range['end_no'] ?? 10);
+
+                    if ($rangePrefix === $billPrefix && $billNum >= $rangeStart && $billNum <= $rangeEnd) {
+                        $matchesThisPso = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. If it matches this PSO, check for duplicate bill in another PSO
+        if ($matchesThisPso) {
+            $duplicateQuery = Bill::where('bill_no', $rawBillNo)
+                ->where('pso_code', '!=', $this->code);
+
+            if ($businessDate) {
+                $duplicateQuery->whereDate('business_date', $businessDate);
+            }
+            if ($ignoreBillId) {
+                $duplicateQuery->where('id', '!=', $ignoreBillId);
+            }
+
+            $otherBill = $duplicateQuery->first();
+            if ($otherBill) {
+                return [
+                    'valid' => false,
+                    'mismatch_type' => 'Duplicate / PSO Mismatch',
+                    'expected_series' => $expectedSeries,
+                    'details' => "Duplicate bill '{$rawBillNo}' is already assigned to {$otherBill->pso_code} on " . ($otherBill->business_date ? $otherBill->business_date->format('d/m/Y') : 'selected date') . ".",
+                    'matched_pso' => $otherBill->pso_code,
+                ];
+            }
+
+            return [
+                'valid' => true,
+                'mismatch_type' => null,
+                'expected_series' => $expectedSeries,
+                'details' => "Bill '{$rawBillNo}' matches assigned series ({$expectedSeries}).",
+                'matched_pso' => $this->code,
+            ];
+        }
+
+        // 4. Outside assigned series: Check if it belongs to another PSO config
+        $otherPsoList = self::where('id', '!=', $this->id)->get();
+        foreach ($otherPsoList as $otherPso) {
+            // Check specials of other PSO
+            if (!empty($otherPso->specials) && is_array($otherPso->specials)) {
+                foreach ($otherPso->specials as $special) {
+                    $cleanSpecial = strtoupper(preg_replace('/\s+/', ' ', trim((string)$special)));
+                    $cleanInput = strtoupper(preg_replace('/\s+/', ' ', $rawBillNo));
+                    if ($cleanSpecial !== '' && $cleanSpecial === $cleanInput) {
+                        return [
+                            'valid' => false,
+                            'mismatch_type' => 'Duplicate / PSO Mismatch',
+                            'expected_series' => $expectedSeries,
+                            'details' => "Bill '{$rawBillNo}' belongs to {$otherPso->code} ({$otherPso->formatted_series_summary}), but was entered under {$this->code}.",
+                            'matched_pso' => $otherPso->code,
+                        ];
+                    }
+                }
+            }
+
+            // Check ranges of other PSO
+            if ($billPrefix !== '' && $billNum !== null) {
+                foreach ($otherPso->getAllSeriesRanges() as $range) {
+                    $rangePrefix = strtoupper(trim($range['prefix'] ?? ''));
+                    $rangeStart = (int)($range['start_no'] ?? 1);
+                    $rangeEnd = (int)($range['end_no'] ?? 10);
+
+                    if ($rangePrefix === $billPrefix && $billNum >= $rangeStart && $billNum <= $rangeEnd) {
+                        return [
+                            'valid' => false,
+                            'mismatch_type' => 'Duplicate / PSO Mismatch',
+                            'expected_series' => $expectedSeries,
+                            'details' => "Bill '{$rawBillNo}' belongs to {$otherPso->code} ({$otherPso->formatted_series_summary}), but was entered under {$this->code}.",
+                            'matched_pso' => $otherPso->code,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // 5. General Bill Series Mismatch (out of range / unconfigured)
+        return [
+            'valid' => false,
+            'mismatch_type' => 'Bill Series Mismatch',
+            'expected_series' => $expectedSeries,
+            'details' => "Bill '{$rawBillNo}' falls outside assigned bill series range ({$expectedSeries}).",
+            'matched_pso' => null,
         ];
     }
 
