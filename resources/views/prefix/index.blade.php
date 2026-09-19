@@ -89,6 +89,7 @@
           <th>Code</th>
           <th>Prefix</th>
           <th>Name</th>
+          <th>Bill Format & Sample</th>
           <th>Linked Sales Person</th>
           <th>Description</th>
           <th>PSO Usage</th>
@@ -101,11 +102,21 @@
           @php
             $psoUsageCount = \App\Models\PsoConfig::where('prefix', $pfx->prefix)->count();
             $linkedSp = $pfx->salesperson;
+            $format = $pfx->bill_format ?: '{PREFIX}/{FY}/{NO}';
+            $sampleNo = $pfx->formatBillNo(1, '26-27');
           @endphp
           <tr>
             <td><span class="badge bg-primary">{{ $pfx->code }}</span></td>
             <td><code class="fs-6 fw-bold">{{ $pfx->prefix }}</code></td>
             <td><strong>{{ $pfx->name }}</strong></td>
+            <td>
+              <div class="d-flex flex-column gap-1">
+                <span class="badge bg-light text-primary border font-mono fw-bold" style="font-size: 0.85rem; width: fit-content;">
+                  <i class="bi bi-receipt me-1 text-secondary"></i>{{ $sampleNo }}
+                </span>
+                <small class="text-muted font-mono" style="font-size: 0.68rem;">{{ $format }}</small>
+              </div>
+            </td>
             <td>
               @if($linkedSp)
                 <div class="d-flex align-items-center gap-2">
@@ -201,12 +212,26 @@
                   <div class="modal-body">
                     <div class="mb-3">
                       <label class="form-label fw-semibold">Prefix Code <span class="text-danger">*</span></label>
-                      <input type="text" name="prefix" class="form-control" value="{{ $pfx->prefix }}" maxlength="10" required>
-                      <div class="form-text">Must be unique across all prefixes.</div>
+                      <input type="text" name="prefix" id="edit_prefix_{{ $pfx->id }}" class="form-control" value="{{ $pfx->prefix }}" maxlength="10" required oninput="updatePrefixPreview('{{ $pfx->id }}')">
+                      <div class="form-text">Must be unique across all prefixes (e.g. Sc, RB, HS, PG, I, AT).</div>
                     </div>
                     <div class="mb-3">
                       <label class="form-label fw-semibold">Prefix Name <span class="text-danger">*</span></label>
                       <input type="text" name="name" class="form-control" value="{{ $pfx->name }}" required>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold"><i class="bi bi-file-earmark-text text-primary me-1"></i> Bill Number Format Pattern</label>
+                      <select name="bill_format" id="edit_format_{{ $pfx->id }}" class="form-select font-mono" onchange="updatePrefixPreview('{{ $pfx->id }}')">
+                        @foreach(\App\Models\Prefix::FORMAT_PRESETS as $fmtKey => $fmtLabel)
+                          <option value="{{ $fmtKey }}" {{ ($pfx->bill_format ?: '{PREFIX}/{FY}/{NO}') === $fmtKey ? 'selected' : '' }}>
+                            {{ $fmtLabel }}
+                          </option>
+                        @endforeach
+                      </select>
+                      <div class="p-2 mt-2 bg-light rounded border d-flex align-items-center justify-content-between">
+                        <small class="text-muted"><i class="bi bi-eye me-1"></i> Live Preview:</small>
+                        <span id="preview_edit_{{ $pfx->id }}" class="badge bg-primary font-mono fs-6">{{ $sampleNo }}</span>
+                      </div>
                     </div>
                     <div class="mb-3">
                       <label class="form-label fw-semibold"><i class="bi bi-person-badge text-primary me-1"></i> Linked Sales Person</label>
@@ -237,7 +262,7 @@
 
         @empty
           <tr>
-            <td colspan="8" class="text-center text-muted py-4">
+            <td colspan="9" class="text-center text-muted py-4">
               <i class="bi bi-tag fs-3 d-block mb-1 text-primary"></i>
               No prefixes configured yet. Click <strong>"+ Add New Prefix"</strong> above to create your first prefix entry.
             </td>
@@ -248,14 +273,71 @@
   </div>
 </div>
 
+{{-- Add New Prefix Modal --}}
+@if($currentUser->hasPermission('can_configure_pso'))
+<div class="modal fade" id="modal-add-prefix" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle text-primary me-1"></i> Add New Prefix</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ route('admin.prefix.store') }}" method="POST">
+        @csrf
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Prefix Code <span class="text-danger">*</span></label>
+            <input type="text" name="prefix" id="add_prefix_code" class="form-control font-mono" placeholder="e.g. Sc, RB, HS, PG, AT" maxlength="10" required oninput="updateAddPreview()">
+            <div class="form-text">Short prefix symbol (e.g. Sc, RB, HS, PG, I, AT, CB).</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Prefix Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Standard Counter, Retail Bill" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold"><i class="bi bi-file-earmark-text text-primary me-1"></i> Bill Number Format Pattern</label>
+            <select name="bill_format" id="add_bill_format" class="form-select font-mono" onchange="updateAddPreview()">
+              @foreach(\App\Models\Prefix::FORMAT_PRESETS as $fmtKey => $fmtLabel)
+                <option value="{{ $fmtKey }}">{{ $fmtLabel }}</option>
+              @endforeach
+            </select>
+            <div class="p-2 mt-2 bg-light rounded border d-flex align-items-center justify-content-between">
+              <small class="text-muted"><i class="bi bi-eye me-1"></i> Live Preview:</small>
+              <span id="preview_add_sample" class="badge bg-primary font-mono fs-6">Sc/26-27/1</span>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold"><i class="bi bi-person-badge text-primary me-1"></i> Linked Sales Person</label>
+            <select name="salesperson_id" class="form-select">
+              <option value="">-- No Sales Person Assigned --</option>
+              @foreach($salespersons as $sp)
+                <option value="{{ $sp->id }}">{{ $sp->name }} [{{ $sp->code }}]{{ $sp->phone ? ' - ' . $sp->phone : '' }}</option>
+              @endforeach
+            </select>
+            <div class="form-text">Assigned representative for credit tracking and daybook reconciliation.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <textarea name="description" class="form-control" rows="2" placeholder="Optional notes or description..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Create Prefix</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+@endif
+
 {{-- Quick Reference Cards --}}
 <div class="row g-3">
   <div class="col-md-4">
     <div class="card border p-3 bg-white h-100">
-      <div class="fw-bold text-primary mb-1"><i class="bi bi-lightbulb me-1"></i> Prefix Master Registry</div>
+      <div class="fw-bold text-primary mb-1"><i class="bi bi-lightbulb me-1"></i> Prefix Master & Formats</div>
       <div class="text-muted" style="font-size: 0.82rem;">
-        The Prefix Master maintains a centralized registry of all bill prefix codes (e.g. <code>CB</code>, <code>RB</code>, <code>ITC</code>).
-        PSO configurations reference these prefixes to define their bill number ranges.
+        The Prefix Master maintains centralized registry of bill prefixes and format patterns (e.g. <code>Sc/26-27/1</code>, <code>HS/1/26-27</code>, <code>26-27/PG/1</code>, <code>I/26-27/000001</code>).
       </div>
     </div>
   </div>
@@ -269,15 +351,60 @@
   </div>
   <div class="col-md-4">
     <div class="card border p-3 bg-white h-100">
-      <div class="fw-bold text-primary mb-1"><i class="bi bi-shield-check me-1"></i> Safety Rules</div>
+      <div class="fw-bold text-primary mb-1"><i class="bi bi-shield-check me-1"></i> Dynamic Parsing Rules</div>
       <div class="text-muted" style="font-size: 0.82rem;">
         <ul class="mb-0 ps-3">
+          <li>Supports all formats and financial year arrangements seamlessly</li>
           <li>Prefixes assigned to active PSO configs <strong>cannot be deleted</strong></li>
-          <li>Prefixes can be entered in <strong>any case</strong></li>
-          <li>Each prefix code must be <strong>unique</strong> across the system</li>
+          <li>Each prefix code is unique and matches case-insensitively in imports</li>
         </ul>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+function formatBillSample(prefix, template, fy, num) {
+  prefix = prefix || 'Sc';
+  template = template || '{PREFIX}/{FY}/{NO}';
+  fy = fy || '26-27';
+  num = num || 1;
+
+  let padMatch = template.match(/\{(0+)\}/);
+  if (padMatch) {
+    let padLen = padMatch[1].length;
+    let padded = String(num).padStart(padLen, '0');
+    template = template.replace(padMatch[0], padded);
+  } else {
+    template = template.replace(/\{NO\}/gi, num);
+  }
+
+  template = template.replace(/\{PREFIX\}/gi, prefix);
+  template = template.replace(/\{FY\}/gi, fy);
+  return template;
+}
+
+function updateAddPreview() {
+  const pfxInput = document.getElementById('add_prefix_code');
+  const fmtSelect = document.getElementById('add_bill_format');
+  const previewBadge = document.getElementById('preview_add_sample');
+  if (pfxInput && fmtSelect && previewBadge) {
+    const val = pfxInput.value.trim() || 'Sc';
+    const fmt = fmtSelect.value;
+    previewBadge.textContent = formatBillSample(val, fmt, '26-27', 1);
+  }
+}
+
+function updatePrefixPreview(id) {
+  const pfxInput = document.getElementById('edit_prefix_' + id);
+  const fmtSelect = document.getElementById('edit_format_' + id);
+  const previewBadge = document.getElementById('preview_edit_' + id);
+  if (pfxInput && fmtSelect && previewBadge) {
+    const val = pfxInput.value.trim() || 'CB';
+    const fmt = fmtSelect.value;
+    previewBadge.textContent = formatBillSample(val, fmt, '26-27', 1);
+  }
+}
+</script>
 @endsection
+

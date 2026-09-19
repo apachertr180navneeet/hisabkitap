@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('code')->unique();          // e.g. PFX-1
             $table->string('prefix')->unique();         // e.g. CB, RB, ITC
             $table->string('name');                     // e.g. Counter Bill, Retail Bill
+            $table->string('bill_format')->nullable()->default('{PREFIX}/{FY}/{NO}'); // e.g. {PREFIX}/{FY}/{NO}, {PREFIX}/{NO}/{FY}, {FY}/{PREFIX}/{NO}
             $table->text('description')->nullable();    // Optional longer description
             $table->boolean('is_active')->default(true);
             $table->timestamps();

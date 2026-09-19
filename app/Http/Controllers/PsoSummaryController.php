@@ -67,7 +67,11 @@ class PsoSummaryController extends Controller
                 $prefix = trim($range['prefix'] ?? $pso->prefix ?? '');
                 if (!empty($prefix)) {
                     $q->orWhere('bill_no', 'like', $prefix . '%')
-                      ->orWhere('bill_no', 'like', $prefix . ' %');
+                      ->orWhere('bill_no', 'like', $prefix . ' %')
+                      ->orWhere('bill_no', 'like', '%/' . $prefix . '/%')
+                      ->orWhere('bill_no', 'like', '%-' . $prefix . '-%')
+                      ->orWhere('bill_no', 'like', '%/' . $prefix . '-%')
+                      ->orWhere('bill_no', 'like', '%-' . $prefix . '/%');
                 }
             }
         });

@@ -29,6 +29,7 @@ class PrefixMasterController extends Controller
         $validated = $request->validate([
             'prefix'         => 'required|string|max:10|unique:prefixes,prefix',
             'name'           => 'required|string|max:255',
+            'bill_format'    => 'nullable|string|max:50',
             'description'    => 'nullable|string|max:500',
             'salesperson_id' => 'nullable|integer|exists:salespersons,id',
         ]);
@@ -40,6 +41,7 @@ class PrefixMasterController extends Controller
             'code'        => $code,
             'prefix'      => trim($validated['prefix']),
             'name'        => $validated['name'],
+            'bill_format' => !empty($validated['bill_format']) ? trim($validated['bill_format']) : '{PREFIX}/{FY}/{NO}',
             'description' => $validated['description'] ?? null,
             'is_active'   => true,
         ]);
@@ -55,7 +57,7 @@ class PrefixMasterController extends Controller
             }
         }
 
-        AuditLog::log('PREFIX_CREATE', "Created prefix master entry {$code} — {$prefix->prefix} ({$prefix->name})");
+        AuditLog::log('PREFIX_CREATE', "Created prefix master entry {$code} — {$prefix->prefix} ({$prefix->name}) [Format: {$prefix->bill_format}]");
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -78,6 +80,7 @@ class PrefixMasterController extends Controller
         $validated = $request->validate([
             'prefix'         => 'required|string|max:10|unique:prefixes,prefix,' . $id,
             'name'           => 'required|string|max:255',
+            'bill_format'    => 'nullable|string|max:50',
             'description'    => 'nullable|string|max:500',
             'salesperson_id' => 'nullable|integer|exists:salespersons,id',
         ]);
@@ -88,6 +91,7 @@ class PrefixMasterController extends Controller
         $prefix->update([
             'prefix'      => $newPrefix,
             'name'        => $validated['name'],
+            'bill_format' => !empty($validated['bill_format']) ? trim($validated['bill_format']) : ($prefix->bill_format ?: '{PREFIX}/{FY}/{NO}'),
             'description' => $validated['description'] ?? null,
         ]);
 

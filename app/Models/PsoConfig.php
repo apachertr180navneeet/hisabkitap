@@ -126,10 +126,15 @@ class PsoConfig extends Model
     }
 
     /**
-     * Parse a bill number into prefix and integer serial number.
+     * Parse a bill number into prefix, financial year, and integer serial number.
      * Supports formats such as:
-     * - "Sc/26-27/6376", "SC/2026-27/6376", "SC/2026-2027/6376", "SC-26-27-6376"
-     * - "CB 01", "CB-15", "CB/15", "CB15", "Sc/6376"
+     * - Prefix / FY / Number: "Sc/26-27/1", "RB/26-27/1", "I/26-27/000001", "SC/2026-27/6376", "SC-26-27-6376"
+     * - Prefix / Number / FY: "HS/1/26-27", "HS/001/26-27", "HS-1-2026-27"
+     * - FY / Prefix / Number: "26-27/PG/1", "26-27/AT/1", "2026-27/PG/005"
+     * - FY / Number / Prefix: "26-27/1/PG", "2026-27/001/AT"
+     * - Prefix / Number or Prefix-Number: "CB 01", "CB-15", "CB/15", "Sc/6376"
+     * - Compact alphanumeric: "CB15", "SC001", "I0001"
+     * - Pure number: "105", "000123"
      *
      * @param string $rawBillNo
      * @return array{prefix: string, number: int|null, fy: string|null}
@@ -141,16 +146,43 @@ class PsoConfig extends Model
             return ['prefix' => '', 'number' => null, 'fy' => null];
         }
 
-        // 1. Matches Prefix/FY/Number e.g. "Sc/26-27/6376", "SC/2026-27/005", "SC-26-27-6376"
+        // 1. Matches Prefix/FY/Number e.g. "Sc/26-27/1", "RB/26-27/1", "I/26-27/000001", "SC/2026-27/005", "SC-26-27-6376"
         if (preg_match('/^\s*([A-Za-z0-9]+)\s*[\/\-_]\s*(\d{2,4}\s*[\-\/]\s*\d{2,4})\s*[\/\-_]\s*0*(\d+)\s*$/i', $rawBillNo, $matches)) {
             return [
                 'prefix' => $matches[1],
-                'fy'     => $matches[2],
+                'fy'     => preg_replace('/\s+/', '', $matches[2]),
                 'number' => (int)$matches[3],
             ];
         }
 
-        // 2. Matches Prefix / Number or Prefix-Number or Prefix/Number e.g. "CB 01", "SC/6376", "CB-15"
+        // 2. Matches Prefix/Number/FY e.g. "HS/1/26-27", "HS/001/2026-27", "HS-1-26-27"
+        if (preg_match('/^\s*([A-Za-z0-9]+)\s*[\/\-_]\s*0*(\d+)\s*[\/\-_]\s*(\d{2,4}\s*[\-\/]\s*\d{2,4})\s*$/i', $rawBillNo, $matches)) {
+            return [
+                'prefix' => $matches[1],
+                'fy'     => preg_replace('/\s+/', '', $matches[3]),
+                'number' => (int)$matches[2],
+            ];
+        }
+
+        // 3. Matches FY/Prefix/Number e.g. "26-27/PG/1", "26-27/AT/1", "2026-27/PG/005"
+        if (preg_match('/^\s*(\d{2,4}\s*[\-\/]\s*\d{2,4})\s*[\/\-_]\s*([A-Za-z0-9]+)\s*[\/\-_]\s*0*(\d+)\s*$/i', $rawBillNo, $matches)) {
+            return [
+                'prefix' => $matches[2],
+                'fy'     => preg_replace('/\s+/', '', $matches[1]),
+                'number' => (int)$matches[3],
+            ];
+        }
+
+        // 4. Matches FY/Number/Prefix e.g. "26-27/1/PG", "2026-27/001/AT"
+        if (preg_match('/^\s*(\d{2,4}\s*[\-\/]\s*\d{2,4})\s*[\/\-_]\s*0*(\d+)\s*[\/\-_]\s*([A-Za-z0-9]+)\s*$/i', $rawBillNo, $matches)) {
+            return [
+                'prefix' => $matches[3],
+                'fy'     => preg_replace('/\s+/', '', $matches[1]),
+                'number' => (int)$matches[2],
+            ];
+        }
+
+        // 5. Matches Prefix / Number or Prefix-Number or Prefix/Number e.g. "CB 01", "SC/6376", "CB-15"
         if (preg_match('/^\s*([A-Za-z0-9]+)[\s\-_\\/]+0*(\d+)\s*$/i', $rawBillNo, $matches)) {
             return [
                 'prefix' => $matches[1],
@@ -159,7 +191,16 @@ class PsoConfig extends Model
             ];
         }
 
-        // 3. Compact alphanumeric e.g. "CB15", "SC001"
+        // 6. Matches Number / Prefix or Number-Prefix e.g. "01 CB", "15/CB"
+        if (preg_match('/^\s*0*(\d+)[\s\-_\\/]+([A-Za-z0-9]+)\s*$/i', $rawBillNo, $matches)) {
+            return [
+                'prefix' => $matches[2],
+                'fy'     => null,
+                'number' => (int)$matches[1],
+            ];
+        }
+
+        // 7. Compact alphanumeric e.g. "CB15", "SC001", "I000001"
         if (preg_match('/^\s*([A-Za-z]+)0*(\d+)\s*$/i', $rawBillNo, $matches)) {
             return [
                 'prefix' => $matches[1],
@@ -168,11 +209,42 @@ class PsoConfig extends Model
             ];
         }
 
+        // 8. Pure serial number e.g. "105", "000123"
+        if (preg_match('/^\s*0*(\d+)\s*$/', $rawBillNo, $matches)) {
+            return [
+                'prefix' => '',
+                'fy'     => null,
+                'number' => (int)$matches[1],
+            ];
+        }
+
         return [
             'prefix' => '',
             'fy'     => null,
             'number' => null,
         ];
+    }
+
+    /**
+     * Format a bill number string given prefix, number, financial year, and template format.
+     */
+    public static function formatBillNumber(string $prefix, int|string $number, ?string $fy = '26-27', ?string $format = '{PREFIX}/{FY}/{NO}'): string
+    {
+        $template = $format ?: '{PREFIX}/{FY}/{NO}';
+        $fy = $fy ?: '26-27';
+
+        if (preg_match('/\{(0+)\}/', $template, $padMatches)) {
+            $padLen = strlen($padMatches[1]);
+            $formattedNum = sprintf("%0{$padLen}d", (int)$number);
+            $template = str_replace($padMatches[0], $formattedNum, $template);
+        } else {
+            $template = str_ireplace('{NO}', (string)$number, $template);
+        }
+
+        $template = str_ireplace('{PREFIX}', $prefix, $template);
+        $template = str_ireplace('{FY}', $fy, $template);
+
+        return $template;
     }
 
     /**
