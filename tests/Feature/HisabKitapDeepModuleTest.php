@@ -1174,6 +1174,83 @@ class HisabKitapDeepModuleTest extends TestCase
         $pdfRb->assertDontSee('CB 202');
     }
 
+    public function test_credit_collection_send_udhari_with_prefix(): void
+    {
+        CreditCollection::create([
+            'bill_no' => 'CB 101',
+            'customer_name' => 'CB Store',
+            'salesman_name' => 'Suresh',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 12000,
+            'paid_amount' => 2000,
+            'outstanding_amount' => 10000,
+            'collection_status' => 'Partially Collected',
+        ]);
+
+        CreditCollection::create([
+            'bill_no' => 'RB/26-27/001',
+            'customer_name' => 'RB Mart',
+            'salesman_name' => 'Ramesh',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 8000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 8000,
+            'collection_status' => 'Pending',
+        ]);
+
+        // Submit form with prefix CB and udhari_api redbull
+        $response = $this->post('/admin/credit-collection/send-udhari', [
+            'prefix' => 'CB',
+            'udhari_api' => 'redbull',
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect('/admin/credit-collection?prefix=CB');
+        $response->assertSessionHas('success');
+
+        // Check AuditLog entry created with prefix and api details
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'UDHARI_APP_SYNC',
+        ]);
+
+        $log = \App\Models\AuditLog::where('action', 'UDHARI_APP_SYNC')->latest()->first();
+        $this->assertNotNull($log);
+        $this->assertStringContainsString("prefix 'CB'", $log->details);
+        $this->assertStringContainsString('Redbull', $log->details);
+    }
+
+    public function test_credit_collection_send_udhari_all_prefixes_and_empty(): void
+    {
+        CreditCollection::create([
+            'bill_no' => 'CB 301',
+            'customer_name' => 'Customer A',
+            'salesman_name' => 'Suresh',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 5000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 5000,
+            'collection_status' => 'Pending',
+        ]);
+
+        // 1. Submit with ALL
+        $resAll = $this->post('/admin/credit-collection/send-udhari', [
+            'prefix' => 'ALL',
+            'udhari_api' => 'cadbury',
+        ]);
+        $resAll->assertStatus(302);
+        $resAll->assertRedirect('/admin/credit-collection');
+        $resAll->assertSessionHas('success');
+
+        // 2. Submit with non-existent prefix
+        $resNone = $this->post('/admin/credit-collection/send-udhari', [
+            'prefix' => 'NONEXISTENT',
+            'udhari_api' => 'parle',
+        ]);
+        $resNone->assertStatus(302);
+        $resNone->assertRedirect('/admin/credit-collection?prefix=NONEXISTENT');
+        $resNone->assertSessionHas('warning');
+    }
+
     public function test_pso_summary_matrix_export_excel_and_pdf(): void
     {
         $pso = $this->makePso();

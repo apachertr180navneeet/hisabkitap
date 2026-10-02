@@ -62,7 +62,7 @@
         <span class="input-group-text bg-white text-muted">
           <i class="bi bi-tag text-primary"></i>
         </span>
-        <select name="prefix" class="form-select form-select-sm font-mono fw-bold bg-white" style="width: auto; min-width: 140px;" onchange="this.form.submit()">
+        <select name="prefix" id="select-credit-prefix" class="form-select form-select-sm font-mono fw-bold bg-white" style="width: auto; min-width: 140px;" onchange="this.form.submit()">
           <option value="ALL">All Prefixes ({{ $allPrefixes->count() }})</option>
           @foreach($allPrefixes as $pfx)
             <option value="{{ $pfx }}" {{ (string)$selectedPrefix === (string)$pfx ? 'selected' : '' }}>
@@ -80,21 +80,25 @@
 
     <div class="vr mx-1 text-muted d-none d-sm-inline-block" style="height: 22px;"></div>
 
-    <!-- Udhari API & Add Action Combo -->
-    <div class="input-group input-group-sm" style="width: auto;">
-      <span class="input-group-text bg-white text-muted">
-        <i class="bi bi-hdd-network text-primary"></i>
-      </span>
-      <select name="udhari_api" id="select-udhari-api" class="form-select form-select-sm font-mono fw-semibold bg-white" style="width: auto; min-width: 110px;">
-        <option value="redbull">Redbull</option>
-        <option value="cadbury">Cadbury</option>
-        <option value="parle">Parle</option>
-        <option value="itc">Itc</option>
-      </select>
-      <button type="button" class="btn btn-primary btn-sm fw-semibold text-nowrap" id="btn-add-udhari-prefix">
-        <i class="bi bi-plus-circle me-1"></i> Add Bill Udhari App
-      </button>
-    </div>
+    <!-- Udhari API & Add Action Combo Form -->
+    <form method="POST" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.send_udhari' : 'credit.send_udhari') }}" class="m-0 d-inline-flex align-items-center" id="form-udhari-submit">
+      @csrf
+      <input type="hidden" name="prefix" id="udhari-form-prefix" value="{{ $selectedPrefix ?? 'ALL' }}">
+      <div class="input-group input-group-sm" style="width: auto;">
+        <span class="input-group-text bg-white text-muted">
+          <i class="bi bi-hdd-network text-primary"></i>
+        </span>
+        <select name="udhari_api" id="select-udhari-api" class="form-select form-select-sm font-mono fw-semibold bg-white" style="width: auto; min-width: 110px;">
+          <option value="redbull">Redbull</option>
+          <option value="cadbury">Cadbury</option>
+          <option value="parle">Parle</option>
+          <option value="itc">Itc</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm fw-semibold text-nowrap" id="btn-add-udhari-prefix">
+          <i class="bi bi-plus-circle me-1"></i> Add Bill Udhari App
+        </button>
+      </div>
+    </form>
   </div>
 
   <div class="table-responsive">
@@ -202,6 +206,25 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  // Ensure prefix value is always up to date and passed with Udhari App form submission
+  const prefixSelect = document.getElementById('select-credit-prefix');
+  const udhariPrefixInput = document.getElementById('udhari-form-prefix');
+  const udhariForm = document.getElementById('form-udhari-submit');
+
+  if (prefixSelect && udhariPrefixInput) {
+    prefixSelect.addEventListener('change', function() {
+      udhariPrefixInput.value = this.value || 'ALL';
+    });
+  }
+
+  if (udhariForm) {
+    udhariForm.addEventListener('submit', function() {
+      if (prefixSelect && udhariPrefixInput) {
+        udhariPrefixInput.value = prefixSelect.value || 'ALL';
+      }
+    });
+  }
 });
 </script>
 @endsection

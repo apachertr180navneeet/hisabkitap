@@ -74,6 +74,46 @@ class CreditCollectionController extends Controller
         return redirect()->back()->with('success', "Payment of ₹" . number_format($paidToday) . " recorded for bill {$credit->bill_no}.");
     }
 
+    public function sendToUdhari(Request $request)
+    {
+        $request->validate([
+            'prefix' => 'nullable|string',
+            'udhari_api' => 'required|string',
+        ]);
+
+        $prefix = trim((string)$request->input('prefix', ''));
+        $api = trim((string)$request->input('udhari_api'));
+
+        // Retrieve credit records matching this prefix
+        $credits = $this->getFilteredCredits($request);
+
+        $count = $credits->count();
+        $totalAmount = $credits->sum('bill_amount');
+        $prefixLabel = (!empty($prefix) && strtoupper($prefix) !== 'ALL') ? strtoupper($prefix) : 'ALL';
+
+        $apiLabels = [
+            'redbull' => 'Redbull (insert-multi)',
+            'cadbury' => 'Cadbury (insert-multi)',
+            'parle' => 'Parle (insert-multi)',
+            'itc' => 'Itc (insert-invoice)',
+        ];
+        $apiLabel = $apiLabels[$api] ?? ucfirst($api);
+
+        $redirectRoute = request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index';
+        $params = (!empty($prefix) && strtoupper($prefix) !== 'ALL') ? ['prefix' => $prefix] : [];
+
+        if ($count === 0) {
+            AuditLog::log('UDHARI_APP_SYNC', "Attempted Udhari App sync for prefix '{$prefixLabel}' via {$apiLabel}, but no matching credit bills were found.");
+            return redirect()->route($redirectRoute, $params)
+                ->with('warning', "No credit bills found for prefix '{$prefixLabel}' to submit to Udhari App ({$apiLabel}).");
+        }
+
+        AuditLog::log('UDHARI_APP_SYNC', "Sent {$count} credit bills with prefix '{$prefixLabel}' (Total: ₹" . number_format($totalAmount, 2) . ") to Udhari App via {$apiLabel} API.");
+
+        return redirect()->route($redirectRoute, $params)
+            ->with('success', "Successfully sent {$count} bills with prefix '{$prefixLabel}' (Total: ₹" . number_format($totalAmount, 2) . ") to Udhari App ({$apiLabel}).");
+    }
+
     public function exportSheet(Request $request): StreamedResponse
     {
         $selectedPrefix = $request->input('prefix');

@@ -122,6 +122,7 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     // 6. Credit Collection
     Route::get('/credit-collection', [CreditCollectionController::class, 'index'])->name('admin.credit.index');
     Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware(['read.only', 'permission:can_record_credit'])->name('admin.credit.update');
+    Route::post('/credit-collection/send-udhari', [CreditCollectionController::class, 'sendToUdhari'])->middleware(['read.only', 'permission:can_record_credit'])->name('admin.credit.send_udhari');
     Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('admin.credit.export');
     Route::get('/credit-collection/export-excel', [CreditCollectionController::class, 'exportSheet'])->name('admin.credit.export_excel');
     Route::get('/credit-collection/export-pdf', [CreditCollectionController::class, 'exportPdf'])->name('admin.credit.export_pdf');
@@ -235,6 +236,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/corrections/export-pdf', [CorrectionsController::class, 'exportPdf'])->name('corrections.export_pdf');
     Route::get('/credit-collection', [CreditCollectionController::class, 'index'])->name('credit.index');
     Route::post('/credit-collection/update', [CreditCollectionController::class, 'updatePayment'])->middleware('read.only')->name('credit.update');
+    Route::post('/credit-collection/send-udhari', [CreditCollectionController::class, 'sendToUdhari'])->middleware('read.only')->name('credit.send_udhari');
     Route::get('/credit-collection/export', [CreditCollectionController::class, 'exportSheet'])->name('credit.export');
     Route::get('/credit-collection/export-excel', [CreditCollectionController::class, 'exportSheet'])->name('credit.export_excel');
     Route::get('/credit-collection/export-pdf', [CreditCollectionController::class, 'exportPdf'])->name('credit.export_pdf');
