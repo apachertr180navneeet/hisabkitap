@@ -77,6 +77,19 @@
       </div>
     </form>
 
+    <!-- Udhari API Dropdown -->
+    <div class="input-group input-group-sm ms-md-2" style="width: auto;">
+      <span class="input-group-text bg-light text-dark fw-semibold">
+        <i class="bi bi-hdd-network me-1 text-primary"></i> API
+      </span>
+      <select name="udhari_api" id="select-udhari-api" class="form-select form-select-sm font-mono fw-semibold">
+        <option value="redbull">Redbull</option>
+        <option value="cadbury">Cadbury</option>
+        <option value="parle">Parle</option>
+        <option value="itc">Itc</option>
+      </select>
+    </div>
+
     <button type="button" class="btn btn-primary btn-sm text-nowrap ms-md-1" id="btn-add-udhari-prefix">
       <i class="bi bi-journal-plus me-1"></i> Add Bill Udhari App
     </button>
