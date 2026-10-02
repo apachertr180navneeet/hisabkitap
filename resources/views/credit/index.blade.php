@@ -53,16 +53,16 @@
   </div>
 </div>
 
-<!-- Bill Prefix Filter & Action -->
-<div class="card border p-3 mb-3 bg-white shadow-sm">
+<!-- Sleek Compact Filter & Action Toolbar -->
+<div class="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">
   <div class="d-flex align-items-center gap-2 flex-wrap">
     <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="d-inline-flex align-items-center m-0">
-      <div class="input-group input-group-sm" style="width: auto;">
-        <span class="input-group-text bg-primary text-white fw-semibold">
-          <i class="bi bi-tag-fill me-1"></i> Bill Prefix
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white text-muted border-end-0">
+          <i class="bi bi-tag text-primary"></i>
         </span>
-        <select name="prefix" class="form-select form-select-sm fw-bold font-mono" style="min-width: 150px;" onchange="this.form.submit()">
-          <option value="ALL">All Bill Prefixes ({{ $allPrefixes->count() }})</option>
+        <select name="prefix" class="form-select form-select-sm font-mono fw-semibold border-start-0 ps-0" style="min-width: 140px;" onchange="this.form.submit()">
+          <option value="ALL">All Prefixes ({{ $allPrefixes->count() }})</option>
           @foreach($allPrefixes as $pfx)
             <option value="{{ $pfx }}" {{ (string)$selectedPrefix === (string)$pfx ? 'selected' : '' }}>
               {{ $pfx }}
@@ -70,19 +70,18 @@
           @endforeach
         </select>
         @if(!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL')
-          <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="btn btn-outline-secondary" title="Clear Filter">
-            <i class="bi bi-x-circle me-1"></i> Clear Filter
+          <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="btn btn-outline-secondary btn-sm" title="Clear Filter">
+            <i class="bi bi-x-lg"></i>
           </a>
         @endif
       </div>
     </form>
 
-    <!-- Udhari API Dropdown -->
-    <div class="input-group input-group-sm ms-md-2" style="width: auto;">
-      <span class="input-group-text bg-light text-dark fw-semibold">
-        <i class="bi bi-hdd-network me-1 text-primary"></i> API
+    <div class="input-group input-group-sm">
+      <span class="input-group-text bg-white text-muted border-end-0">
+        <i class="bi bi-hdd-network text-info"></i>
       </span>
-      <select name="udhari_api" id="select-udhari-api" class="form-select form-select-sm font-mono fw-semibold">
+      <select name="udhari_api" id="select-udhari-api" class="form-select form-select-sm font-mono border-start-0 ps-0" style="min-width: 110px;">
         <option value="redbull">Redbull</option>
         <option value="cadbury">Cadbury</option>
         <option value="parle">Parle</option>
@@ -90,8 +89,8 @@
       </select>
     </div>
 
-    <button type="button" class="btn btn-primary btn-sm text-nowrap ms-md-1" id="btn-add-udhari-prefix">
-      <i class="bi bi-journal-plus me-1"></i> Add Bill Udhari App
+    <button type="button" class="btn btn-primary btn-sm text-nowrap" id="btn-add-udhari-prefix">
+      <i class="bi bi-plus-circle me-1"></i> Add Bill Udhari App
     </button>
   </div>
 </div>
