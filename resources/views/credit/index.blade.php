@@ -56,12 +56,12 @@
 <!-- Bill Prefix Filter & Action -->
 <div class="card border p-3 mb-3 bg-white shadow-sm">
   <div class="d-flex align-items-center gap-2 flex-wrap">
-    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
-      <div class="input-group input-group-sm" style="min-width: 280px; max-width: 340px;">
+    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="d-inline-flex align-items-center m-0">
+      <div class="input-group input-group-sm" style="width: auto;">
         <span class="input-group-text bg-primary text-white fw-semibold">
           <i class="bi bi-tag-fill me-1"></i> Bill Prefix
         </span>
-        <select name="prefix" class="form-select form-select-sm fw-bold font-mono" onchange="this.form.submit()">
+        <select name="prefix" class="form-select form-select-sm fw-bold font-mono" style="min-width: 150px;" onchange="this.form.submit()">
           <option value="ALL">All Bill Prefixes ({{ $allPrefixes->count() }})</option>
           @foreach($allPrefixes as $pfx)
             <option value="{{ $pfx }}" {{ (string)$selectedPrefix === (string)$pfx ? 'selected' : '' }}>
@@ -69,15 +69,15 @@
             </option>
           @endforeach
         </select>
+        @if(!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL')
+          <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="btn btn-outline-secondary" title="Clear Filter">
+            <i class="bi bi-x-circle me-1"></i> Clear Filter
+          </a>
+        @endif
       </div>
-      @if(!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL')
-        <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-x-circle me-1"></i> Clear Filter
-        </a>
-      @endif
     </form>
 
-    <button type="button" class="btn btn-primary btn-sm ms-md-2" id="btn-add-udhari-prefix">
+    <button type="button" class="btn btn-primary btn-sm text-nowrap ms-md-1" id="btn-add-udhari-prefix">
       <i class="bi bi-journal-plus me-1"></i> Add Bill Udhari App
     </button>
   </div>
