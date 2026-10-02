@@ -22,13 +22,7 @@ class CreditCollectionController extends Controller
     public function index(Request $request)
     {
         $selectedPrefix = $request->input('prefix');
-        $selectedSalesman = $request->input('salesman');
-        $selectedStatus = $request->input('status');
-        $search = $request->input('search');
-
         $allPrefixes = $this->getAllAvailablePrefixes();
-        $salesmen = $this->getAllSalesmen();
-
         $credits = $this->getFilteredCredits($request);
 
         $totSales = $credits->sum('bill_amount');
@@ -41,11 +35,7 @@ class CreditCollectionController extends Controller
             'totRecovered',
             'totOutstanding',
             'allPrefixes',
-            'selectedPrefix',
-            'salesmen',
-            'selectedSalesman',
-            'selectedStatus',
-            'search'
+            'selectedPrefix'
         ));
     }
 
@@ -150,10 +140,6 @@ class CreditCollectionController extends Controller
     {
         $businessDate = $this->reconService->getBusinessDate();
         $selectedPrefix = $request->input('prefix');
-        $selectedSalesman = $request->input('salesman');
-        $selectedStatus = $request->input('status');
-        $search = $request->input('search');
-
         $credits = $this->getFilteredCredits($request);
 
         $totSales = $credits->sum('bill_amount');
@@ -166,10 +152,7 @@ class CreditCollectionController extends Controller
             'totSales',
             'totRecovered',
             'totOutstanding',
-            'selectedPrefix',
-            'selectedSalesman',
-            'selectedStatus',
-            'search'
+            'selectedPrefix'
         ));
     }
 
@@ -179,32 +162,10 @@ class CreditCollectionController extends Controller
     protected function getFilteredCredits(Request $request)
     {
         $selectedPrefix = $request->input('prefix');
-        $selectedSalesman = $request->input('salesman');
-        $selectedStatus = $request->input('status');
-        $search = $request->input('search');
-
         $query = CreditCollection::with(['bill.psoConfig'])->orderBy('id', 'asc');
 
         if (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') {
             $query->filterPrefix($selectedPrefix);
-        }
-
-        if (!empty($selectedSalesman) && strtoupper($selectedSalesman) !== 'ALL') {
-            $query->where('salesman_name', $selectedSalesman);
-        }
-
-        if (!empty($selectedStatus) && strtoupper($selectedStatus) !== 'ALL') {
-            $query->where('collection_status', $selectedStatus);
-        }
-
-        if ($request->filled('search')) {
-            $searchTerm = trim((string)$search);
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('bill_no', 'like', "%{$searchTerm}%")
-                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('salesman_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('remark', 'like', "%{$searchTerm}%");
-            });
         }
 
         $credits = $query->get();
@@ -239,20 +200,6 @@ class CreditCollectionController extends Controller
             ->map(fn($p) => strtoupper(trim((string)$p)))
             ->filter()
             ->unique()
-            ->sort()
-            ->values();
-    }
-
-    /**
-     * Retrieve all unique salesmen present in credit records.
-     */
-    protected function getAllSalesmen()
-    {
-        return CreditCollection::select('salesman_name')
-            ->whereNotNull('salesman_name')
-            ->where('salesman_name', '!=', '')
-            ->distinct()
-            ->pluck('salesman_name')
             ->sort()
             ->values();
     }
