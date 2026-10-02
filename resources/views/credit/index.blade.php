@@ -53,15 +53,16 @@
   </div>
 </div>
 
-<!-- Sleek Compact Filter & Action Toolbar -->
-<div class="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">
-  <div class="d-flex align-items-center gap-2 flex-wrap">
-    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="d-inline-flex align-items-center m-0">
-      <div class="input-group input-group-sm">
-        <span class="input-group-text bg-white text-muted border-end-0">
+<div class="erp-table-container">
+  <!-- Sleek Unified Action & Filter Toolbar -->
+  <div class="p-2 px-3 bg-light border-bottom d-flex align-items-center gap-2 flex-wrap">
+    <!-- Prefix Filter -->
+    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="m-0 d-inline-flex align-items-center">
+      <div class="input-group input-group-sm" style="width: auto;">
+        <span class="input-group-text bg-white text-muted">
           <i class="bi bi-tag text-primary"></i>
         </span>
-        <select name="prefix" class="form-select form-select-sm font-mono fw-semibold border-start-0 ps-0" style="min-width: 140px;" onchange="this.form.submit()">
+        <select name="prefix" class="form-select form-select-sm font-mono fw-bold bg-white" style="width: auto; min-width: 140px;" onchange="this.form.submit()">
           <option value="ALL">All Prefixes ({{ $allPrefixes->count() }})</option>
           @foreach($allPrefixes as $pfx)
             <option value="{{ $pfx }}" {{ (string)$selectedPrefix === (string)$pfx ? 'selected' : '' }}>
@@ -77,25 +78,25 @@
       </div>
     </form>
 
-    <div class="input-group input-group-sm">
-      <span class="input-group-text bg-white text-muted border-end-0">
-        <i class="bi bi-hdd-network text-info"></i>
+    <div class="vr mx-1 text-muted d-none d-sm-inline-block" style="height: 22px;"></div>
+
+    <!-- Udhari API & Add Action Combo -->
+    <div class="input-group input-group-sm" style="width: auto;">
+      <span class="input-group-text bg-white text-muted">
+        <i class="bi bi-hdd-network text-primary"></i>
       </span>
-      <select name="udhari_api" id="select-udhari-api" class="form-select form-select-sm font-mono border-start-0 ps-0" style="min-width: 110px;">
+      <select name="udhari_api" id="select-udhari-api" class="form-select form-select-sm font-mono fw-semibold bg-white" style="width: auto; min-width: 110px;">
         <option value="redbull">Redbull</option>
         <option value="cadbury">Cadbury</option>
         <option value="parle">Parle</option>
         <option value="itc">Itc</option>
       </select>
+      <button type="button" class="btn btn-primary btn-sm fw-semibold text-nowrap" id="btn-add-udhari-prefix">
+        <i class="bi bi-plus-circle me-1"></i> Add Bill Udhari App
+      </button>
     </div>
-
-    <button type="button" class="btn btn-primary btn-sm text-nowrap" id="btn-add-udhari-prefix">
-      <i class="bi bi-plus-circle me-1"></i> Add Bill Udhari App
-    </button>
   </div>
-</div>
 
-<div class="erp-table-container">
   <div class="table-responsive">
     <table class="table erp-table align-middle">
       <thead>
