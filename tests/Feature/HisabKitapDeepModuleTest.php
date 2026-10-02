@@ -1198,10 +1198,17 @@ class HisabKitapDeepModuleTest extends TestCase
             'collection_status' => 'Pending',
         ]);
 
-        // Submit form with prefix CB and udhari_api redbull
+        \Illuminate\Support\Facades\Http::fake([
+            'https://bigbiteagencys.com/udhari_itc/api/invoices/insert-multi' => \Illuminate\Support\Facades\Http::response([
+                'status' => true,
+                'message' => 'Successfully inserted 1 invoices',
+            ], 200),
+        ]);
+
+        // Submit form with prefix CB and udhari_api itc
         $response = $this->post('/admin/credit-collection/send-udhari', [
             'prefix' => 'CB',
-            'udhari_api' => 'redbull',
+            'udhari_api' => 'itc',
         ]);
 
         $response->assertStatus(302);
@@ -1216,7 +1223,17 @@ class HisabKitapDeepModuleTest extends TestCase
         $log = \App\Models\AuditLog::where('action', 'UDHARI_APP_SYNC')->latest()->first();
         $this->assertNotNull($log);
         $this->assertStringContainsString("prefix 'CB'", $log->details);
-        $this->assertStringContainsString('Redbull', $log->details);
+        $this->assertStringContainsString('Itc', $log->details);
+
+        // Verify credit record status updated
+        $cbCredit = CreditCollection::where('bill_no', 'CB 101')->first();
+        $this->assertTrue((bool)$cbCredit->is_udhari_synced);
+        $this->assertNotNull($cbCredit->udhari_synced_at);
+
+        // Verify index view displays Udhari Status column and badge
+        $page = $this->get('/admin/credit-collection?prefix=CB');
+        $page->assertSee('Udhari Status');
+        $page->assertSee('Sent (Itc)');
     }
 
     public function test_credit_collection_send_udhari_all_prefixes_and_empty(): void
@@ -1232,10 +1249,17 @@ class HisabKitapDeepModuleTest extends TestCase
             'collection_status' => 'Pending',
         ]);
 
-        // 1. Submit with ALL
+        \Illuminate\Support\Facades\Http::fake([
+            'https://bigbiteagencys.com/udhari_itc/api/invoices/insert-multi' => \Illuminate\Support\Facades\Http::response([
+                'status' => true,
+                'message' => 'Successfully inserted all invoices',
+            ], 200),
+        ]);
+
+        // 1. Submit with ALL for ITC
         $resAll = $this->post('/admin/credit-collection/send-udhari', [
             'prefix' => 'ALL',
-            'udhari_api' => 'cadbury',
+            'udhari_api' => 'itc',
         ]);
         $resAll->assertStatus(302);
         $resAll->assertRedirect('/admin/credit-collection');
@@ -1244,11 +1268,95 @@ class HisabKitapDeepModuleTest extends TestCase
         // 2. Submit with non-existent prefix
         $resNone = $this->post('/admin/credit-collection/send-udhari', [
             'prefix' => 'NONEXISTENT',
-            'udhari_api' => 'parle',
+            'udhari_api' => 'itc',
         ]);
         $resNone->assertStatus(302);
         $resNone->assertRedirect('/admin/credit-collection?prefix=NONEXISTENT');
         $resNone->assertSessionHas('warning');
+    }
+
+    public function test_credit_collection_send_udhari_all_brand_apis(): void
+    {
+        CreditCollection::create([
+            'bill_no' => 'RB/001',
+            'customer_name' => 'Redbull Customer',
+            'salesman_name' => 'Salesman 1',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 4500,
+            'paid_amount' => 0,
+            'outstanding_amount' => 4500,
+            'collection_status' => 'Pending',
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://bigbiteagencys.com/api/redbull/insert-multi' => \Illuminate\Support\Facades\Http::response(['status' => true, 'message' => 'Redbull success'], 200),
+            'https://bigbiteagencys.com/api/cadbury/insert-multi' => \Illuminate\Support\Facades\Http::response(['status' => true, 'message' => 'Cadbury success'], 200),
+            'https://bigbiteagencys.com/api/parle/insert-multi' => \Illuminate\Support\Facades\Http::response(['status' => true, 'message' => 'Parle success'], 200),
+        ]);
+
+        // Redbull
+        $rbRes = $this->post('/admin/credit-collection/send-udhari', ['prefix' => 'RB', 'udhari_api' => 'redbull']);
+        $rbRes->assertStatus(302)->assertSessionHas('success');
+
+        // Cadbury
+        $cadRes = $this->post('/admin/credit-collection/send-udhari', ['prefix' => 'RB', 'udhari_api' => 'cadbury']);
+        $cadRes->assertStatus(302)->assertSessionHas('success');
+
+        // Parle
+        $parleRes = $this->post('/admin/credit-collection/send-udhari', ['prefix' => 'RB', 'udhari_api' => 'parle']);
+        $parleRes->assertStatus(302)->assertSessionHas('success');
+    }
+
+    public function test_credit_collection_send_udhari_error_handling_and_no_update(): void
+    {
+        $credit = CreditCollection::create([
+            'bill_no' => 'PARLE-001',
+            'customer_name' => 'Failed Customer',
+            'salesman_name' => 'Salesman Error',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 7000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 7000,
+            'collection_status' => 'Pending',
+            'is_udhari_synced' => false,
+        ]);
+
+        // Mock Parle API returning 422 with validation errors
+        \Illuminate\Support\Facades\Http::fake([
+            'https://bigbiteagencys.com/api/parle/insert-multi' => \Illuminate\Support\Facades\Http::response([
+                'status' => false,
+                'message' => 'Invoice verification failed',
+                'errors' => [
+                    'invoices.0.invoice_no' => ['The invoice_no PARLE-001 is already registered in Udhari App.'],
+                ],
+            ], 422),
+        ]);
+
+        $response = $this->from('/admin/credit-collection?prefix=PARLE')
+            ->post('/admin/credit-collection/send-udhari', [
+                'prefix' => 'PARLE',
+                'udhari_api' => 'parle',
+            ]);
+
+        // Must redirect back to the previous page
+        $response->assertStatus(302);
+        $response->assertRedirect('/admin/credit-collection?prefix=PARLE');
+
+        // Must flash clear error message explaining which API failed and the exact reason
+        $response->assertSessionHas('error');
+        $errorMsg = session('error');
+        $this->assertStringContainsString('Parle', $errorMsg);
+        $this->assertStringContainsString('422', $errorMsg);
+        $this->assertStringContainsString('Invoice verification failed', $errorMsg);
+        $this->assertStringContainsString('already registered', $errorMsg);
+
+        // Verification: The update should NOT be completed on failure!
+        $credit->refresh();
+        $this->assertFalse((bool)$credit->is_udhari_synced);
+        $this->assertNull($credit->udhari_synced_at);
+
+        // Verify AuditLog logged the failure
+        $this->assertDatabaseHas('audit_logs', ['action' => 'UDHARI_APP_SYNC_FAIL']);
     }
 
     public function test_pso_summary_matrix_export_excel_and_pdf(): void

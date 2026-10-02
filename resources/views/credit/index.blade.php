@@ -113,6 +113,7 @@
           <th>Paid Amount</th>
           <th>Outstanding</th>
           <th>Collection Status</th>
+          <th>Udhari Status</th>
           <th>Due Date</th>
           <th>Remark</th>
           <th class="text-end">Action</th>
@@ -136,6 +137,17 @@
                 {{ $c->collection_status }}
               </span>
             </td>
+            <td>
+              @if($c->is_udhari_synced)
+                <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1" title="Sent to {{ $c->udhari_api ?: 'Udhari App' }}{{ $c->udhari_synced_at ? ' on ' . $c->udhari_synced_at->format('d/m/Y H:i') : '' }}">
+                  <i class="bi bi-cloud-check-fill text-success"></i> Sent ({{ $c->udhari_api ? strtok($c->udhari_api, ' ') : 'Udhari' }})
+                </span>
+              @else
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle d-inline-flex align-items-center gap-1" title="Not submitted to Udhari App yet">
+                  <i class="bi bi-clock-history"></i> Not Sent
+                </span>
+              @endif
+            </td>
             <td>{{ $c->due_date ? (is_string($c->due_date) ? substr($c->due_date, 0, 10) : $c->due_date->format('d/m/Y')) : '—' }}</td>
             <td class="small text-muted">{{ $c->remark ?: '—' }}</td>
             <td class="text-end">
@@ -150,7 +162,7 @@
           </tr>
         @empty
           <tr>
-            <td colspan="11" class="text-center text-muted py-4">
+            <td colspan="12" class="text-center text-muted py-4">
               <i class="bi bi-cash-coin fs-3 d-block mb-1 text-primary"></i>
               No credit transactions found matching the selected prefix.
             </td>

@@ -8,6 +8,8 @@ use App\Models\Prefix;
 use App\Models\PsoConfig;
 use App\Models\AuditLog;
 use App\Services\ReconciliationService;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CreditCollectionController extends Controller
@@ -86,9 +88,6 @@ class CreditCollectionController extends Controller
 
         // Retrieve credit records matching this prefix
         $credits = $this->getFilteredCredits($request);
-
-        $count = $credits->count();
-        $totalAmount = $credits->sum('bill_amount');
         $prefixLabel = (!empty($prefix) && strtoupper($prefix) !== 'ALL') ? strtoupper($prefix) : 'ALL';
 
         $apiLabels = [
@@ -99,19 +98,157 @@ class CreditCollectionController extends Controller
         ];
         $apiLabel = $apiLabels[$api] ?? ucfirst($api);
 
+        $count = $credits->count();
+        $totalAmount = $credits->sum('bill_amount');
         $redirectRoute = request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index';
         $params = (!empty($prefix) && strtoupper($prefix) !== 'ALL') ? ['prefix' => $prefix] : [];
 
         if ($count === 0) {
-            AuditLog::log('UDHARI_APP_SYNC', "Attempted Udhari App sync for prefix '{$prefixLabel}' via {$apiLabel}, but no matching credit bills were found.");
             return redirect()->route($redirectRoute, $params)
                 ->with('warning', "No credit bills found for prefix '{$prefixLabel}' to submit to Udhari App ({$apiLabel}).");
         }
 
-        AuditLog::log('UDHARI_APP_SYNC', "Sent {$count} credit bills with prefix '{$prefixLabel}' (Total: ₹" . number_format($totalAmount, 2) . ") to Udhari App via {$apiLabel} API.");
+        // Check prefix and API labels according to selected API
+        $apiUrl = null;
+        if ($api === 'redbull') {
+            // API: Redbull (insert-multi) | Prefix: $prefixLabel
+            $apiUrl = 'https://bigbiteagencys.com/api/redbull/insert-multi';
+        } elseif ($api === 'cadbury') {
+            // API: Cadbury (insert-multi) | Prefix: $prefixLabel
+            $apiUrl = 'https://bigbiteagencys.com/api/cadbury/insert-multi';
+        } elseif ($api === 'parle') {
+            // API: Parle (insert-multi) | Prefix: $prefixLabel
+            $apiUrl = 'https://bigbiteagencys.com/api/parle/insert-multi';
+        } elseif ($api === 'itc') {
+            // API: Itc (insert-multi) | Prefix: $prefixLabel
+            $apiUrl = 'https://bigbiteagencys.com/udhari_itc/api/invoices/insert-multi';
+        } else {
+            return redirect()->route($redirectRoute, $params)
+                ->with('error', "Invalid or unsupported Udhari API selected: {$api}");
+        }
 
-        return redirect()->route($redirectRoute, $params)
-            ->with('success', "Successfully sent {$count} bills with prefix '{$prefixLabel}' (Total: ₹" . number_format($totalAmount, 2) . ") to Udhari App ({$apiLabel}).");
+        $invoiceData = [];
+        foreach ($credits as $c) {
+            $dateStr = $c->bill_date
+                ? (is_string($c->bill_date) ? substr($c->bill_date, 0, 10) : $c->bill_date->format('Y-m-d'))
+                : date('Y-m-d');
+
+            $invoiceData[] = [
+                'date' => $dateStr,
+                'invoice_no' => (string)$c->bill_no,
+                'firm_id' => (string)$c->customer_name,
+                'salesperson_id' => (string)($c->salesman_name ?: 'Unknown'),
+                'amount' => (float)$c->bill_amount,
+                'discount_percent' => 0,
+                'discount_amount' => 0,
+                'payable_amount' => (float)$c->bill_amount,
+            ];
+        }
+
+        try {
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ])
+                ->post($apiUrl, [
+                    'invoices' => $invoiceData,
+                ]);
+
+            $respData = $response->json();
+            $isSuccess = $response->successful() && (!isset($respData['status']) || $respData['status'] == true);
+
+            if ($isSuccess) {
+                // Update credit records as synced to Udhari app inside an atomic transaction
+                DB::transaction(function () use ($credits, $apiLabel) {
+                    foreach ($credits as $c) {
+                        $c->update([
+                            'is_udhari_synced' => true,
+                            'udhari_synced_at' => now(),
+                            'udhari_api' => $apiLabel,
+                        ]);
+                    }
+                });
+
+                $msg = $respData['message'] ?? "Successfully submitted {$count} bills with prefix '{$prefixLabel}' to {$apiLabel} Udhari App.";
+                AuditLog::log('UDHARI_APP_SYNC', "Sent {$count} credit bills with prefix '{$prefixLabel}' (Total: ₹" . number_format($totalAmount, 2) . ") to {$apiLabel} API ({$apiUrl}). Response: " . json_encode($respData));
+
+                return redirect()->back(fallback: route($redirectRoute, $params))
+                    ->with('success', $msg);
+            } else {
+                // Failure: DO NOT complete the update on any credit bills
+                $errorMessage = $this->formatUdhariApiError($apiLabel, $apiUrl, $response);
+                AuditLog::log('UDHARI_APP_SYNC_FAIL', "Failed sending {$count} bills with prefix '{$prefixLabel}' to {$apiLabel} API ({$apiUrl}). Error: {$errorMessage}");
+
+                return redirect()->back(fallback: route($redirectRoute, $params))
+                    ->with('error', $errorMessage);
+            }
+        } catch (\Throwable $e) {
+            // Exception: DO NOT complete the update on any credit bills
+            $errorMessage = $this->formatUdhariApiError($apiLabel, $apiUrl, null, $e);
+            AuditLog::log('UDHARI_APP_SYNC_EXCEPTION', "Exception sending bills with prefix '{$prefixLabel}' to {$apiLabel} API ({$apiUrl}): " . $e->getMessage());
+
+            return redirect()->back(fallback: route($redirectRoute, $params))
+                ->with('error', $errorMessage);
+        }
+    }
+
+    /**
+     * Build a clear and descriptive error message explaining which API failed and the exact reason.
+     */
+    protected function formatUdhariApiError(string $apiName, string $apiUrl, $response = null, ?\Throwable $exception = null): string
+    {
+        $header = "[{$apiName} API Error]";
+
+        if ($exception) {
+            return "{$header} Connection to {$apiUrl} failed: " . $exception->getMessage();
+        }
+
+        if (!$response) {
+            return "{$header} No response received from {$apiUrl}.";
+        }
+
+        $statusCode = $response->status();
+        $respData = $response->json();
+
+        // 1. Structured JSON error
+        if (is_array($respData)) {
+            $msg = $respData['message'] ?? $respData['msg'] ?? null;
+            $fieldErrors = [];
+
+            if (!empty($respData['errors']) && is_array($respData['errors'])) {
+                foreach ($respData['errors'] as $field => $errors) {
+                    if (is_array($errors)) {
+                        $fieldErrors[] = (!is_numeric($field) ? "{$field}: " : "") . implode(', ', $errors);
+                    } elseif (is_string($errors)) {
+                        $fieldErrors[] = (!is_numeric($field) ? "{$field}: " : "") . $errors;
+                    }
+                }
+            } elseif (!empty($respData['error'])) {
+                $fieldErrors[] = is_string($respData['error']) ? $respData['error'] : json_encode($respData['error']);
+            }
+
+            $details = [];
+            if ($msg) {
+                $details[] = $msg;
+            }
+            if (!empty($fieldErrors)) {
+                $details[] = "Details: " . implode(' | ', $fieldErrors);
+            }
+
+            if (!empty($details)) {
+                return "{$header} HTTP {$statusCode} at {$apiUrl}: " . implode(' - ', $details);
+            }
+        }
+
+        // 2. Non-JSON body (e.g. 500 HTML error page, Cloudflare error)
+        $rawBody = trim(strip_tags($response->body()));
+        if (!empty($rawBody)) {
+            $snippet = substr(preg_replace('/\s+/', ' ', $rawBody), 0, 200);
+            return "{$header} HTTP {$statusCode} at {$apiUrl}: {$snippet}";
+        }
+
+        return "{$header} Remote server returned HTTP {$statusCode} ({$apiUrl}) with no error details.";
     }
 
     public function exportSheet(Request $request): StreamedResponse
@@ -130,7 +267,7 @@ class CreditCollectionController extends Controller
             $handle = fopen('php://output', 'w');
             fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
-            fputcsv($handle, ['Bill No', 'Prefix', 'Customer Name', 'Assigned Salesman', 'Bill Date', 'Due Date', 'Total Amount (INR)', 'Paid Amount (INR)', 'Outstanding (INR)', 'Status', 'Remarks']);
+            fputcsv($handle, ['Bill No', 'Prefix', 'Customer Name', 'Assigned Salesman', 'Bill Date', 'Due Date', 'Total Amount (INR)', 'Paid Amount (INR)', 'Outstanding (INR)', 'Status', 'Udhari Status', 'Remarks']);
             
             $totSales = 0; $totPaid = 0; $totOut = 0;
             foreach ($credits as $c) {
@@ -151,6 +288,7 @@ class CreditCollectionController extends Controller
                     $c->paid_amount,
                     $c->outstanding_amount,
                     $c->collection_status,
+                    $c->is_udhari_synced ? ('Sent (' . ($c->udhari_api ?: 'App') . ')') : 'Not Sent',
                     $c->remark ?: '—',
                 ]);
             }
