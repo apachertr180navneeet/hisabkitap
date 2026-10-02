@@ -38,4 +38,57 @@ class CreditCollection extends Model
     {
         return $this->belongsTo(Bill::class, 'bill_id');
     }
+
+    /**
+     * Get the bill prefix parsed from bill number or linked bill/pso config.
+     */
+    public function getBillPrefixAttribute(): string
+    {
+        $parsed = PsoConfig::parseBillNumber($this->bill_no ?? '');
+        if (!empty($parsed['prefix'])) {
+            return strtoupper(trim($parsed['prefix']));
+        }
+
+        if ($this->relationLoaded('bill') && $this->bill) {
+            if ($this->bill->relationLoaded('psoConfig') && $this->bill->psoConfig?->prefix) {
+                return strtoupper(trim($this->bill->psoConfig->prefix));
+            }
+            if ($this->bill->psoConfig?->prefix) {
+                return strtoupper(trim($this->bill->psoConfig->prefix));
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Scope query to filter credit collections by bill prefix.
+     */
+    public function scopeFilterPrefix($query, ?string $prefix)
+    {
+        if (empty($prefix) || strtoupper($prefix) === 'ALL') {
+            return $query;
+        }
+
+        $pfx = trim($prefix);
+
+        return $query->where(function ($q) use ($pfx) {
+            $q->where('bill_no', 'like', $pfx . ' %')
+              ->orWhere('bill_no', 'like', $pfx . '/%')
+              ->orWhere('bill_no', 'like', $pfx . '-%')
+              ->orWhere('bill_no', 'like', $pfx . '_%')
+              ->orWhere('bill_no', 'like', '%/' . $pfx . '/%')
+              ->orWhere('bill_no', 'like', '%/' . $pfx . '-%')
+              ->orWhere('bill_no', 'like', '%-' . $pfx . '/%')
+              ->orWhere('bill_no', 'like', '%-' . $pfx . '-%')
+              ->orWhere('bill_no', 'like', '%/' . $pfx)
+              ->orWhere('bill_no', 'like', '%-' . $pfx)
+              ->orWhere('bill_no', 'like', '% ' . $pfx)
+              ->orWhere('bill_no', '=', $pfx)
+              ->orWhere('bill_no', 'like', $pfx . '%')
+              ->orWhereHas('bill.psoConfig', function ($sq) use ($pfx) {
+                  $sq->where('prefix', $pfx);
+              });
+        });
+    }
 }

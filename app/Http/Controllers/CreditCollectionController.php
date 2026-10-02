@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\CreditCollection;
+use App\Models\Prefix;
+use App\Models\PsoConfig;
 use App\Models\AuditLog;
 use App\Services\ReconciliationService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -17,15 +19,34 @@ class CreditCollectionController extends Controller
         $this->reconService = $reconService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $credits = CreditCollection::orderBy('id', 'asc')->get();
+        $selectedPrefix = $request->input('prefix');
+        $selectedSalesman = $request->input('salesman');
+        $selectedStatus = $request->input('status');
+        $search = $request->input('search');
+
+        $allPrefixes = $this->getAllAvailablePrefixes();
+        $salesmen = $this->getAllSalesmen();
+
+        $credits = $this->getFilteredCredits($request);
 
         $totSales = $credits->sum('bill_amount');
         $totRecovered = $credits->sum('paid_amount');
         $totOutstanding = $credits->sum('outstanding_amount');
 
-        return view('credit.index', compact('credits', 'totSales', 'totRecovered', 'totOutstanding'));
+        return view('credit.index', compact(
+            'credits',
+            'totSales',
+            'totRecovered',
+            'totOutstanding',
+            'allPrefixes',
+            'selectedPrefix',
+            'salesmen',
+            'selectedSalesman',
+            'selectedStatus',
+            'search'
+        ));
     }
 
     public function updatePayment(Request $request)
@@ -63,21 +84,23 @@ class CreditCollectionController extends Controller
         return redirect()->back()->with('success', "Payment of ₹" . number_format($paidToday) . " recorded for bill {$credit->bill_no}.");
     }
 
-    public function exportSheet(): StreamedResponse
+    public function exportSheet(Request $request): StreamedResponse
     {
-        $credits = CreditCollection::all();
+        $selectedPrefix = $request->input('prefix');
+        $credits = $this->getFilteredCredits($request);
         $date = $this->reconService->getBusinessDate();
+        $prefixTag = (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') ? "_{$selectedPrefix}" : "";
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"Credit_Collection_Sheet_{$date}.csv\"",
+            'Content-Disposition' => "attachment; filename=\"Credit_Collection_Sheet{$prefixTag}_{$date}.csv\"",
         ];
 
-        return response()->stream(function () use ($credits) {
+        return response()->stream(function () use ($credits, $selectedPrefix) {
             $handle = fopen('php://output', 'w');
             fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
-            fputcsv($handle, ['Bill No', 'Customer Name', 'Assigned Salesman', 'Bill Date', 'Due Date', 'Total Amount (INR)', 'Paid Amount (INR)', 'Outstanding (INR)', 'Status', 'Remarks']);
+            fputcsv($handle, ['Bill No', 'Prefix', 'Customer Name', 'Assigned Salesman', 'Bill Date', 'Due Date', 'Total Amount (INR)', 'Paid Amount (INR)', 'Outstanding (INR)', 'Status', 'Remarks']);
             
             $totSales = 0; $totPaid = 0; $totOut = 0;
             foreach ($credits as $c) {
@@ -89,6 +112,7 @@ class CreditCollectionController extends Controller
 
                 fputcsv($handle, [
                     $c->bill_no,
+                    $c->bill_prefix ?: '—',
                     $c->customer_name,
                     $c->salesman_name ?: '—',
                     $bDate,
@@ -103,6 +127,7 @@ class CreditCollectionController extends Controller
 
             fputcsv($handle, [
                 'TOTAL',
+                (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') ? "Prefix: {$selectedPrefix}" : '',
                 count($credits) . ' Customers',
                 '',
                 '',
@@ -124,12 +149,111 @@ class CreditCollectionController extends Controller
     public function exportPdf(Request $request)
     {
         $businessDate = $this->reconService->getBusinessDate();
-        $credits = CreditCollection::orderBy('id', 'asc')->get();
+        $selectedPrefix = $request->input('prefix');
+        $selectedSalesman = $request->input('salesman');
+        $selectedStatus = $request->input('status');
+        $search = $request->input('search');
+
+        $credits = $this->getFilteredCredits($request);
 
         $totSales = $credits->sum('bill_amount');
         $totRecovered = $credits->sum('paid_amount');
         $totOutstanding = $credits->sum('outstanding_amount');
 
-        return view('credit.print', compact('credits', 'businessDate', 'totSales', 'totRecovered', 'totOutstanding'));
+        return view('credit.print', compact(
+            'credits',
+            'businessDate',
+            'totSales',
+            'totRecovered',
+            'totOutstanding',
+            'selectedPrefix',
+            'selectedSalesman',
+            'selectedStatus',
+            'search'
+        ));
+    }
+
+    /**
+     * Get filtered credit collection records based on request criteria.
+     */
+    protected function getFilteredCredits(Request $request)
+    {
+        $selectedPrefix = $request->input('prefix');
+        $selectedSalesman = $request->input('salesman');
+        $selectedStatus = $request->input('status');
+        $search = $request->input('search');
+
+        $query = CreditCollection::with(['bill.psoConfig'])->orderBy('id', 'asc');
+
+        if (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') {
+            $query->filterPrefix($selectedPrefix);
+        }
+
+        if (!empty($selectedSalesman) && strtoupper($selectedSalesman) !== 'ALL') {
+            $query->where('salesman_name', $selectedSalesman);
+        }
+
+        if (!empty($selectedStatus) && strtoupper($selectedStatus) !== 'ALL') {
+            $query->where('collection_status', $selectedStatus);
+        }
+
+        if ($request->filled('search')) {
+            $searchTerm = trim((string)$search);
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('bill_no', 'like', "%{$searchTerm}%")
+                  ->orWhere('customer_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('salesman_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('remark', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $credits = $query->get();
+
+        if (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') {
+            $prefixUpper = strtoupper(trim((string)$selectedPrefix));
+            $credits = $credits->filter(function ($c) use ($prefixUpper) {
+                $p = $c->bill_prefix;
+                if ($p) {
+                    return $p === $prefixUpper;
+                }
+                return stripos((string)$c->bill_no, $prefixUpper) !== false;
+            })->values();
+        }
+
+        return $credits;
+    }
+
+    /**
+     * Retrieve all unique prefixes available across Prefix master, PSO configs, and credit records.
+     */
+    protected function getAllAvailablePrefixes()
+    {
+        $masterPrefixes = Prefix::where('is_active', true)->pluck('prefix')->toArray();
+        $psoPrefixes = PsoConfig::whereNotNull('prefix')->pluck('prefix')->toArray();
+        $creditPrefixes = CreditCollection::pluck('bill_no')->map(function ($billNo) {
+            $parsed = PsoConfig::parseBillNumber($billNo);
+            return !empty($parsed['prefix']) ? strtoupper(trim($parsed['prefix'])) : null;
+        })->filter()->toArray();
+
+        return collect(array_merge($masterPrefixes, $psoPrefixes, $creditPrefixes))
+            ->map(fn($p) => strtoupper(trim((string)$p)))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+    }
+
+    /**
+     * Retrieve all unique salesmen present in credit records.
+     */
+    protected function getAllSalesmen()
+    {
+        return CreditCollection::select('salesman_name')
+            ->whereNotNull('salesman_name')
+            ->where('salesman_name', '!=', '')
+            ->distinct()
+            ->pluck('salesman_name')
+            ->sort()
+            ->values();
     }
 }

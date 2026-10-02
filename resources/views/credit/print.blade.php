@@ -32,10 +32,10 @@
         <span class="fw-bold">Credit Collection & Outstanding Field Recovery Sheet</span>
       </div>
       <div class="d-flex gap-2">
-        <a href="{{ route('admin.credit.index') }}" class="btn btn-outline-light btn-sm">
+        <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index', request()->query()) }}" class="btn btn-outline-light btn-sm">
           <i class="bi bi-arrow-left me-1"></i> Back
         </a>
-        <a href="{{ route('admin.credit.export_excel') }}" class="btn btn-success btn-sm">
+        <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.export_excel' : 'credit.export_excel', request()->query()) }}" class="btn btn-success btn-sm">
           <i class="bi bi-file-earmark-excel me-1"></i> Download Excel
         </a>
         <button onclick="window.print()" class="btn btn-primary btn-sm">
@@ -56,6 +56,9 @@
       </div>
       <div class="text-end">
         <div class="badge bg-dark fs-6 px-3 py-2 font-mono mb-1">DATE: {{ date('d/m/Y', strtotime($businessDate)) }}</div>
+        @if(!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL')
+          <div class="badge bg-primary fs-6 px-3 py-2 font-mono mb-1 d-block">PREFIX: {{ $selectedPrefix }}</div>
+        @endif
         <div class="text-muted small">Generated: {{ now()->format('d/m/Y h:i A') }}</div>
       </div>
     </div>
@@ -87,6 +90,7 @@
       <thead>
         <tr>
           <th>Bill No.</th>
+          <th>Prefix</th>
           <th class="text-start">Customer</th>
           <th>Salesman</th>
           <th>Bill Date</th>
@@ -106,6 +110,7 @@
           @endphp
           <tr>
             <td class="font-mono fw-bold text-primary">{{ $c->bill_no }}</td>
+            <td class="font-mono fw-bold">{{ $c->bill_prefix ?: '—' }}</td>
             <td class="text-start fw-semibold">{{ $c->customer_name }}</td>
             <td>{{ $c->salesman_name ?: '—' }}</td>
             <td class="font-mono small">{{ $bDate }}</td>
@@ -118,13 +123,13 @@
           </tr>
         @empty
           <tr>
-            <td colspan="10" class="py-3 text-muted">No credit records available.</td>
+            <td colspan="11" class="py-3 text-muted">No credit records available.</td>
           </tr>
         @endforelse
       </tbody>
       <tfoot class="table-dark">
         <tr>
-          <th colspan="5" class="text-start ps-3">TOTAL ({{ count($credits) }} CUSTOMERS):</th>
+          <th colspan="6" class="text-start ps-3">TOTAL ({{ count($credits) }} CUSTOMERS{{ (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') ? ' | PREFIX: ' . $selectedPrefix : '' }}):</th>
           <th class="text-end font-mono text-warning">₹{{ number_format($totSales, 2) }}</th>
           <th class="text-end font-mono text-success">₹{{ number_format($totRecovered, 2) }}</th>
           <th class="text-end font-mono text-danger">₹{{ number_format($totOutstanding, 2) }}</th>

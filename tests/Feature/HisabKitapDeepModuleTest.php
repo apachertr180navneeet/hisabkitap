@@ -1086,6 +1086,94 @@ class HisabKitapDeepModuleTest extends TestCase
         $pdfRes->assertSee('Print / Save PDF');
     }
 
+    public function test_credit_collection_bill_prefix_filter(): void
+    {
+        CreditCollection::create([
+            'bill_no' => 'CB 101',
+            'customer_name' => 'Counter Bill Customer',
+            'salesman_name' => 'Suresh',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 12000,
+            'paid_amount' => 2000,
+            'outstanding_amount' => 10000,
+            'collection_status' => 'Partially Collected',
+        ]);
+
+        CreditCollection::create([
+            'bill_no' => 'SC/26-27/005',
+            'customer_name' => 'Special Counter Customer',
+            'salesman_name' => 'Mahesh',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 35000,
+            'paid_amount' => 5000,
+            'outstanding_amount' => 30000,
+            'collection_status' => 'Partially Collected',
+        ]);
+
+        // 1. Filter by CB prefix
+        $cbRes = $this->get('/admin/credit-collection?prefix=CB');
+        $cbRes->assertStatus(200);
+        $cbRes->assertSee('CB 101');
+        $cbRes->assertSee('Counter Bill Customer');
+        $cbRes->assertDontSee('SC/26-27/005');
+        $cbRes->assertDontSee('Special Counter Customer');
+        $cbRes->assertSee('12,000.00');
+
+        // 2. Filter by SC prefix
+        $scRes = $this->get('/admin/credit-collection?prefix=SC');
+        $scRes->assertStatus(200);
+        $scRes->assertSee('SC/26-27/005');
+        $scRes->assertSee('Special Counter Customer');
+        $scRes->assertDontSee('CB 101');
+        $scRes->assertDontSee('Counter Bill Customer');
+        $scRes->assertSee('35,000.00');
+
+        // 3. No filter (ALL) shows both
+        $allRes = $this->get('/admin/credit-collection?prefix=ALL');
+        $allRes->assertStatus(200);
+        $allRes->assertSee('CB 101');
+        $allRes->assertSee('SC/26-27/005');
+    }
+
+    public function test_credit_collection_export_with_prefix_filter(): void
+    {
+        CreditCollection::create([
+            'bill_no' => 'CB 202',
+            'customer_name' => 'CB Export Customer',
+            'salesman_name' => 'Suresh',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 5000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 5000,
+            'collection_status' => 'Pending',
+        ]);
+
+        CreditCollection::create([
+            'bill_no' => 'RB/26-27/009',
+            'customer_name' => 'RB Export Customer',
+            'salesman_name' => 'Ramesh',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 8000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 8000,
+            'collection_status' => 'Pending',
+        ]);
+
+        // Excel export filtered by CB
+        $excelCb = $this->get('/admin/credit-collection/export-excel?prefix=CB');
+        $excelCb->assertStatus(200);
+        $streamedContent = $excelCb->streamedContent();
+        $this->assertStringContainsString('CB 202', $streamedContent);
+        $this->assertStringNotContainsString('RB/26-27/009', $streamedContent);
+
+        // PDF export filtered by RB
+        $pdfRb = $this->get('/admin/credit-collection/export-pdf?prefix=RB');
+        $pdfRb->assertStatus(200);
+        $pdfRb->assertSee('RB/26-27/009');
+        $pdfRb->assertSee('PREFIX: RB');
+        $pdfRb->assertDontSee('CB 202');
+    }
+
     public function test_pso_summary_matrix_export_excel_and_pdf(): void
     {
         $pso = $this->makePso();
