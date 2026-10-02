@@ -53,28 +53,34 @@
   </div>
 </div>
 
-<!-- Bill Prefix Filter -->
+<!-- Bill Prefix Filter & Action -->
 <div class="card border p-3 mb-3 bg-white shadow-sm">
-  <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
-    <div class="input-group input-group-sm" style="max-width: 340px;">
-      <span class="input-group-text bg-primary text-white fw-semibold">
-        <i class="bi bi-tag-fill me-1"></i> Bill Prefix
-      </span>
-      <select name="prefix" class="form-select form-select-sm fw-bold font-mono" onchange="this.form.submit()">
-        <option value="ALL">All Bill Prefixes ({{ $allPrefixes->count() }})</option>
-        @foreach($allPrefixes as $pfx)
-          <option value="{{ $pfx }}" {{ (string)$selectedPrefix === (string)$pfx ? 'selected' : '' }}>
-            {{ $pfx }}
-          </option>
-        @endforeach
-      </select>
-    </div>
-    @if(!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL')
-      <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-x-circle me-1"></i> Clear Filter
-      </a>
-    @endif
-  </form>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="d-flex align-items-center gap-2 flex-wrap">
+      <div class="input-group input-group-sm" style="min-width: 280px; max-width: 340px;">
+        <span class="input-group-text bg-primary text-white fw-semibold">
+          <i class="bi bi-tag-fill me-1"></i> Bill Prefix
+        </span>
+        <select name="prefix" class="form-select form-select-sm fw-bold font-mono" onchange="this.form.submit()">
+          <option value="ALL">All Bill Prefixes ({{ $allPrefixes->count() }})</option>
+          @foreach($allPrefixes as $pfx)
+            <option value="{{ $pfx }}" {{ (string)$selectedPrefix === (string)$pfx ? 'selected' : '' }}>
+              {{ $pfx }}
+            </option>
+          @endforeach
+        </select>
+      </div>
+      @if(!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL')
+        <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-x-circle me-1"></i> Clear Filter
+        </a>
+      @endif
+    </form>
+
+    <button type="button" class="btn btn-primary btn-sm ms-md-2" id="btn-add-udhari-prefix">
+      <i class="bi bi-journal-plus me-1"></i> Add Bill Udhari App
+    </button>
+  </div>
 </div>
 
 <div class="erp-table-container">
