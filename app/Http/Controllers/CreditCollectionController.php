@@ -180,8 +180,14 @@ class CreditCollectionController extends Controller
                 $errorMessage = $this->formatUdhariApiError($apiLabel, $apiUrl, $response);
                 AuditLog::log('UDHARI_APP_SYNC_FAIL', "Failed sending {$count} bills with prefix '{$prefixLabel}' to {$apiLabel} API ({$apiUrl}). Error: {$errorMessage}");
 
+                $errDetails = is_array($respData) ? $respData : null;
+                if ($errDetails && empty($errDetails['agency'])) {
+                    $errDetails['agency'] = $apiLabel;
+                }
+
                 return redirect()->back(fallback: route($redirectRoute, $params))
-                    ->with('error', $errorMessage);
+                    ->with('error', $errorMessage)
+                    ->with('udhari_error_details', $errDetails);
             }
         } catch (\Throwable $e) {
             // Exception: DO NOT complete the update on any credit bills
@@ -226,6 +232,14 @@ class CreditCollectionController extends Controller
                 }
             } elseif (!empty($respData['error'])) {
                 $fieldErrors[] = is_string($respData['error']) ? $respData['error'] : json_encode($respData['error']);
+            }
+
+            // Extract missing customers & salespersons from Udhari APIs (Cadbury / Redbull / Parle)
+            if (!empty($respData['missing_customers']) && is_array($respData['missing_customers'])) {
+                $fieldErrors[] = "Missing Customers (" . count($respData['missing_customers']) . "): " . implode(', ', $respData['missing_customers']);
+            }
+            if (!empty($respData['missing_salespersons']) && is_array($respData['missing_salespersons'])) {
+                $fieldErrors[] = "Missing Salespersons (" . count($respData['missing_salespersons']) . "): " . implode(', ', $respData['missing_salespersons']);
             }
 
             $details = [];

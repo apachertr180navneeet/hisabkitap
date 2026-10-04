@@ -450,7 +450,113 @@
           </div>
         @endif
 
-        @if(session('error'))
+        @if(session('udhari_error_details'))
+          @php $udhariErr = session('udhari_error_details'); @endphp
+          <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-3 border-danger-subtle" role="alert">
+            <div class="d-flex align-items-start gap-2">
+              <i class="bi bi-exclamation-triangle-fill fs-4 text-danger mt-1"></i>
+              <div class="flex-grow-1">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge bg-danger text-white px-2 py-1 fs-7">
+                      <i class="bi bi-shield-x me-1"></i>{{ $udhariErr['agency'] ?? 'Udhari' }} API Error
+                    </span>
+                    <span class="text-danger fw-bold fs-6">HTTP 422 - Verification Failed</span>
+                  </div>
+                  @if(!empty($udhariErr['summary']))
+                    <div class="d-flex gap-1">
+                      @if(isset($udhariErr['summary']['total_missing_customers']))
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                          {{ $udhariErr['summary']['total_missing_customers'] }} Missing Customers
+                        </span>
+                      @endif
+                      @if(isset($udhariErr['summary']['total_missing_salespersons']))
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                          {{ $udhariErr['summary']['total_missing_salespersons'] }} Missing Salespersons
+                        </span>
+                      @endif
+                    </div>
+                  @endif
+                </div>
+
+                <div class="p-2 rounded bg-white bg-opacity-75 border border-danger-subtle mb-3">
+                  <strong class="text-danger-emphasis d-block mb-1">
+                    <i class="bi bi-info-circle-fill me-1"></i> {{ $udhariErr['message'] ?? 'Some customers or salespersons do not exist in the database. Please add them first.' }}
+                  </strong>
+                  <small class="text-muted">Neeche diye gaye Customers aur Salespersons Udhari App database me nahi mile. Kripya pehle Udhari App me unhe add karein ya HisabKitap me naam check karein.</small>
+                </div>
+
+                <div class="row g-2">
+                  @if(!empty($udhariErr['missing_customers']) && is_array($udhariErr['missing_customers']))
+                    <div class="col-md-6">
+                      <div class="p-2.5 rounded bg-white border border-danger-subtle h-100 shadow-xs">
+                        <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                          <span class="fw-bold text-danger small">
+                            <i class="bi bi-shop me-1"></i> Missing Customers / Firms ({{ count($udhariErr['missing_customers']) }})
+                          </span>
+                          <span class="badge bg-danger text-white small">Not in DB</span>
+                        </div>
+                        <ul class="list-unstyled mb-0 ps-0" style="max-height: 180px; overflow-y: auto;">
+                          @foreach($udhariErr['missing_customers'] as $cust)
+                            <li class="py-1 px-1.5 mb-1 rounded bg-light border-start border-3 border-danger d-flex align-items-center gap-1.5" style="font-size: 0.82rem;">
+                              <i class="bi bi-x-circle-fill text-danger flex-shrink-0" style="font-size: 0.8rem;"></i>
+                              <span class="fw-bold font-mono text-dark text-break">{{ $cust }}</span>
+                            </li>
+                          @endforeach
+                        </ul>
+                      </div>
+                    </div>
+                  @endif
+
+                  @if(!empty($udhariErr['missing_salespersons']) && is_array($udhariErr['missing_salespersons']))
+                    <div class="col-md-6">
+                      <div class="p-2.5 rounded bg-white border border-danger-subtle h-100 shadow-xs">
+                        <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                          <span class="fw-bold text-danger small">
+                            <i class="bi bi-person-badge-fill me-1"></i> Missing Salespersons ({{ count($udhariErr['missing_salespersons']) }})
+                          </span>
+                          <span class="badge bg-danger text-white small">Not in DB</span>
+                        </div>
+                        <ul class="list-unstyled mb-0 ps-0" style="max-height: 180px; overflow-y: auto;">
+                          @foreach($udhariErr['missing_salespersons'] as $sp)
+                            <li class="py-1 px-1.5 mb-1 rounded bg-light border-start border-3 border-danger d-flex align-items-center gap-1.5" style="font-size: 0.82rem;">
+                              <i class="bi bi-x-circle-fill text-danger flex-shrink-0" style="font-size: 0.8rem;"></i>
+                              <span class="fw-bold font-mono text-dark text-break">{{ $sp }}</span>
+                            </li>
+                          @endforeach
+                        </ul>
+                      </div>
+                    </div>
+                  @endif
+                </div>
+
+                @if(!empty($udhariErr['errors']) && is_array($udhariErr['errors']))
+                  <div class="mt-2.5 p-2 rounded bg-white border border-danger-subtle small font-mono text-danger">
+                    <strong class="d-block mb-1"><i class="bi bi-exclamation-octagon me-1"></i> Additional Invoice Errors:</strong>
+                    @foreach($udhariErr['errors'] as $errKey => $errVal)
+                      <div class="py-0.5">
+                        • @if(is_array($errVal)) {{ implode(', ', $errVal) }} @else {{ $errVal }} @endif
+                      </div>
+                    @endforeach
+                  </div>
+                @endif
+
+                <div class="mt-2.5 pt-2 border-top border-danger-subtle d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <small class="text-muted font-mono" style="font-size: 0.76rem;">
+                    API: {{ $udhariErr['agency'] ?? 'Udhari' }} (insert-multi)
+                  </small>
+                  <button class="btn btn-xs btn-outline-danger py-0 px-2 font-mono" type="button" data-bs-toggle="collapse" data-bs-target="#rawUdhariJson" aria-expanded="false" style="font-size: 0.75rem;">
+                    <i class="bi bi-code-slash me-1"></i> View Raw JSON Response
+                  </button>
+                </div>
+                <div class="collapse mt-2" id="rawUdhariJson">
+                  <pre class="bg-dark text-light p-2 rounded small mb-0 font-mono" style="font-size: 0.75rem; max-height: 150px; overflow-y: auto;">{{ json_encode($udhariErr, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }}</pre>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        @elseif(session('error'))
           <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-2" role="alert">
             <div class="d-flex align-items-center">
               <i class="bi bi-exclamation-octagon-fill me-2 fs-5 text-danger"></i>
