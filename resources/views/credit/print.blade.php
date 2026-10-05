@@ -59,6 +59,16 @@
         @if(!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL')
           <div class="badge bg-primary fs-6 px-3 py-2 font-mono mb-1 d-block">PREFIX: {{ $selectedPrefix }}</div>
         @endif
+        @if(!empty($startDate) || !empty($endDate))
+          <div class="badge bg-info text-dark fs-6 px-3 py-2 font-mono mb-1 d-block">
+            DATE RANGE: {{ $startDate ? date('d/m/Y', strtotime($startDate)) : 'Start' }} to {{ $endDate ? date('d/m/Y', strtotime($endDate)) : 'End' }}
+          </div>
+        @endif
+        @if(!empty($selectedStatus) && $selectedStatus !== 'all')
+          <div class="badge {{ $selectedStatus === 'sent' ? 'bg-success' : 'bg-warning text-dark' }} fs-6 px-3 py-2 font-mono mb-1 d-block">
+            UDHARI: {{ $selectedStatus === 'sent' ? 'SENT ONLY' : 'NOT SENT ONLY' }}
+          </div>
+        @endif
         <div class="text-muted small">Generated: {{ now()->format('d/m/Y h:i A') }}</div>
       </div>
     </div>
@@ -129,7 +139,7 @@
       </tbody>
       <tfoot class="table-dark">
         <tr>
-          <th colspan="6" class="text-start ps-3">TOTAL ({{ count($credits) }} CUSTOMERS{{ (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') ? ' | PREFIX: ' . $selectedPrefix : '' }}):</th>
+          <th colspan="6" class="text-start ps-3">TOTAL ({{ count($credits) }} CUSTOMERS{{ (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') ? ' | PREFIX: ' . $selectedPrefix : '' }}{{ !empty($selectedStatus) && $selectedStatus !== 'all' ? ' | ' . strtoupper($selectedStatus) : '' }}):</th>
           <th class="text-end font-mono text-warning">₹{{ number_format($totSales, 2) }}</th>
           <th class="text-end font-mono text-success">₹{{ number_format($totRecovered, 2) }}</th>
           <th class="text-end font-mono text-danger">₹{{ number_format($totOutstanding, 2) }}</th>

@@ -1287,6 +1287,26 @@ class HisabKitapDeepModuleTest extends TestCase
             'outstanding_amount' => 4500,
             'collection_status' => 'Pending',
         ]);
+        CreditCollection::create([
+            'bill_no' => 'CAD/001',
+            'customer_name' => 'Cadbury Customer',
+            'salesman_name' => 'Salesman 2',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 5500,
+            'paid_amount' => 0,
+            'outstanding_amount' => 5500,
+            'collection_status' => 'Pending',
+        ]);
+        CreditCollection::create([
+            'bill_no' => 'PARLE/001',
+            'customer_name' => 'Parle Customer',
+            'salesman_name' => 'Salesman 3',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 6500,
+            'paid_amount' => 0,
+            'outstanding_amount' => 6500,
+            'collection_status' => 'Pending',
+        ]);
 
         \Illuminate\Support\Facades\Http::fake([
             'https://bigbiteagencys.com/api/redbull/insert-multi' => \Illuminate\Support\Facades\Http::response(['status' => true, 'message' => 'Redbull success'], 200),
@@ -1299,12 +1319,163 @@ class HisabKitapDeepModuleTest extends TestCase
         $rbRes->assertStatus(302)->assertSessionHas('success');
 
         // Cadbury
-        $cadRes = $this->post('/admin/credit-collection/send-udhari', ['prefix' => 'RB', 'udhari_api' => 'cadbury']);
+        $cadRes = $this->post('/admin/credit-collection/send-udhari', ['prefix' => 'CAD', 'udhari_api' => 'cadbury']);
         $cadRes->assertStatus(302)->assertSessionHas('success');
 
         // Parle
-        $parleRes = $this->post('/admin/credit-collection/send-udhari', ['prefix' => 'RB', 'udhari_api' => 'parle']);
+        $parleRes = $this->post('/admin/credit-collection/send-udhari', ['prefix' => 'PARLE', 'udhari_api' => 'parle']);
         $parleRes->assertStatus(302)->assertSessionHas('success');
+    }
+
+    public function test_credit_collection_filter_status_sent_and_not_sent(): void
+    {
+        CreditCollection::create([
+            'bill_no' => 'SENT-001',
+            'customer_name' => 'Sent Customer A',
+            'salesman_name' => 'Salesman 1',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 5000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 5000,
+            'collection_status' => 'Pending',
+            'is_udhari_synced' => true,
+            'udhari_api' => 'Redbull',
+        ]);
+
+        CreditCollection::create([
+            'bill_no' => 'NOTSENT-002',
+            'customer_name' => 'Not Sent Customer B',
+            'salesman_name' => 'Salesman 2',
+            'bill_date' => date('Y-m-d'),
+            'bill_amount' => 8000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 8000,
+            'collection_status' => 'Pending',
+            'is_udhari_synced' => false,
+        ]);
+
+        // 1. Filter status=sent
+        $sentRes = $this->get('/admin/credit-collection?status=sent');
+        $sentRes->assertStatus(200);
+        $sentRes->assertSee('SENT-001');
+        $sentRes->assertSee('Sent Customer A');
+        $sentRes->assertDontSee('NOTSENT-002');
+        $sentRes->assertDontSee('Not Sent Customer B');
+
+        // 2. Filter status=not_sent
+        $notSentRes = $this->get('/admin/credit-collection?status=not_sent');
+        $notSentRes->assertStatus(200);
+        $notSentRes->assertSee('NOTSENT-002');
+        $notSentRes->assertSee('Not Sent Customer B');
+        $notSentRes->assertDontSee('SENT-001');
+        $notSentRes->assertDontSee('Sent Customer A');
+
+        // 3. Filter status=all
+        $allRes = $this->get('/admin/credit-collection?status=all');
+        $allRes->assertStatus(200);
+        $allRes->assertSee('SENT-001');
+        $allRes->assertSee('NOTSENT-002');
+    }
+
+    public function test_credit_collection_filter_date_range(): void
+    {
+        CreditCollection::create([
+            'bill_no' => 'DATE-EARLY',
+            'customer_name' => 'Early Customer',
+            'salesman_name' => 'Salesman A',
+            'bill_date' => '2026-10-01',
+            'bill_amount' => 3000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 3000,
+            'collection_status' => 'Pending',
+        ]);
+
+        CreditCollection::create([
+            'bill_no' => 'DATE-LATE',
+            'customer_name' => 'Late Customer',
+            'salesman_name' => 'Salesman B',
+            'bill_date' => '2026-10-15',
+            'bill_amount' => 6000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 6000,
+            'collection_status' => 'Pending',
+        ]);
+
+        // Filter for early date range
+        $resEarly = $this->get('/admin/credit-collection?start_date=2026-10-01&end_date=2026-10-05');
+        $resEarly->assertStatus(200);
+        $resEarly->assertSee('DATE-EARLY');
+        $resEarly->assertDontSee('DATE-LATE');
+
+        // Filter for late date range
+        $resLate = $this->get('/admin/credit-collection?start_date=2026-10-10&end_date=2026-10-20');
+        $resLate->assertStatus(200);
+        $resLate->assertSee('DATE-LATE');
+        $resLate->assertDontSee('DATE-EARLY');
+    }
+
+    public function test_credit_collection_send_udhari_only_unsent_bills(): void
+    {
+        // 1 bill already sent
+        $oldBill = CreditCollection::create([
+            'bill_no' => 'RB-ALREADY-SENT',
+            'customer_name' => 'Already Sent Customer',
+            'salesman_name' => 'Salesman 1',
+            'bill_date' => '2026-10-01',
+            'bill_amount' => 4000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 4000,
+            'collection_status' => 'Pending',
+            'is_udhari_synced' => true,
+            'udhari_synced_at' => now(),
+            'udhari_api' => 'Redbull (insert-multi)',
+        ]);
+
+        // 1 bill not sent yet
+        $newBill = CreditCollection::create([
+            'bill_no' => 'RB-NEW-UNSENT',
+            'customer_name' => 'New Unsent Customer',
+            'salesman_name' => 'Salesman 2',
+            'bill_date' => '2026-10-02',
+            'bill_amount' => 9000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 9000,
+            'collection_status' => 'Pending',
+            'is_udhari_synced' => false,
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://bigbiteagencys.com/api/redbull/insert-multi' => function (\Illuminate\Http\Client\Request $httpReq) {
+                $payload = $httpReq->data();
+                // Verify ONLY the unsent bill was sent to the API!
+                $invoices = $payload['invoices'] ?? [];
+                if (count($invoices) === 1 && $invoices[0]['invoice_no'] === 'RB-NEW-UNSENT') {
+                    return \Illuminate\Support\Facades\Http::response(['status' => true, 'message' => 'Synced 1 bill'], 200);
+                }
+                return \Illuminate\Support\Facades\Http::response(['status' => false, 'message' => 'Unexpected invoice list'], 400);
+            },
+        ]);
+
+        // Submit form
+        $res = $this->post('/admin/credit-collection/send-udhari', [
+            'prefix' => 'RB',
+            'udhari_api' => 'redbull',
+        ]);
+
+        $res->assertStatus(302);
+        $res->assertSessionHas('success');
+
+        // New bill should now be synced
+        $newBill->refresh();
+        $this->assertTrue((bool)$newBill->is_udhari_synced);
+
+        // Attempting to send again should return warning that no unsent bills exist
+        $resRepeat = $this->post('/admin/credit-collection/send-udhari', [
+            'prefix' => 'RB',
+            'udhari_api' => 'redbull',
+        ]);
+        $resRepeat->assertStatus(302);
+        $resRepeat->assertSessionHas('warning');
     }
 
     public function test_credit_collection_send_udhari_error_handling_and_no_update(): void

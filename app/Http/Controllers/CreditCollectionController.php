@@ -24,20 +24,30 @@ class CreditCollectionController extends Controller
     public function index(Request $request)
     {
         $selectedPrefix = $request->input('prefix');
+        $selectedStatus = $request->input('status', 'all');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
         $allPrefixes = $this->getAllAvailablePrefixes();
         $credits = $this->getFilteredCredits($request);
 
         $totSales = $credits->sum('bill_amount');
         $totRecovered = $credits->sum('paid_amount');
         $totOutstanding = $credits->sum('outstanding_amount');
+        $totSent = $credits->where('is_udhari_synced', true)->count();
+        $totNotSent = $credits->where('is_udhari_synced', false)->count();
 
         return view('credit.index', compact(
             'credits',
             'totSales',
             'totRecovered',
             'totOutstanding',
+            'totSent',
+            'totNotSent',
             'allPrefixes',
-            'selectedPrefix'
+            'selectedPrefix',
+            'selectedStatus',
+            'startDate',
+            'endDate'
         ));
     }
 
@@ -81,13 +91,16 @@ class CreditCollectionController extends Controller
         $request->validate([
             'prefix' => 'nullable|string',
             'udhari_api' => 'required|string',
+            'start_date' => 'nullable|string',
+            'end_date' => 'nullable|string',
+            'status' => 'nullable|string',
         ]);
 
         $prefix = trim((string)$request->input('prefix', ''));
         $api = trim((string)$request->input('udhari_api'));
 
-        // Retrieve credit records matching this prefix
-        $credits = $this->getFilteredCredits($request);
+        // Retrieve credit records matching criteria, sending NOT SENT only!
+        $credits = $this->getFilteredCredits($request, onlyUnsent: true);
         $prefixLabel = (!empty($prefix) && strtoupper($prefix) !== 'ALL') ? strtoupper($prefix) : 'ALL';
 
         $apiLabels = [
@@ -101,11 +114,23 @@ class CreditCollectionController extends Controller
         $count = $credits->count();
         $totalAmount = $credits->sum('bill_amount');
         $redirectRoute = request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index';
-        $params = (!empty($prefix) && strtoupper($prefix) !== 'ALL') ? ['prefix' => $prefix] : [];
+        $params = [];
+        if (!empty($prefix) && strtoupper($prefix) !== 'ALL') {
+            $params['prefix'] = $prefix;
+        }
+        if ($request->filled('start_date')) {
+            $params['start_date'] = $request->input('start_date');
+        }
+        if ($request->filled('end_date')) {
+            $params['end_date'] = $request->input('end_date');
+        }
+        if ($request->filled('status')) {
+            $params['status'] = $request->input('status');
+        }
 
         if ($count === 0) {
             return redirect()->route($redirectRoute, $params)
-                ->with('warning', "No credit bills found for prefix '{$prefixLabel}' to submit to Udhari App ({$apiLabel}).");
+                ->with('warning', "No unsent credit bills found for prefix '{$prefixLabel}' to submit to Udhari App ({$apiLabel}).");
         }
 
         // Check prefix and API labels according to selected API
@@ -268,6 +293,9 @@ class CreditCollectionController extends Controller
     public function exportSheet(Request $request): StreamedResponse
     {
         $selectedPrefix = $request->input('prefix');
+        $selectedStatus = $request->input('status', 'all');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
         $credits = $this->getFilteredCredits($request);
         $date = $this->reconService->getBusinessDate();
         $prefixTag = (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') ? "_{$selectedPrefix}" : "";
@@ -277,7 +305,7 @@ class CreditCollectionController extends Controller
             'Content-Disposition' => "attachment; filename=\"Credit_Collection_Sheet{$prefixTag}_{$date}.csv\"",
         ];
 
-        return response()->stream(function () use ($credits, $selectedPrefix) {
+        return response()->stream(function () use ($credits, $selectedPrefix, $selectedStatus, $startDate, $endDate) {
             $handle = fopen('php://output', 'w');
             fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
@@ -307,9 +335,24 @@ class CreditCollectionController extends Controller
                 ]);
             }
 
+            $infoParts = [];
+            if (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') {
+                $infoParts[] = "Prefix: {$selectedPrefix}";
+            }
+            if ($selectedStatus && $selectedStatus !== 'all') {
+                $infoParts[] = "Status: " . ($selectedStatus === 'sent' ? 'Sent' : 'Not Sent');
+            }
+            if ($startDate && $endDate) {
+                $infoParts[] = "Date: {$startDate} to {$endDate}";
+            } elseif ($startDate) {
+                $infoParts[] = "From: {$startDate}";
+            } elseif ($endDate) {
+                $infoParts[] = "To: {$endDate}";
+            }
+
             fputcsv($handle, [
                 'TOTAL',
-                (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') ? "Prefix: {$selectedPrefix}" : '',
+                implode(' | ', $infoParts),
                 count($credits) . ' Customers',
                 '',
                 '',
@@ -317,6 +360,7 @@ class CreditCollectionController extends Controller
                 $totSales,
                 $totPaid,
                 $totOut,
+                '',
                 '',
                 ''
             ]);
@@ -332,6 +376,9 @@ class CreditCollectionController extends Controller
     {
         $businessDate = $this->reconService->getBusinessDate();
         $selectedPrefix = $request->input('prefix');
+        $selectedStatus = $request->input('status', 'all');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
         $credits = $this->getFilteredCredits($request);
 
         $totSales = $credits->sum('bill_amount');
@@ -344,20 +391,54 @@ class CreditCollectionController extends Controller
             'totSales',
             'totRecovered',
             'totOutstanding',
-            'selectedPrefix'
+            'selectedPrefix',
+            'selectedStatus',
+            'startDate',
+            'endDate'
         ));
     }
 
     /**
      * Get filtered credit collection records based on request criteria.
      */
-    protected function getFilteredCredits(Request $request)
+    protected function getFilteredCredits(Request $request, bool $onlyUnsent = false)
     {
         $selectedPrefix = $request->input('prefix');
+        $status = $request->input('status', 'all');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
         $query = CreditCollection::with(['bill.psoConfig'])->orderBy('id', 'asc');
 
         if (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') {
             $query->filterPrefix($selectedPrefix);
+        }
+
+        // Status Filter: sent vs not sent
+        if ($onlyUnsent) {
+            $query->where('is_udhari_synced', false);
+        } elseif ($status === 'sent') {
+            $query->where('is_udhari_synced', true);
+        } elseif ($status === 'not_sent') {
+            $query->where('is_udhari_synced', false);
+        }
+
+        // Date Range Filter: start_date and end_date on bill_date
+        if (!empty($startDate)) {
+            try {
+                $parsedStart = \Carbon\Carbon::parse($startDate)->format('Y-m-d');
+                $query->whereDate('bill_date', '>=', $parsedStart);
+            } catch (\Throwable $e) {
+                // Ignore invalid date format
+            }
+        }
+        if (!empty($endDate)) {
+            try {
+                $parsedEnd = \Carbon\Carbon::parse($endDate)->format('Y-m-d');
+                $query->whereDate('bill_date', '<=', $parsedEnd);
+            } catch (\Throwable $e) {
+                // Ignore invalid date format
+            }
         }
 
         $credits = $query->get();

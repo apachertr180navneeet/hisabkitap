@@ -28,7 +28,11 @@
         @endif
       </div>
       <div class="fs-4 fw-bold font-mono text-warning">₹{{ number_format($totSales, 2) }}</div>
-      <small class="text-muted">{{ count($credits) }} credit record{{ count($credits) === 1 ? '' : 's' }}</small>
+      <small class="text-muted">
+        {{ count($credits) }} credit record{{ count($credits) === 1 ? '' : 's' }}
+        <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" title="Already submitted to Udhari"><i class="bi bi-cloud-check"></i> {{ $totSent ?? 0 }} Sent</span>
+        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1" title="Pending submit to Udhari"><i class="bi bi-clock-history"></i> {{ $totNotSent ?? 0 }} Not Sent</span>
+      </small>
     </div>
   </div>
   <div class="col-md-4">
@@ -55,14 +59,15 @@
 
 <div class="erp-table-container">
   <!-- Sleek Unified Action & Filter Toolbar -->
-  <div class="p-2 px-3 bg-light border-bottom d-flex align-items-center gap-2 flex-wrap">
-    <!-- Prefix Filter -->
-    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="m-0 d-inline-flex align-items-center">
+  <div class="p-2 px-3 bg-light border-bottom d-flex align-items-center justify-content-between gap-2 flex-wrap">
+    <!-- Filters: Prefix, Sent/Not Sent, Date Range -->
+    <form method="GET" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="m-0 d-inline-flex align-items-center gap-2 flex-wrap" id="form-credit-filter">
+      <!-- Prefix Filter -->
       <div class="input-group input-group-sm" style="width: auto;">
-        <span class="input-group-text bg-white text-muted">
+        <span class="input-group-text bg-white text-muted" title="Prefix">
           <i class="bi bi-tag text-primary"></i>
         </span>
-        <select name="prefix" id="select-credit-prefix" class="form-select form-select-sm font-mono fw-bold bg-white" style="width: auto; min-width: 140px;" onchange="this.form.submit()">
+        <select name="prefix" id="select-credit-prefix" class="form-select form-select-sm font-mono fw-bold bg-white" style="width: auto; min-width: 130px;">
           <option value="ALL">All Prefixes ({{ $allPrefixes->count() }})</option>
           @foreach($allPrefixes as $pfx)
             <option value="{{ $pfx }}" {{ (string)$selectedPrefix === (string)$pfx ? 'selected' : '' }}>
@@ -70,22 +75,56 @@
             </option>
           @endforeach
         </select>
-        @if(!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL')
-          <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="btn btn-outline-secondary btn-sm" title="Clear Filter">
-            <i class="bi bi-x-lg"></i>
-          </a>
-        @endif
       </div>
+
+      <!-- Sent / Not Sent Status Filter -->
+      <div class="input-group input-group-sm" style="width: auto;">
+        <span class="input-group-text bg-white text-muted" title="Udhari Sync Status">
+          <i class="bi bi-cloud-arrow-up text-primary"></i>
+        </span>
+        <select name="status" id="select-credit-status" class="form-select form-select-sm fw-semibold bg-white" style="width: auto; min-width: 120px;">
+          <option value="all" {{ ($selectedStatus ?? 'all') === 'all' ? 'selected' : '' }}>All Status</option>
+          <option value="sent" {{ ($selectedStatus ?? '') === 'sent' ? 'selected' : '' }}>Sent</option>
+          <option value="not_sent" {{ ($selectedStatus ?? '') === 'not_sent' ? 'selected' : '' }}>Not Sent</option>
+        </select>
+      </div>
+
+      <!-- Date Range (Start Date & End Date) Filter -->
+      <div class="input-group input-group-sm" style="width: auto;">
+        <span class="input-group-text bg-white text-muted" title="Start Date">
+          <i class="bi bi-calendar-event text-primary me-1"></i> From
+        </span>
+        <input type="date" name="start_date" id="filter-start-date" class="form-control form-control-sm bg-white" value="{{ $startDate ?? '' }}" style="max-width: 135px;">
+        <span class="input-group-text bg-white text-muted">To</span>
+        <input type="date" name="end_date" id="filter-end-date" class="form-control form-control-sm bg-white" value="{{ $endDate ?? '' }}" style="max-width: 135px;">
+      </div>
+
+      <button type="submit" class="btn btn-sm btn-primary fw-semibold px-2.5" id="btn-apply-filter">
+        <i class="bi bi-funnel me-1"></i> Filter
+      </button>
+
+      @php
+        $hasActiveFilter = (!empty($selectedPrefix) && strtoupper($selectedPrefix) !== 'ALL') ||
+                           (!empty($selectedStatus) && $selectedStatus !== 'all') ||
+                           !empty($startDate) ||
+                           !empty($endDate);
+      @endphp
+      @if($hasActiveFilter)
+        <a href="{{ route(request()->routeIs('admin.*') ? 'admin.credit.index' : 'credit.index') }}" class="btn btn-outline-secondary btn-sm" title="Clear All Filters">
+          <i class="bi bi-x-lg me-1"></i> Reset
+        </a>
+      @endif
     </form>
 
-    <div class="vr mx-1 text-muted d-none d-sm-inline-block" style="height: 22px;"></div>
-
-    <!-- Udhari API & Add Action Combo Form -->
-    <form method="POST" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.send_udhari' : 'credit.send_udhari') }}" class="m-0 d-inline-flex align-items-center" id="form-udhari-submit">
+    <!-- Udhari API Submit Form ("Add Bill Udhari App") - Sends NOT SENT bills only -->
+    <form method="POST" action="{{ route(request()->routeIs('admin.*') ? 'admin.credit.send_udhari' : 'credit.send_udhari') }}" class="m-0 d-inline-flex align-items-center gap-1" id="form-udhari-submit">
       @csrf
       <input type="hidden" name="prefix" id="udhari-form-prefix" value="{{ $selectedPrefix ?? 'ALL' }}">
+      <input type="hidden" name="status" id="udhari-form-status" value="{{ $selectedStatus ?? 'all' }}">
+      <input type="hidden" name="start_date" id="udhari-form-start-date" value="{{ $startDate ?? '' }}">
+      <input type="hidden" name="end_date" id="udhari-form-end-date" value="{{ $endDate ?? '' }}">
       <div class="input-group input-group-sm" style="width: auto;">
-        <span class="input-group-text bg-white text-muted">
+        <span class="input-group-text bg-white text-muted" title="Select Udhari API Brand">
           <i class="bi bi-hdd-network text-primary"></i>
         </span>
         <select name="udhari_api" id="select-udhari-api" class="form-select form-select-sm font-mono fw-semibold bg-white" style="width: auto; min-width: 110px;">
@@ -94,8 +133,8 @@
           <option value="parle">Parle</option>
           <option value="itc">Itc</option>
         </select>
-        <button type="submit" class="btn btn-primary btn-sm fw-semibold text-nowrap" id="btn-add-udhari-prefix">
-          <i class="bi bi-plus-circle me-1"></i> Add Bill Udhari App
+        <button type="submit" class="btn btn-primary btn-sm fw-semibold text-nowrap" id="btn-add-udhari-prefix" title="Send Not-Sent bills to selected Udhari App API">
+          <i class="bi bi-plus-circle me-1"></i> Add Bill Udhari App <span class="badge bg-light text-primary ms-1" style="font-size: 0.72rem;">Not Sent Only</span>
         </button>
       </div>
     </form>
@@ -164,7 +203,7 @@
           <tr>
             <td colspan="12" class="text-center text-muted py-4">
               <i class="bi bi-cash-coin fs-3 d-block mb-1 text-primary"></i>
-              No credit transactions found matching the selected prefix.
+              No credit transactions found matching the selected filters.
             </td>
           </tr>
         @endforelse
@@ -219,22 +258,41 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Ensure prefix value is always up to date and passed with Udhari App form submission
+  // Ensure filter values (prefix, status, dates) are synced before Udhari form submission
   const prefixSelect = document.getElementById('select-credit-prefix');
+  const statusSelect = document.getElementById('select-credit-status');
+  const startDateInput = document.getElementById('filter-start-date');
+  const endDateInput = document.getElementById('filter-end-date');
+
   const udhariPrefixInput = document.getElementById('udhari-form-prefix');
+  const udhariStatusInput = document.getElementById('udhari-form-status');
+  const udhariStartDateInput = document.getElementById('udhari-form-start-date');
+  const udhariEndDateInput = document.getElementById('udhari-form-end-date');
   const udhariForm = document.getElementById('form-udhari-submit');
 
-  if (prefixSelect && udhariPrefixInput) {
-    prefixSelect.addEventListener('change', function() {
-      udhariPrefixInput.value = this.value || 'ALL';
-    });
+  function syncUdhariFormInputs() {
+    if (prefixSelect && udhariPrefixInput) {
+      udhariPrefixInput.value = prefixSelect.value || 'ALL';
+    }
+    if (statusSelect && udhariStatusInput) {
+      udhariStatusInput.value = statusSelect.value || 'all';
+    }
+    if (startDateInput && udhariStartDateInput) {
+      udhariStartDateInput.value = startDateInput.value || '';
+    }
+    if (endDateInput && udhariEndDateInput) {
+      udhariEndDateInput.value = endDateInput.value || '';
+    }
   }
+
+  if (prefixSelect) prefixSelect.addEventListener('change', syncUdhariFormInputs);
+  if (statusSelect) statusSelect.addEventListener('change', syncUdhariFormInputs);
+  if (startDateInput) startDateInput.addEventListener('change', syncUdhariFormInputs);
+  if (endDateInput) endDateInput.addEventListener('change', syncUdhariFormInputs);
 
   if (udhariForm) {
     udhariForm.addEventListener('submit', function() {
-      if (prefixSelect && udhariPrefixInput) {
-        udhariPrefixInput.value = prefixSelect.value || 'ALL';
-      }
+      syncUdhariFormInputs();
     });
   }
 });
