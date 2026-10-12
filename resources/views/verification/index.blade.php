@@ -179,7 +179,47 @@
         </tr>
       </thead>
       <tbody>
+        @php
+          $currentPsoHeader = null;
+        @endphp
         @forelse($bills as $bill)
+          @if($selectedPso === 'ALL' && $bill->pso_code !== $currentPsoHeader)
+            @php
+              $currentPsoHeader = $bill->pso_code;
+              $sub = $psoSubtotals[$currentPsoHeader] ?? null;
+              $psoObj = $sub['pso_obj'] ?? null;
+            @endphp
+            <tr class="table-primary border-top border-bottom border-primary pso-group-divider" data-pso="{{ $currentPsoHeader }}">
+              <td colspan="16" class="py-2 px-3 bg-light">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary fs-6 font-mono">{{ $currentPsoHeader ?: 'No PSO' }}</span>
+                    <strong class="text-dark">{{ $psoObj ? $psoObj->operator_name : 'Counter' }} ({{ $psoObj ? $psoObj->prefix : $currentPsoHeader }})</strong>
+                    @if($psoObj && $psoObj->driver_name)
+                      <span class="text-muted small">| <i class="bi bi-person me-1"></i>Driver: {{ $psoObj->driver_name }}</span>
+                    @endif
+                    @if($psoObj && $psoObj->gadi_number)
+                      <span class="text-muted small font-mono">| <i class="bi bi-truck me-1"></i>{{ $psoObj->gadi_number }}</span>
+                    @endif
+                  </div>
+                  @if($sub)
+                    <div class="d-flex align-items-center gap-3 font-mono small">
+                      <span>Bills: <strong>{{ $sub['count'] ?? 0 }}</strong></span>
+                      <span>Gross: <strong>₹{{ number_format((float)($sub['amount'] ?? 0), 2) }}</strong></span>
+                      <span>CD: <strong class="text-danger">-₹{{ number_format((float)($sub['cd_amount'] ?? $sub['cd'] ?? 0), 2) }}</strong></span>
+                      <span>Refund: <strong class="text-danger">-₹{{ number_format((float)($sub['refund_amount'] ?? $sub['refund'] ?? 0), 2) }}</strong></span>
+                      <span>Net: <strong class="text-success">₹{{ number_format((float)($sub['net_amount'] ?? $sub['net'] ?? 0), 2) }}</strong></span>
+                    </div>
+                  @endif
+                </div>
+              </td>
+            </tr>
+          @endif
+
+          @php
+            $isSplit = (bool)($bill->is_split_payment || $bill->payment_type === 'Split' || ((float)$bill->cash_amount > 0 && ((float)$bill->paytm_amount > 0 || (float)($bill->credit_amount ?? 0) > 0)) || ((float)$bill->paytm_amount > 0 && (float)($bill->credit_amount ?? 0) > 0));
+          @endphp
+
           <tr id="bill-row-{{ $bill->id }}" 
               class="bill-row {{ $bill->status === 'Missing' ? 'table-danger' : ($bill->hasUnapprovedMismatch() ? 'table-warning' : '') }}" 
               data-id="{{ $bill->id }}"
@@ -188,6 +228,7 @@
               data-payment-type="{{ $bill->payment_type }}"
               data-cd="{{ (float)$bill->cd_amount }}"
               data-refund="{{ (float)$bill->refund_amount }}"
+              data-credit="{{ (float)($bill->credit_amount ?? 0) }}"
               data-salesperson-id="{{ $bill->salesperson_id }}"
               data-salesman-name="{{ $bill->salesman_name }}">
             
@@ -245,14 +286,17 @@
 
             <!-- Payment Type (View / Edit) -->
             <td>
-              @php
-                $isSplit = (bool)($bill->is_split_payment && (float)$bill->cash_amount > 0 && (float)$bill->paytm_amount > 0);
-              @endphp
-
               <div class="payment-badge-display">
                 @if($isSplit)
-                  <span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹{{ number_format($bill->cash_amount, 2) }}</span>
-                  <span class="badge bg-info text-dark d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹{{ number_format($bill->paytm_amount, 2) }}</span>
+                  @if((float)$bill->cash_amount > 0)
+                    <span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹{{ number_format($bill->cash_amount, 2) }}</span>
+                  @endif
+                  @if((float)$bill->paytm_amount > 0)
+                    <span class="badge bg-info text-dark mb-1 d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹{{ number_format($bill->paytm_amount, 2) }}</span>
+                  @endif
+                  @if((float)($bill->credit_amount ?? 0) > 0)
+                    <span class="badge bg-warning text-dark d-block font-mono text-start"><i class="bi bi-credit-card me-1"></i>Credit: ₹{{ number_format($bill->credit_amount, 2) }}</span>
+                  @endif
                 @else
                   <span class="badge {{ $bill->payment_type === 'Cash' ? 'bg-success' : ($bill->payment_type === 'Paytm' ? 'bg-info text-dark' : ($bill->payment_type === 'Check' ? 'bg-primary' : ($bill->payment_type === 'Credit' ? 'bg-warning text-dark' : 'bg-secondary'))) }}">
                     {{ $bill->payment_type }}
@@ -260,12 +304,12 @@
                 @endif
               </div>
               <select class="form-select form-select-sm inline-payment-select d-none" style="min-width: 140px;">
-                <option value="Cash" {{ (!$bill->is_split_payment && $bill->payment_type === 'Cash') ? 'selected' : '' }}>Cash</option>
-                <option value="Paytm" {{ (!$bill->is_split_payment && $bill->payment_type === 'Paytm') ? 'selected' : '' }}>Paytm / RTGS</option>
-                <option value="Split" {{ ($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0)) ? 'selected' : '' }}>Split (Cash + Paytm)</option>
-                <option value="Check" {{ $bill->payment_type === 'Check' ? 'selected' : '' }}>Cheque</option>
-                <option value="Credit" {{ $bill->payment_type === 'Credit' ? 'selected' : '' }}>Credit</option>
-                <option value="Cancelled" {{ $bill->payment_type === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
+                <option value="Cash" {{ (!$isSplit && $bill->payment_type === 'Cash') ? 'selected' : '' }}>Cash</option>
+                <option value="Paytm" {{ (!$isSplit && $bill->payment_type === 'Paytm') ? 'selected' : '' }}>Paytm / RTGS</option>
+                <option value="Split" {{ $isSplit ? 'selected' : '' }}>Split (Cash + Paytm + Credit)</option>
+                <option value="Check" {{ (!$isSplit && $bill->payment_type === 'Check') ? 'selected' : '' }}>Cheque</option>
+                <option value="Credit" {{ (!$isSplit && $bill->payment_type === 'Credit') ? 'selected' : '' }}>Credit</option>
+                <option value="Cancelled" {{ (!$isSplit && $bill->payment_type === 'Cancelled') ? 'selected' : '' }}>Cancelled</option>
               </select>
             </td>
 
@@ -350,8 +394,9 @@
                         data-net="{{ (float)($bill->net_amount > 0 ? $bill->net_amount : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount)) }}" 
                         data-cash="{{ (float)($bill->is_split_payment ? $bill->cash_amount : ($bill->payment_type === 'Cash' ? ($bill->net_amount > 0 ? $bill->net_amount : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount)) : 0)) }}" 
                         data-paytm="{{ (float)($bill->is_split_payment ? $bill->paytm_amount : ($bill->payment_type === 'Paytm' ? ($bill->net_amount > 0 ? $bill->net_amount : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount)) : 0)) }}"
-                        data-is-split="{{ $bill->is_split_payment ? '1' : '0' }}"
-                        title="Split payment between Cash and Paytm">
+                        data-credit="{{ (float)($bill->is_split_payment ? ($bill->credit_amount ?? 0) : ($bill->payment_type === 'Credit' ? ($bill->net_amount > 0 ? $bill->net_amount : max(0, (float)$bill->amount - (float)$bill->cd_amount - (float)$bill->refund_amount)) : 0)) }}"
+                        data-is-split="{{ $isSplit ? '1' : '0' }}"
+                        title="Split payment between Cash, Paytm, and Credit">
                   <i class="bi bi-pie-chart-fill me-1"></i> Split
                 </button>
                 @if($bill->hasUnapprovedMismatch())
@@ -697,15 +742,25 @@ document.addEventListener('DOMContentLoaded', function () {
       let isSplitRow = (paymentType === 'Split') || (splitBtn?.dataset.isSplit === '1');
       let rowCash = parseFloat(splitBtn?.dataset.cash || 0);
       let rowPaytm = parseFloat(splitBtn?.dataset.paytm || 0);
+      let rowCredit = parseFloat(splitBtn?.dataset.credit || row.dataset.credit || 0);
+
+      const netCalc = Math.max(0, parseFloat(row.dataset.amount || 0) - cdAmount - refundAmount);
 
       if (paymentType === 'Cash') {
         isSplitRow = false;
-        rowCash = Math.max(0, parseFloat(row.dataset.amount || 0) - cdAmount - refundAmount);
+        rowCash = netCalc;
         rowPaytm = 0;
+        rowCredit = 0;
       } else if (paymentType === 'Paytm') {
         isSplitRow = false;
-        rowPaytm = Math.max(0, parseFloat(row.dataset.amount || 0) - cdAmount - refundAmount);
+        rowPaytm = netCalc;
         rowCash = 0;
+        rowCredit = 0;
+      } else if (paymentType === 'Credit') {
+        isSplitRow = false;
+        rowCredit = netCalc;
+        rowCash = 0;
+        rowPaytm = 0;
       }
 
       // Save button spinner
@@ -724,9 +779,10 @@ document.addEventListener('DOMContentLoaded', function () {
           body: JSON.stringify({
             bill_id: billId,
             payment_type: paymentType,
-            is_split_payment: (isSplitRow && rowCash > 0 && rowPaytm > 0) ? 1 : 0,
+            is_split_payment: (isSplitRow && (rowCash > 0 || rowPaytm > 0 || rowCredit > 0)) ? 1 : 0,
             cash_amount: rowCash,
             paytm_amount: rowPaytm,
+            credit_amount: rowCredit,
             cd_amount: cdAmount,
             refund_amount: refundAmount,
             salesperson_id: salespersonId || null,
@@ -741,20 +797,23 @@ document.addEventListener('DOMContentLoaded', function () {
           row.dataset.paymentType = paymentType;
           row.dataset.cd = cdAmount;
           row.dataset.refund = refundAmount;
+          row.dataset.credit = parseFloat(data.bill.credit_amount || 0);
           row.dataset.salespersonId = salespersonId;
           row.dataset.salesmanName = data.bill.salesman_name || '';
 
           // Update display DOM elements
           const payDisplay = row.querySelector('.payment-badge-display');
           if (payDisplay) {
-            const isSplitActive = data.bill.is_split_payment && parseFloat(data.bill.cash_amount || 0) > 0 && parseFloat(data.bill.paytm_amount || 0) > 0;
+            const cAmt = parseFloat(data.bill.cash_amount || 0);
+            const pAmt = parseFloat(data.bill.paytm_amount || 0);
+            const crAmt = parseFloat(data.bill.credit_amount || 0);
+            const isSplitActive = data.bill.is_split_payment || (data.bill.payment_type === 'Split') || (cAmt > 0 && (pAmt > 0 || crAmt > 0)) || (pAmt > 0 && crAmt > 0);
             if (isSplitActive) {
-              const cAmt = parseFloat(data.bill.cash_amount);
-              const pAmt = parseFloat(data.bill.paytm_amount);
-              payDisplay.innerHTML = `
-                <span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹${cAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                <span class="badge bg-info text-dark d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹${pAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              `;
+              let badgesHtml = '';
+              if (cAmt > 0) badgesHtml += `<span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹${cAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
+              if (pAmt > 0) badgesHtml += `<span class="badge bg-info text-dark mb-1 d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹${pAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
+              if (crAmt > 0) badgesHtml += `<span class="badge bg-warning text-dark d-block font-mono text-start"><i class="bi bi-credit-card me-1"></i>Credit: ₹${crAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
+              payDisplay.innerHTML = badgesHtml || `<span class="badge bg-secondary">Split</span>`;
             } else {
               payDisplay.innerHTML = `<span class="badge ${getPaymentBadgeClass(paymentType)}">${paymentType}</span>`;
             }
@@ -1058,7 +1117,8 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ==========================================
-  // Split Payment (Cash + Paytm) Modal Handlers
+  // ==========================================
+  // Split Payment (Cash + Paytm + Credit) Modal Handlers
   // ==========================================
   let currentSplitRow = null;
   const splitModalEl = document.getElementById('modal-split-pay');
@@ -1069,6 +1129,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const splitNet = document.getElementById('split-modal-net');
   const splitCashInput = document.getElementById('split-modal-cash');
   const splitPaytmInput = document.getElementById('split-modal-paytm');
+  const splitCreditInput = document.getElementById('split-modal-credit');
   const splitRemainingDisplay = document.getElementById('split-modal-remaining');
   const splitStatusBadge = document.getElementById('split-modal-status-badge');
   const btnSaveSplit = document.getElementById('btnSaveSplitPayment');
@@ -1077,8 +1138,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const net = parseFloat(splitModalEl.dataset.net || 0);
     const cash = parseFloat(splitCashInput.value || 0);
     const paytm = parseFloat(splitPaytmInput.value || 0);
-    const totalAllocated = cash + paytm;
-    const diff = net - totalAllocated;
+    const credit = parseFloat(splitCreditInput ? splitCreditInput.value : 0) || 0;
+    const totalAllocated = Math.round((cash + paytm + credit) * 100) / 100;
+    const diff = Math.round((net - totalAllocated) * 100) / 100;
 
     if (Math.abs(diff) < 0.01) {
       splitStatusBadge.className = 'badge bg-success';
@@ -1125,19 +1187,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let cash = parseFloat(btn.dataset.cash || 0);
     let paytm = parseFloat(btn.dataset.paytm || 0);
-    const isSplit = btn.dataset.isSplit === '1' || (cash > 0 && paytm > 0);
+    let credit = parseFloat(btn.dataset.credit || 0);
+    const isSplit = btn.dataset.isSplit === '1' || (cash > 0 && (paytm > 0 || credit > 0)) || (paytm > 0 && credit > 0);
 
-    if (!isSplit || (cash === 0 && paytm === 0) || Math.abs((cash + paytm) - net) > 0.01) {
-      if (isSplit && (cash + paytm > 0)) {
-        if (cash > net) {
-          cash = net;
-          paytm = 0;
+    if (!isSplit || (cash === 0 && paytm === 0 && credit === 0) || Math.abs((cash + paytm + credit) - net) > 0.01) {
+      if (isSplit && (cash + paytm + credit > 0)) {
+        let alloc = cash + paytm + credit;
+        if (alloc > net) {
+          if (cash > net) { cash = net; paytm = 0; credit = 0; }
+          else if (cash + paytm > net) { paytm = net - cash; credit = 0; }
+          else { credit = net - (cash + paytm); }
         } else {
-          paytm = Math.max(0, net - cash);
+          cash = net - (paytm + credit);
         }
       } else {
         cash = net;
         paytm = 0;
+        credit = 0;
       }
     }
 
@@ -1150,38 +1216,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
     splitCashInput.value = cash;
     splitPaytmInput.value = paytm;
+    if (splitCreditInput) splitCreditInput.value = credit;
 
     updateSplitBalance();
     splitModal.show();
   });
 
-  // Auto calculate Paytm when Cash changes
-  splitCashInput?.addEventListener('input', function() {
-    const net = parseFloat(splitModalEl.dataset.net || 0);
-    const cash = parseFloat(this.value || 0);
-    if (cash <= net && cash >= 0) {
-      splitPaytmInput.value = (net - cash).toFixed(2);
-    }
-    updateSplitBalance();
-  });
-
-  // Auto calculate Cash when Paytm changes
-  splitPaytmInput?.addEventListener('input', function() {
-    const net = parseFloat(splitModalEl.dataset.net || 0);
-    const paytm = parseFloat(this.value || 0);
-    if (paytm <= net && paytm >= 0) {
-      splitCashInput.value = (net - paytm).toFixed(2);
-    }
-    updateSplitBalance();
-  });
+  // Auto calculate when inputs change
+  splitCashInput?.addEventListener('input', updateSplitBalance);
+  splitPaytmInput?.addEventListener('input', updateSplitBalance);
+  splitCreditInput?.addEventListener('input', updateSplitBalance);
 
   // Save Split Payment
   btnSaveSplit?.addEventListener('click', async function() {
     const billId = splitModalEl.dataset.billId;
+    const net = parseFloat(splitModalEl.dataset.net || 0);
     const cash = parseFloat(splitCashInput.value || 0);
     const paytm = parseFloat(splitPaytmInput.value || 0);
+    const credit = parseFloat(splitCreditInput ? splitCreditInput.value : 0) || 0;
+    const totalAlloc = Math.round((cash + paytm + credit) * 100) / 100;
+
+    if (Math.abs(totalAlloc - net) > 0.05) {
+      alert(`Total allocated amount (₹${totalAlloc.toFixed(2)}) must match the bill net amount (₹${net.toFixed(2)}).`);
+      return;
+    }
+
     const cdVal = currentSplitRow ? (parseFloat(currentSplitRow.querySelector('.inline-cd-input')?.value || currentSplitRow.dataset.cd || 0) || 0) : 0;
     const refundVal = currentSplitRow ? (parseFloat(currentSplitRow.querySelector('.inline-refund-input')?.value || currentSplitRow.dataset.refund || 0) || 0) : 0;
+
+    const countModes = (cash > 0 ? 1 : 0) + (paytm > 0 ? 1 : 0) + (credit > 0 ? 1 : 0);
+    let targetPayType = 'Cash';
+    if (countModes > 1) {
+      targetPayType = 'Split';
+    } else if (paytm > 0) {
+      targetPayType = 'Paytm';
+    } else if (credit > 0) {
+      targetPayType = 'Credit';
+    } else {
+      targetPayType = 'Cash';
+    }
 
     btnSaveSplit.disabled = true;
     btnSaveSplit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
@@ -1196,10 +1269,11 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         body: JSON.stringify({
           bill_id: billId,
-          payment_type: (cash > 0 && paytm > 0) ? 'Split' : (paytm > 0 ? 'Paytm' : 'Cash'),
-          is_split_payment: (cash > 0 && paytm > 0) ? 1 : 0,
+          payment_type: targetPayType,
+          is_split_payment: (targetPayType === 'Split') ? 1 : 0,
           cash_amount: cash,
           paytm_amount: paytm,
+          credit_amount: credit,
           cd_amount: cdVal,
           refund_amount: refundVal
         })
@@ -1213,11 +1287,12 @@ document.addEventListener('DOMContentLoaded', function () {
           if (splitBtn) {
             splitBtn.dataset.cash = cash;
             splitBtn.dataset.paytm = paytm;
-            splitBtn.dataset.isSplit = (cash > 0 && paytm > 0) ? '1' : '0';
+            splitBtn.dataset.credit = credit;
+            splitBtn.dataset.isSplit = (targetPayType === 'Split') ? '1' : '0';
           }
 
-          const targetPayType = (cash > 0 && paytm > 0) ? 'Split' : (paytm > 0 ? 'Paytm' : 'Cash');
           currentSplitRow.dataset.paymentType = targetPayType;
+          currentSplitRow.dataset.credit = credit;
           const rowPaySelect = currentSplitRow.querySelector('.inline-payment-select');
           if (rowPaySelect) {
             rowPaySelect.value = targetPayType;
@@ -1225,13 +1300,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
           const payContainer = currentSplitRow.querySelector('.payment-badge-display');
           if (payContainer) {
-            if (cash > 0 && paytm > 0) {
-              payContainer.innerHTML = `
-                <span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹${cash.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                <span class="badge bg-info text-dark d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹${paytm.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              `;
-            } else if (paytm > 0) {
+            if (targetPayType === 'Split') {
+              let badges = '';
+              if (cash > 0) badges += `<span class="badge bg-success mb-1 d-block font-mono text-start"><i class="bi bi-cash me-1"></i>Cash: ₹${cash.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
+              if (paytm > 0) badges += `<span class="badge bg-info text-dark mb-1 d-block font-mono text-start"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹${paytm.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
+              if (credit > 0) badges += `<span class="badge bg-warning text-dark d-block font-mono text-start"><i class="bi bi-credit-card me-1"></i>Credit: ₹${credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
+              payContainer.innerHTML = badges;
+            } else if (targetPayType === 'Paytm') {
               payContainer.innerHTML = `<span class="badge bg-info text-dark">Paytm</span>`;
+            } else if (targetPayType === 'Credit') {
+              payContainer.innerHTML = `<span class="badge bg-warning text-dark">Credit</span>`;
             } else {
               payContainer.innerHTML = `<span class="badge bg-success">Cash</span>`;
             }
@@ -1243,12 +1321,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (typeof window.showErpToast === 'function') {
-          if (cash > 0 && paytm > 0) {
-            window.showErpToast(`Split payment saved: Cash ₹${cash.toFixed(2)} + Paytm ₹${paytm.toFixed(2)}`, 'success');
-          } else if (paytm > 0) {
-            window.showErpToast(`Payment saved as Paytm ₹${paytm.toFixed(2)}`, 'success');
+          if (targetPayType === 'Split') {
+            window.showErpToast(`Split payment saved: Cash ₹${cash.toFixed(2)} + Paytm ₹${paytm.toFixed(2)} + Credit ₹${credit.toFixed(2)}`, 'success');
           } else {
-            window.showErpToast(`Payment saved as Cash ₹${cash.toFixed(2)}`, 'success');
+            window.showErpToast(`Payment saved as ${targetPayType} ₹${net.toFixed(2)}`, 'success');
           }
         }
       } else {
@@ -1266,13 +1342,13 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<!-- Modal: Split Payment (Cash + Paytm / RTGS / Bank) Adjustment -->
+<!-- Modal: Split Payment (Cash + Paytm / RTGS / Bank + Credit) Adjustment -->
 <div class="modal fade" id="modal-split-pay" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-dark text-white">
         <h5 class="modal-title fw-bold">
-          <i class="bi bi-pie-chart-fill text-info me-2"></i>Split Bill Payment (Cash + Paytm / RTGS)
+          <i class="bi bi-pie-chart-fill text-info me-2"></i>Split Bill Payment (Cash + Paytm + Credit)
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -1318,6 +1394,21 @@ document.addEventListener('DOMContentLoaded', function () {
             <input type="number" step="0.01" min="0" id="split-modal-paytm" class="form-control form-control-lg font-mono text-end fw-bold" placeholder="0.00">
           </div>
           <div class="form-text">Direct digital transaction transferred via Paytm QR, RTGS, NEFT or IMPS to bank.</div>
+        </div>
+
+        <!-- 3. Credit Input -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label fw-semibold text-warning mb-0">
+              <i class="bi bi-credit-card me-1"></i> Credit Amount (Customer / Salesman Register)
+            </label>
+            <span class="badge bg-light text-dark border font-mono">Outstanding Ledger</span>
+          </div>
+          <div class="input-group">
+            <span class="input-group-text bg-warning text-dark fw-bold">₹</span>
+            <input type="number" step="0.01" min="0" id="split-modal-credit" class="form-control form-control-lg font-mono text-end fw-bold" placeholder="0.00">
+          </div>
+          <div class="form-text">Amount billed on credit and tracked in salesman credit collection register.</div>
         </div>
 
         <!-- Balance Status Bar -->
@@ -1435,18 +1526,25 @@ document.addEventListener('DOMContentLoaded', function () {
           <div id="manual_split_container" class="p-3 bg-light rounded border mb-3 d-none">
             <h6 class="fw-bold text-dark mb-2"><i class="bi bi-pie-chart-fill text-info me-1"></i>Split Payment Allocation</h6>
             <div class="row g-3">
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label class="form-label small fw-semibold text-success"><i class="bi bi-cash me-1"></i>Cash Portion (₹)</label>
                 <div class="input-group">
                   <span class="input-group-text bg-success text-white fw-bold">₹</span>
                   <input type="number" step="0.01" min="0" name="cash_amount" id="manual_cash_amount" class="form-control font-mono fw-bold text-end" value="0.00" oninput="syncManualSplitFromCash()">
                 </div>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label class="form-label small fw-semibold text-info"><i class="bi bi-bank me-1"></i>Paytm / RTGS Portion (₹)</label>
                 <div class="input-group">
                   <span class="input-group-text bg-info text-white fw-bold">₹</span>
                   <input type="number" step="0.01" min="0" name="paytm_amount" id="manual_paytm_amount" class="form-control font-mono fw-bold text-end" value="0.00">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold text-warning"><i class="bi bi-credit-card me-1"></i>Credit Portion (₹)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-warning text-dark fw-bold">₹</span>
+                  <input type="number" step="0.01" min="0" name="credit_amount" id="manual_credit_amount" class="form-control font-mono fw-bold text-end" value="0.00" oninput="syncManualSplitFromCash()">
                 </div>
               </div>
             </div>
@@ -1498,10 +1596,12 @@ function calculateManualNet() {
   if (payType === 'Split') {
     const cashInput = document.getElementById('manual_cash_amount');
     const paytmInput = document.getElementById('manual_paytm_amount');
+    const creditInput = document.getElementById('manual_credit_amount');
     if (cashInput && paytmInput) {
       const currentCash = parseFloat(cashInput.value || 0);
-      if (currentCash <= net) {
-        paytmInput.value = (net - currentCash).toFixed(2);
+      const currentCredit = parseFloat(creditInput ? creditInput.value : 0) || 0;
+      if (currentCash + currentCredit <= net) {
+        paytmInput.value = (net - currentCash - currentCredit).toFixed(2);
       }
     }
   }
@@ -1533,9 +1633,10 @@ function syncManualSplitFromCash() {
   const net = Math.max(0, gross - cd - refund);
 
   const cash = parseFloat(document.getElementById('manual_cash_amount')?.value || 0);
+  const credit = parseFloat(document.getElementById('manual_credit_amount')?.value || 0);
   const paytmInput = document.getElementById('manual_paytm_amount');
-  if (paytmInput && cash <= net) {
-    paytmInput.value = (net - cash).toFixed(2);
+  if (paytmInput && (cash + credit) <= net) {
+    paytmInput.value = (net - cash - credit).toFixed(2);
   }
 }
 

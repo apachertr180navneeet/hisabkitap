@@ -199,7 +199,7 @@
       </a>
       @if(($metrics['countSplit'] ?? 0) > 0)
       <a href="{{ route($routeName, array_merge(request()->query(), ['paytype' => 'Split'])) }}" class="btn btn-sm {{ $currentPaytype === 'Split' ? 'btn-purple text-white' : 'btn-outline-secondary' }}" style="{{ $currentPaytype === 'Split' ? 'background-color: #6f42c1; border-color: #6f42c1;' : '' }}">
-        Split (Cash+Paytm) <span class="badge bg-light text-dark ms-1">{{ $metrics['countSplit'] }}</span>
+        Split <span class="badge bg-light text-dark ms-1">{{ $metrics['countSplit'] }}</span>
       </a>
       @endif
     </div>
@@ -250,11 +250,21 @@
               {{ $bill->salesman_name ?: '-' }}
             </td>
             <td>
-              @if($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0))
+              @php
+                $isSplit = (bool)($bill->is_split_payment || $bill->payment_type === 'Split' || ($bill->cash_amount > 0 && ($bill->paytm_amount > 0 || (float)($bill->credit_amount ?? 0) > 0)) || ($bill->paytm_amount > 0 && (float)($bill->credit_amount ?? 0) > 0));
+              @endphp
+              @if($isSplit)
                 <span class="badge bg-dark">Split Payment</span>
                 <div class="small mt-1 font-mono">
-                  <span class="text-success">Cash: ₹{{ number_format($bill->cash_amount, 2) }}</span><br>
-                  <span class="text-info">Paytm: ₹{{ number_format($bill->paytm_amount, 2) }}</span>
+                  @if($bill->cash_amount > 0)
+                    <span class="text-success"><i class="bi bi-cash me-1"></i>Cash: ₹{{ number_format($bill->cash_amount, 2) }}</span><br>
+                  @endif
+                  @if($bill->paytm_amount > 0)
+                    <span class="text-info"><i class="bi bi-qr-code-scan me-1"></i>Paytm: ₹{{ number_format($bill->paytm_amount, 2) }}</span><br>
+                  @endif
+                  @if((float)($bill->credit_amount ?? 0) > 0)
+                    <span class="text-warning"><i class="bi bi-credit-card me-1"></i>Credit: ₹{{ number_format($bill->credit_amount, 2) }}</span>
+                  @endif
                 </div>
               @else
                 <span class="badge {{ $bill->payment_type === 'Cash' ? 'bg-success' : ($bill->payment_type === 'Paytm' ? 'bg-info text-dark' : (($bill->payment_type === 'Check' || $bill->payment_type === 'Cheque') ? 'bg-primary' : ($bill->payment_type === 'Credit' ? 'bg-warning text-dark' : 'bg-secondary'))) }}">

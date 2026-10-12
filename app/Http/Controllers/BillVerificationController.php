@@ -35,14 +35,40 @@ class BillVerificationController extends Controller
         }
 
         $user = auth()->user();
-        $psoQuery = PsoConfig::where('is_closed', true);
+        $psoQuery = PsoConfig::query();
         if ($user && $user->isOperator()) {
             $psoQuery->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
                   ->orWhere('operator_name', $user->name);
             });
         }
-        $psoList = $psoQuery->orderBy('code')->get();
+        $allPsoConfigs = $psoQuery->orderBy('code')->get();
+
+        // Merge any distinct PSO codes from bills for the selected date
+        $distinctBillPsosQuery = Bill::whereNotNull('pso_code');
+        if ($businessDate && $businessDate !== 'ALL') {
+            $distinctBillPsosQuery->whereDate('business_date', $businessDate);
+        }
+        $distinctBillPsos = $distinctBillPsosQuery->distinct()->pluck('pso_code')->toArray();
+
+        $existingCodes = $allPsoConfigs->pluck('code')->toArray();
+        $psoList = collect($allPsoConfigs);
+        foreach ($distinctBillPsos as $dbp) {
+            if (!empty($dbp) && !in_array($dbp, $existingCodes, true)) {
+                $psoList->push((object)[
+                    'id' => null,
+                    'code' => $dbp,
+                    'prefix' => $dbp,
+                    'operator_name' => 'Imported PSO',
+                    'driver_name' => null,
+                    'gadi_number' => null,
+                    'is_active' => true,
+                    'is_closed' => true,
+                ]);
+            }
+        }
+        $psoList = $psoList->sortBy('code')->values();
+
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
 
         $availableDates = Bill::selectRaw('DATE(business_date) as b_date')
@@ -72,8 +98,9 @@ class BillVerificationController extends Controller
             }
         }
 
-        if ($request->filled('pso') && $request->pso !== 'ALL') {
-            $query->where('pso_code', $request->pso);
+        $selectedPso = $request->input('pso', 'ALL');
+        if ($selectedPso && $selectedPso !== 'ALL') {
+            $query->where('pso_code', $selectedPso);
         }
 
         if ($request->filled('status') && $request->status !== 'ALL') {
@@ -84,8 +111,15 @@ class BillVerificationController extends Controller
             if ($request->payment_type === 'Split') {
                 $query->where(function ($q) {
                     $q->where('is_split_payment', true)
+                      ->orWhere('payment_type', 'Split')
                       ->orWhere(function ($sub) {
                           $sub->where('cash_amount', '>', 0)->where('paytm_amount', '>', 0);
+                      })
+                      ->orWhere(function ($sub) {
+                          $sub->where('cash_amount', '>', 0)->where('credit_amount', '>', 0);
+                      })
+                      ->orWhere(function ($sub) {
+                          $sub->where('paytm_amount', '>', 0)->where('credit_amount', '>', 0);
                       });
                 });
             } else {
@@ -107,14 +141,93 @@ class BillVerificationController extends Controller
                 $q->where('bill_no', 'like', "%{$search}%")
                   ->orWhere('customer_name', 'like', "%{$search}%")
                   ->orWhere('salesman_name', 'like', "%{$search}%")
+                  ->orWhere('pso_code', 'like', "%{$search}%")
                   ->orWhere('remark', 'like', "%{$search}%");
             });
         }
 
-        $bills = $query->orderBy('id', 'asc')->get();
+        // Order by PSO code first, then by id/bill_no so records are cleanly organized by PSO
+        $bills = $query->orderBy('pso_code', 'asc')->orderBy('id', 'asc')->get();
+
+        // Calculate overall metrics
         $metrics = $this->reconService->getMetrics($businessDate !== 'ALL' ? $businessDate : null);
 
-        return view('verification.index', compact('bills', 'psoList', 'metrics', 'salespersons', 'businessDate', 'availableDates'));
+        // If a specific PSO is selected, scope metrics specifically to that PSO
+        if ($selectedPso && $selectedPso !== 'ALL') {
+            $psoScopedBills = $bills;
+            $metrics['totalBillsCount'] = $psoScopedBills->count();
+            $metrics['tallyTotal'] = (float)$psoScopedBills->sum('amount');
+            $metrics['totCd'] = (float)$psoScopedBills->sum('cd_amount');
+            $metrics['totRefund'] = (float)$psoScopedBills->sum('refund_amount');
+            $metrics['matchedCount'] = $psoScopedBills->where('status', 'Matched')->count();
+            $metrics['missingCount'] = $psoScopedBills->where('status', 'Missing')->count();
+            $metrics['cancelledCount'] = $psoScopedBills->where(fn($b) => $b->status === 'Cancelled' || $b->payment_type === 'Cancelled')->count();
+
+            $psoCash = 0;
+            $psoPaytm = 0;
+            $psoCredit = 0;
+            $psoCheck = 0;
+            foreach ($psoScopedBills as $sb) {
+                if ($sb->status === 'Cancelled' || $sb->payment_type === 'Cancelled') continue;
+                if ($sb->is_split_payment || ($sb->cash_amount > 0 && $sb->paytm_amount > 0) || ($sb->credit_amount > 0 && ($sb->cash_amount > 0 || $sb->paytm_amount > 0))) {
+                    $psoCash += (float)$sb->cash_amount;
+                    $psoPaytm += (float)$sb->paytm_amount;
+                    $psoCredit += (float)$sb->credit_amount;
+                } else {
+                    $eff = (float)($sb->net_amount > 0 ? $sb->net_amount : max(0, $sb->amount - $sb->cd_amount - $sb->refund_amount));
+                    if ($sb->payment_type === 'Cash') $psoCash += $eff;
+                    elseif ($sb->payment_type === 'Paytm') $psoPaytm += $eff;
+                    elseif ($sb->payment_type === 'Credit') $psoCredit += $eff;
+                    elseif ($sb->payment_type === 'Check' || $sb->payment_type === 'Cheque') $psoCheck += $eff;
+                }
+            }
+            $metrics['totCash'] = $psoCash;
+            $metrics['totPaytm'] = $psoPaytm;
+            $metrics['totCredit'] = $psoCredit;
+            $metrics['totCheck'] = $psoCheck;
+            $metrics['psoCollection'] = $psoCash + $psoPaytm + $psoCredit + $psoCheck;
+            $metrics['difference'] = $metrics['tallyTotal'] - ($metrics['totCd'] + $metrics['totRefund']) - $metrics['psoCollection'];
+        }
+
+        // Group bills by PSO for clean visual sections
+        $billsByPso = $bills->groupBy(fn($b) => $b->pso_code ?: 'Unassigned PSO');
+
+        // Calculate per-PSO subtotals
+        $psoSubtotals = [];
+        foreach ($billsByPso as $pCode => $pBills) {
+            $psoObj = $psoList->firstWhere('code', $pCode);
+            $psoSubtotals[$pCode] = [
+                'pso_obj' => $psoObj,
+                'count' => $pBills->count(),
+                'amount' => (float)$pBills->sum('amount'),
+                'cd' => (float)$pBills->sum('cd_amount'),
+                'cd_amount' => (float)$pBills->sum('cd_amount'),
+                'refund' => (float)$pBills->sum('refund_amount'),
+                'refund_amount' => (float)$pBills->sum('refund_amount'),
+                'net' => (float)$pBills->where(fn($b) => $b->status !== 'Cancelled' && $b->payment_type !== 'Cancelled')->sum('net_amount'),
+                'net_amount' => (float)$pBills->where(fn($b) => $b->status !== 'Cancelled' && $b->payment_type !== 'Cancelled')->sum('net_amount'),
+                'cash' => (float)$pBills->sum('cash_amount'),
+                'cash_amount' => (float)$pBills->sum('cash_amount'),
+                'paytm' => (float)$pBills->sum('paytm_amount'),
+                'paytm_amount' => (float)$pBills->sum('paytm_amount'),
+                'credit' => (float)$pBills->sum('credit_amount'),
+                'credit_amount' => (float)$pBills->sum('credit_amount'),
+                'matched' => $pBills->where('status', 'Matched')->count(),
+                'mismatches' => $pBills->where(fn($b) => $b->isSeriesMismatch() || $b->isPsoMismatch())->count(),
+            ];
+        }
+
+        return view('verification.index', compact(
+            'bills',
+            'billsByPso',
+            'psoSubtotals',
+            'psoList',
+            'metrics',
+            'salespersons',
+            'businessDate',
+            'availableDates',
+            'selectedPso'
+        ));
     }
 
     public function updateBill(Request $request)
@@ -128,6 +241,7 @@ class BillVerificationController extends Controller
             'salesman_name' => 'nullable|string',
             'cash_amount' => 'nullable|numeric|min:0',
             'paytm_amount' => 'nullable|numeric|min:0',
+            'credit_amount' => 'nullable|numeric|min:0',
             'is_split_payment' => 'nullable|boolean',
         ]);
 
@@ -154,42 +268,50 @@ class BillVerificationController extends Controller
             $bill->net_amount = 0;
             $bill->cash_amount = 0;
             $bill->paytm_amount = 0;
+            $bill->credit_amount = 0;
         } else {
             $bill->cd_amount = floatval($request->input('cd_amount', 0));
             $bill->refund_amount = floatval($request->input('refund_amount', 0));
             $bill->net_amount = max(0, floatval($bill->amount) - $bill->cd_amount - $bill->refund_amount);
 
-            // Handle Split Payment vs Standard Payment
+            // Handle Split Payment vs Standard Payment (Cash, Paytm, Credit, Cheque)
             $cashAmt = floatval($request->input('cash_amount', 0));
             $paytmAmt = floatval($request->input('paytm_amount', 0));
-            $isSplit = (bool) $request->input('is_split_payment', false) || ($normalizedPaymentType === 'Split');
+            $creditAmt = floatval($request->input('credit_amount', 0));
+            $portionsCount = ($cashAmt > 0 ? 1 : 0) + ($paytmAmt > 0 ? 1 : 0) + ($creditAmt > 0 ? 1 : 0);
+            $isSplit = (bool) $request->input('is_split_payment', false) || ($normalizedPaymentType === 'Split') || ($portionsCount > 1);
 
-            if (($isSplit && $cashAmt > 0 && $paytmAmt > 0) || ($cashAmt > 0 && $paytmAmt > 0)) {
+            if ($isSplit || $portionsCount > 1) {
                 $bill->is_split_payment = true;
                 $bill->cash_amount = $cashAmt;
                 $bill->paytm_amount = $paytmAmt;
-                $bill->payment_type = 'Cash'; // Primary accounting bucket
-            } elseif ($normalizedPaymentType === 'Paytm' || ($paytmAmt > 0 && $cashAmt == 0)) {
+                $bill->credit_amount = $creditAmt;
+                $bill->payment_type = 'Split';
+            } elseif ($normalizedPaymentType === 'Paytm' || ($paytmAmt > 0 && $cashAmt == 0 && $creditAmt == 0)) {
                 $bill->is_split_payment = false;
                 $bill->payment_type = 'Paytm';
                 $bill->paytm_amount = $bill->net_amount;
                 $bill->cash_amount = 0;
+                $bill->credit_amount = 0;
+            } elseif ($normalizedPaymentType === 'Credit' || ($creditAmt > 0 && $cashAmt == 0 && $paytmAmt == 0)) {
+                $bill->is_split_payment = false;
+                $bill->payment_type = 'Credit';
+                $bill->credit_amount = $bill->net_amount;
+                $bill->cash_amount = 0;
+                $bill->paytm_amount = 0;
             } elseif ($normalizedPaymentType === 'Check') {
                 $bill->is_split_payment = false;
                 $bill->payment_type = 'Check';
                 $bill->cash_amount = 0;
                 $bill->paytm_amount = 0;
-            } elseif ($normalizedPaymentType === 'Credit') {
-                $bill->is_split_payment = false;
-                $bill->payment_type = 'Credit';
-                $bill->cash_amount = 0;
-                $bill->paytm_amount = 0;
+                $bill->credit_amount = 0;
             } else {
                 // Default: Cash
                 $bill->is_split_payment = false;
                 $bill->payment_type = 'Cash';
                 $bill->cash_amount = $bill->net_amount;
                 $bill->paytm_amount = 0;
+                $bill->credit_amount = 0;
             }
         }
 
@@ -212,25 +334,29 @@ class BillVerificationController extends Controller
             $bill->salesman_name = null;
         }
 
-        // Sync with CreditCollection if Credit
-        if ($bill->payment_type === 'Credit') {
+        // Sync with CreditCollection if Credit or Split with Credit portion
+        $effectiveCreditAmount = ($bill->payment_type === 'Credit') ? (float)$bill->net_amount : (float)$bill->credit_amount;
+        if ($effectiveCreditAmount > 0) {
             $salesmanForCredit = $bill->salesman_name ?: 'Field Representative';
+            $billDateStr = $bill->business_date ? (is_string($bill->business_date) ? substr($bill->business_date, 0, 10) : $bill->business_date->format('Y-m-d')) : $businessDate;
             CreditCollection::updateOrCreate(
                 ['bill_id' => $bill->id],
                 [
                     'bill_no' => $bill->bill_no,
                     'customer_name' => $bill->customer_name,
                     'salesman_name' => $salesmanForCredit,
-                    'bill_date' => $bill->business_date ?: $businessDate,
-                    'due_date' => date('Y-m-d', strtotime(($bill->business_date ? $bill->business_date->format('Y-m-d') : $businessDate) . ' +7 days')),
-                    'bill_amount' => $bill->net_amount > 0 ? $bill->net_amount : $bill->amount,
+                    'bill_date' => $billDateStr,
+                    'due_date' => date('Y-m-d', strtotime($billDateStr . ' +7 days')),
+                    'bill_amount' => $effectiveCreditAmount,
                     'paid_amount' => 0,
-                    'outstanding_amount' => $bill->net_amount > 0 ? $bill->net_amount : $bill->amount,
+                    'outstanding_amount' => $effectiveCreditAmount,
                     'collection_status' => 'Pending',
-                    'payment_mode' => 'Credit Pending',
+                    'payment_mode' => $bill->is_split_payment ? 'Split Credit' : 'Credit Pending',
                     'remark' => $bill->remark,
                 ]
             );
+        } else {
+            CreditCollection::where('bill_id', $bill->id)->where('collection_status', 'Pending')->delete();
         }
 
         $bill->save();
@@ -246,7 +372,7 @@ class BillVerificationController extends Controller
             $seal->save();
         }
 
-        AuditLog::log('BILL_INLINE_UPDATE', "Updated bill {$bill->bill_no}: Payment={$bill->payment_type}, CD=₹{$bill->cd_amount}, Refund=₹{$bill->refund_amount}, Salesman=" . ($bill->salesman_name ?? 'None'));
+        AuditLog::log('BILL_INLINE_UPDATE', "Updated bill {$bill->bill_no}: Payment={$bill->payment_type}, CD=₹{$bill->cd_amount}, Refund=₹{$bill->refund_amount}, Cash=₹{$bill->cash_amount}, Paytm=₹{$bill->paytm_amount}, Credit=₹{$bill->credit_amount}");
 
         return response()->json([
             'success' => true,
@@ -258,6 +384,7 @@ class BillVerificationController extends Controller
                 'is_split_payment' => (bool)$bill->is_split_payment,
                 'cash_amount' => number_format($bill->cash_amount, 2, '.', ''),
                 'paytm_amount' => number_format($bill->paytm_amount, 2, '.', ''),
+                'credit_amount' => number_format($bill->credit_amount, 2, '.', ''),
                 'cd_amount' => number_format($bill->cd_amount, 2, '.', ''),
                 'refund_amount' => number_format($bill->refund_amount, 2, '.', ''),
                 'net_amount' => number_format($bill->net_amount, 2, '.', ''),
@@ -282,6 +409,7 @@ class BillVerificationController extends Controller
             'payment_type' => 'required|string',
             'cash_amount' => 'nullable|numeric|min:0',
             'paytm_amount' => 'nullable|numeric|min:0',
+            'credit_amount' => 'nullable|numeric|min:0',
             'cd_amount' => 'nullable|numeric|min:0',
             'refund_amount' => 'nullable|numeric|min:0',
             'salesperson_id' => 'nullable',
@@ -289,16 +417,19 @@ class BillVerificationController extends Controller
             'remark' => 'nullable|string',
         ]);
 
-        $pso = PsoConfig::where('code', $request->pso_code)->first();
+        $pso = PsoConfig::where('code', $request->pso_code)->first()
+            ?: PsoConfig::where('id', $request->pso_code)->first();
         $amount = floatval($request->amount);
         $cdAmount = floatval($request->input('cd_amount', 0));
         $refundAmount = floatval($request->input('refund_amount', 0));
         $netAmount = max(0, $amount - $cdAmount - $refundAmount);
 
         $paymentType = $request->payment_type;
-        $isSplit = ($paymentType === 'Split') || ($request->filled('cash_amount') && $request->filled('paytm_amount') && floatval($request->cash_amount) > 0 && floatval($request->paytm_amount) > 0);
-        $cashAmount = 0;
-        $paytmAmount = 0;
+        $cashAmount = floatval($request->input('cash_amount', 0));
+        $paytmAmount = floatval($request->input('paytm_amount', 0));
+        $creditAmount = floatval($request->input('credit_amount', 0));
+        $portionsCount = ($cashAmount > 0 ? 1 : 0) + ($paytmAmount > 0 ? 1 : 0) + ($creditAmount > 0 ? 1 : 0);
+        $isSplit = ($paymentType === 'Split') || ($portionsCount > 1);
 
         if ($paymentType === 'Cancelled') {
             $cdAmount = 0;
@@ -306,20 +437,27 @@ class BillVerificationController extends Controller
             $netAmount = 0;
             $cashAmount = 0;
             $paytmAmount = 0;
+            $creditAmount = 0;
             $isSplit = false;
             $billStatus = 'Cancelled';
         } elseif ($isSplit) {
             $isSplit = true;
-            $paymentType = 'Cash';
-            $cashAmount = floatval($request->input('cash_amount', 0));
-            $paytmAmount = floatval($request->input('paytm_amount', 0));
-            if ($cashAmount == 0 && $paytmAmount == 0) {
+            $paymentType = 'Split';
+            if ($cashAmount == 0 && $paytmAmount == 0 && $creditAmount == 0) {
                 $cashAmount = $netAmount;
             }
         } elseif ($paymentType === 'Cash') {
             $cashAmount = $netAmount;
+            $paytmAmount = 0;
+            $creditAmount = 0;
         } elseif ($paymentType === 'Paytm') {
             $paytmAmount = $netAmount;
+            $cashAmount = 0;
+            $creditAmount = 0;
+        } elseif ($paymentType === 'Credit') {
+            $creditAmount = $netAmount;
+            $cashAmount = 0;
+            $paytmAmount = 0;
         }
 
         $salespersonId = null;
@@ -361,6 +499,7 @@ class BillVerificationController extends Controller
             'net_amount' => $netAmount,
             'cash_amount' => $cashAmount,
             'paytm_amount' => $paytmAmount,
+            'credit_amount' => $creditAmount,
             'is_split_payment' => $isSplit,
             'status' => $billStatus,
             'expected_series' => $validation['expected_series'],
@@ -373,7 +512,8 @@ class BillVerificationController extends Controller
             'verified_at' => now(),
         ]);
 
-        if ($paymentType === 'Credit') {
+        $effectiveCredit = ($paymentType === 'Credit') ? $netAmount : $creditAmount;
+        if ($effectiveCredit > 0) {
             CreditCollection::create([
                 'bill_id' => $bill->id,
                 'bill_no' => $bill->bill_no,
@@ -381,11 +521,11 @@ class BillVerificationController extends Controller
                 'salesman_name' => $salesmanName ?: 'Field Representative',
                 'bill_date' => $bill->business_date,
                 'due_date' => date('Y-m-d', strtotime($bill->business_date . ' +7 days')),
-                'bill_amount' => $netAmount,
+                'bill_amount' => $effectiveCredit,
                 'paid_amount' => 0,
-                'outstanding_amount' => $netAmount,
+                'outstanding_amount' => $effectiveCredit,
                 'collection_status' => 'Pending',
-                'payment_mode' => 'Credit Pending',
+                'payment_mode' => $isSplit ? 'Split Credit' : 'Credit Pending',
                 'remark' => $bill->remark,
             ]);
         }

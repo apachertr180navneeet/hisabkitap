@@ -152,11 +152,13 @@ class ReconciliationService
                         $cancelledCount++;
                     }
 
-                    // Payment breakdown (handling split Cash + Paytm or standard payment_type)
+                    // Payment breakdown (handling split Cash + Paytm + Credit or standard payment_type)
                     if (!$isCancelled) {
-                        if ($bill->is_split_payment || ($bill->cash_amount > 0 && $bill->paytm_amount > 0)) {
+                        $isSplit = (bool)($bill->is_split_payment || $bill->payment_type === 'Split' || ($bill->cash_amount > 0 && ($bill->paytm_amount > 0 || (float)($bill->credit_amount ?? 0) > 0)) || ($bill->paytm_amount > 0 && (float)($bill->credit_amount ?? 0) > 0));
+                        if ($isSplit) {
                             $totCash += (float) $bill->cash_amount;
                             $totPaytm += (float) $bill->paytm_amount;
+                            $totCredit += (float) ($bill->credit_amount ?? 0);
                         } else {
                             if ($bill->payment_type === 'Cash') {
                                 $totCash += $effectiveAmt;

@@ -439,10 +439,10 @@ class ExcelImportController extends Controller
                     [
                         'bill_no' => $billNo,
                         'business_date' => $rowDate,
+                        'pso_code' => $assignedPsoCode,
                     ],
                     [
                         'pso_config_id' => $psoConfigId,
-                        'pso_code' => $assignedPsoCode,
                         'tally_import_id' => $import->id,
                         'bill_time' => $rowTime,
                         'customer_name' => $customer,
@@ -573,7 +573,8 @@ class ExcelImportController extends Controller
     }
 
     /**
-     * Robust Date Parsing (supports Excel serial numbers, DD/MM/YYYY, YYYY-MM-DD, DD-Mon-YYYY).
+     * Robust Date Parsing (supports Excel serial numbers, DD/MM/YYYY, DD.MM.YYYY, YYYY-MM-DD, DD-Mon-YYYY, ISO DateTime).
+     * Prevents timezone shifts and validates before returning standard YYYY-MM-DD.
      */
     protected function parseRowDate(string $rawDate, string $businessDate): string
     {
@@ -585,36 +586,22 @@ class ExcelImportController extends Controller
         // 1. Check if Excel numeric serial date (e.g. 45543 = 2024-09-08)
         if (is_numeric($rawDate)) {
             $numVal = (float)$rawDate;
-            if ($numVal >= 25000 && $numVal <= 80000) {
-                // Excel epoch: 1900-01-01 (with leap year bug, offset is 25569 to UNIX epoch 1970-01-01)
-                $unix = (int)(($numVal - 25569) * 86400);
-                return gmdate('Y-m-d', $unix);
+            if ($numVal >= 25000 && $numVal <= 85000) {
+                // Pure calendar day arithmetic from Excel 1900 epoch (1899-12-30 due to 1900 leap year bug)
+                // Zero timezone shifts
+                $days = (int) floor($numVal + 0.0001);
+                $dt = new \DateTime('1899-12-30', new \DateTimeZone('UTC'));
+                $dt->modify("+{$days} days");
+                $parsedDate = $dt->format('Y-m-d');
+                $y = (int)$dt->format('Y');
+                if ($y >= 2000 && $y <= 2099) {
+                    return $parsedDate;
+                }
             }
         }
 
-        // 2. Format: DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
-        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/', $rawDate, $matches)) {
-            $day = (int)$matches[1];
-            $month = (int)$matches[2];
-            $year = (int)$matches[3];
-            if ($year < 100) {
-                $year += 2000;
-            }
-
-            // Validate day & month order (if month > 12 and day <= 12, swap)
-            if ($month > 12 && $day <= 12) {
-                $tmp = $day;
-                $day = $month;
-                $month = $tmp;
-            }
-
-            if (checkdate($month, $day, $year)) {
-                return sprintf('%04d-%02d-%02d', $year, $month, $day);
-            }
-        }
-
-        // 3. Format: YYYY-MM-DD or YYYY/MM/DD
-        if (preg_match('/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/', $rawDate, $matches)) {
+        // 2. Format: ISO DateTime YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS or YYYY/MM/DD
+        if (preg_match('/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})(?:[T\s].*)?$/', $rawDate, $matches)) {
             $year = (int)$matches[1];
             $month = (int)$matches[2];
             $day = (int)$matches[3];
@@ -623,11 +610,71 @@ class ExcelImportController extends Controller
             }
         }
 
-        // 4. Try standard strtotime with hyphen separator
+        // 3. Format: Text month name e.g. 11-Sep-2026, 11-Sep-26, 2 Oct 2026, 02-October-2026
+        if (preg_match('/^(\d{1,2})[\/\-\.\s]([a-zA-Z]{3,9})[\/\-\.\s](\d{2,4})$/', $rawDate, $matches)) {
+            $day = (int)$matches[1];
+            $monthStr = strtolower(substr($matches[2], 0, 3));
+            $months = [
+                'jan' => 1, 'feb' => 2, 'mar' => 3, 'apr' => 4, 'may' => 5, 'jun' => 6,
+                'jul' => 7, 'aug' => 8, 'sep' => 9, 'oct' => 10, 'nov' => 11, 'dec' => 12
+            ];
+            if (isset($months[$monthStr])) {
+                $month = $months[$monthStr];
+                $year = (int)$matches[3];
+                if ($year < 100) {
+                    $year += 2000;
+                }
+                if (checkdate($month, $day, $year)) {
+                    return sprintf('%04d-%02d-%02d', $year, $month, $day);
+                }
+            }
+        }
+
+        // 4. Format: DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY (Common Tally format in India)
+        if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/', $rawDate, $matches)) {
+            $val1 = (int)$matches[1];
+            $val2 = (int)$matches[2];
+            $year = (int)$matches[3];
+            if ($year < 100) {
+                $year += 2000;
+            }
+
+            $day = $val1;
+            $month = $val2;
+
+            // If month > 12 and day <= 12, swap
+            if ($month > 12 && $day <= 12) {
+                $tmp = $day;
+                $day = $month;
+                $month = $tmp;
+            } elseif ($day <= 12 && $month <= 12 && !empty($businessDate)) {
+                // If ambiguous, cross-reference with businessDate components
+                $bParts = explode('-', $businessDate);
+                if (count($bParts) === 3) {
+                    $bMonth = (int)$bParts[1];
+                    $bDay = (int)$bParts[2];
+                    // If val1 matches business date month and val2 matches business date day, user might have MM/DD format
+                    if ($val1 === $bMonth && $val2 === $bDay && $val1 !== $val2) {
+                        $month = $val1;
+                        $day = $val2;
+                    }
+                }
+            }
+
+            if (checkdate($month, $day, $year)) {
+                return sprintf('%04d-%02d-%02d', $year, $month, $day);
+            }
+        }
+
+        // 5. Try standard strtotime with hyphen separator fallback
         $standardized = str_replace(['/', '.'], '-', $rawDate);
         $parsedTime = strtotime($standardized);
         if ($parsedTime !== false && $parsedTime > 0) {
-            return date('Y-m-d', $parsedTime);
+            $parsedDate = date('Y-m-d', $parsedTime);
+            $y = (int)date('Y', $parsedTime);
+            if ($y >= 2000 && $y <= 2099) {
+                return $parsedDate;
+            }
         }
 
         return $businessDate;

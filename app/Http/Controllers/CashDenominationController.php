@@ -41,14 +41,41 @@ class CashDenominationController extends Controller
         $metrics = $this->reconService->getMetrics($businessDate);
 
         $user = auth()->user();
-        $psoQuery = PsoConfig::where('is_closed', true);
+        $psoQuery = PsoConfig::query();
         if ($user && $user->isOperator()) {
             $psoQuery->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
                   ->orWhere('operator_name', $user->name);
             });
         }
-        $psoList = $psoQuery->orderBy('code')->get();
+        $configuredPsos = $psoQuery->orderBy('code')->get();
+
+        // Include any distinct PSO codes from bills and denominations to avoid missing PSOs
+        $billPsoCodes = Bill::whereNotNull('pso_code')->distinct()->pluck('pso_code')->toArray();
+        $denomPsoCodes = CashDenomination::whereNotNull('pso_code')->distinct()->pluck('pso_code')->toArray();
+        $allPsoCodes = array_unique(array_filter(array_merge($billPsoCodes, $denomPsoCodes)));
+
+        $psoList = collect();
+        $existingCodes = [];
+        foreach ($configuredPsos as $cfg) {
+            $psoList->push($cfg);
+            $existingCodes[] = $cfg->code;
+        }
+        foreach ($allPsoCodes as $code) {
+            if (!in_array($code, $existingCodes)) {
+                $dummy = new PsoConfig();
+                $dummy->id = null;
+                $dummy->code = $code;
+                $dummy->name = $code;
+                $dummy->prefix = $code;
+                $dummy->operator_name = 'Counter Operator';
+                $dummy->driver_name = null;
+                $dummy->gadi_number = null;
+                $dummy->is_closed = false;
+                $psoList->push($dummy);
+                $existingCodes[] = $code;
+            }
+        }
 
         // Query existing denominations for this date
         $denominationsQuery = CashDenomination::whereDate('business_date', $businessDate);
@@ -77,7 +104,8 @@ class CashDenominationController extends Controller
             $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
             $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
 
-            if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+            $isSplit = (bool)($b->is_split_payment || $b->payment_type === 'Split' || ($b->cash_amount > 0 && ($b->paytm_amount > 0 || (float)($b->credit_amount ?? 0) > 0)) || ($b->paytm_amount > 0 && (float)($b->credit_amount ?? 0) > 0));
+            if ($isSplit) {
                 $scopedBookCash += (float) $b->cash_amount;
                 $scopedPaytm += (float) $b->paytm_amount;
             } elseif ($b->payment_type === 'Cash') {
@@ -103,7 +131,8 @@ class CashDenominationController extends Controller
             foreach ($psoBills as $b) {
                 $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
                 $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
-                if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+                $isSplit = (bool)($b->is_split_payment || $b->payment_type === 'Split' || ($b->cash_amount > 0 && ($b->paytm_amount > 0 || (float)($b->credit_amount ?? 0) > 0)) || ($b->paytm_amount > 0 && (float)($b->credit_amount ?? 0) > 0));
+                if ($isSplit) {
                     $psoCash += (float) $b->cash_amount;
                 } elseif ($b->payment_type === 'Cash') {
                     $psoCash += $effective;
@@ -115,7 +144,8 @@ class CashDenominationController extends Controller
         foreach ($allBills as $b) {
             $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
             $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
-            if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+            $isSplit = (bool)($b->is_split_payment || $b->payment_type === 'Split' || ($b->cash_amount > 0 && ($b->paytm_amount > 0 || (float)($b->credit_amount ?? 0) > 0)) || ($b->paytm_amount > 0 && (float)($b->credit_amount ?? 0) > 0));
+            if ($isSplit) {
                 $totalAllCash += (float) $b->cash_amount;
             } elseif ($b->payment_type === 'Cash') {
                 $totalAllCash += $effective;
@@ -220,7 +250,7 @@ class CashDenominationController extends Controller
         $kmRate  = (float) $request->input('km_rate', 0);
         $kmAllowance = $totalKm * $kmRate;
 
-        $psoCode = $request->input('pso_code');
+        $psoCode = trim($request->input('pso_code', ''));
         $bookCash = (float) $request->input('book_cash_amount', 0);
 
         if ($bookCash <= 0 && $request->filled('business_date')) {
@@ -234,7 +264,8 @@ class CashDenominationController extends Controller
             foreach ($psoBills as $b) {
                 $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
                 $effective = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
-                if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+                $isSplit = (bool)($b->is_split_payment || $b->payment_type === 'Split' || ($b->cash_amount > 0 && ($b->paytm_amount > 0 || (float)($b->credit_amount ?? 0) > 0)) || ($b->paytm_amount > 0 && (float)($b->credit_amount ?? 0) > 0));
+                if ($isSplit) {
                     $calcCash += (float) $b->cash_amount;
                 } elseif ($b->payment_type === 'Cash') {
                     $calcCash += $effective;
@@ -255,14 +286,19 @@ class CashDenominationController extends Controller
         }
 
         $psoConfig = null;
-        if ($request->filled('pso_code')) {
-            $psoConfig = PsoConfig::where('code', $request->input('pso_code'))->first();
+        if (!empty($psoCode)) {
+            $psoConfig = PsoConfig::where('code', $psoCode)->first();
+            if (!$psoConfig) {
+                $psoConfig = PsoConfig::where('prefix', $psoCode)->first();
+            }
         }
+
+        $resolvedPsoCode = $psoConfig ? $psoConfig->code : ($psoCode ?: null);
 
         $denom = CashDenomination::create([
             'business_date' => $request->input('business_date'),
             'pso_config_id' => $psoConfig ? $psoConfig->id : null,
-            'pso_code' => $request->input('pso_code'),
+            'pso_code' => $resolvedPsoCode,
             'driver_name' => $request->input('driver_name') ?: ($psoConfig ? $psoConfig->driver_name : null),
             'gadi_number' => $request->input('gadi_number') ?: ($psoConfig ? $psoConfig->gadi_number : null),
             'notes_500' => $n500,

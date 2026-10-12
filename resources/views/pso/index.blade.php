@@ -15,10 +15,97 @@
   @endif
 </div>
 
+<!-- Filters Bar -->
+<div class="card border p-3 mb-4 bg-white shadow-sm">
+  <form method="GET" action="{{ route('admin.pso.index') }}" class="row g-2 align-items-center">
+    <div class="col-md-3 col-sm-6">
+      <label class="form-label small text-muted mb-1 fw-semibold">Business Date</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
+        <input type="date" name="date" class="form-control font-mono" value="{{ ($selectedDate && $selectedDate !== 'ALL') ? $selectedDate : '' }}" onchange="this.form.submit()" title="Select Specific Business Date">
+        @if($selectedDate !== 'ALL')
+          <a href="{{ route('admin.pso.index', array_merge(request()->query(), ['date' => 'ALL'])) }}" class="btn btn-outline-secondary btn-sm" title="Show All Dates">All</a>
+        @else
+          <span class="input-group-text bg-primary text-white fw-bold">ALL</span>
+        @endif
+      </div>
+    </div>
+
+    @if(!empty($availableDates) && count($availableDates) > 0)
+    <div class="col-md-2 col-sm-6">
+      <label class="form-label small text-muted mb-1 fw-semibold">Recorded Dates</label>
+      <select class="form-select form-select-sm font-mono" onchange="if(this.value){ window.location.href='{{ route('admin.pso.index', array_merge(request()->query(), ['date' => '__DATE__'])) }}'.replace('__DATE__', this.value); }">
+        <option value="">-- Jump to Date --</option>
+        <option value="ALL" {{ $selectedDate === 'ALL' ? 'selected' : '' }}>All Dates (Together)</option>
+        @foreach($availableDates as $d)
+          <option value="{{ $d }}" {{ $selectedDate === $d ? 'selected' : '' }}>
+            {{ date('d/m/Y', strtotime($d)) }}
+          </option>
+        @endforeach
+      </select>
+    </div>
+    @endif
+
+    <div class="col-md-2 col-sm-6">
+      <label class="form-label small text-muted mb-1 fw-semibold">Status</label>
+      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="ALL">All Statuses</option>
+        <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active Only</option>
+        <option value="closed" {{ request('status') === 'closed' ? 'selected' : '' }}>Closed Only</option>
+        <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive Only</option>
+      </select>
+    </div>
+
+    <div class="col-md-3 col-sm-6">
+      <label class="form-label small text-muted mb-1 fw-semibold">Search PSO / Operator / Crew</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+        <input type="text" name="search" class="form-control" placeholder="Search code, operator, vehicle..." value="{{ request('search') }}">
+      </div>
+    </div>
+
+    <div class="col-md-2 col-sm-12 d-flex align-items-end gap-1">
+      <button type="submit" class="btn btn-primary btn-sm flex-fill">
+        <i class="bi bi-filter me-1"></i> Apply
+      </button>
+      @if(request()->filled('date') || request()->filled('status') || request()->filled('search') || request()->filled('date_from'))
+        <a href="{{ route('admin.pso.index') }}" class="btn btn-outline-secondary btn-sm" title="Clear Filters">
+          <i class="bi bi-x-lg"></i>
+        </a>
+      @endif
+    </div>
+  </form>
+
+  @if(!empty($availableDates) && count($availableDates) > 0)
+    <div class="mt-2 pt-2 border-top d-flex flex-wrap align-items-center gap-2 small text-muted">
+      <span class="fw-semibold"><i class="bi bi-clock-history me-1"></i> Quick Dates:</span>
+      <div class="d-flex flex-wrap gap-1">
+        <a href="{{ route('admin.pso.index', array_merge(request()->except('date'), ['date' => 'ALL'])) }}" class="badge {{ $selectedDate === 'ALL' ? 'bg-dark text-white' : 'bg-light text-dark border text-decoration-none' }}">
+          All Dates Together
+        </a>
+        @foreach(array_slice($availableDates, 0, 8) as $ad)
+          <a href="{{ route('admin.pso.index', array_merge(request()->except('date'), ['date' => $ad])) }}" class="badge {{ $selectedDate === $ad ? 'bg-primary text-white' : 'bg-light text-dark border text-decoration-none' }}">
+            {{ date('d M Y', strtotime($ad)) }}
+          </a>
+        @endforeach
+      </div>
+    </div>
+  @endif
+</div>
+
 <div class="erp-table-container mb-4">
-  <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
-    <span class="fw-semibold text-dark">Active PSO Series Rules (Default Configuration)</span>
-    <span class="badge bg-success">{{ $psoList->where('is_active', true)->count() }} Configs Active</span>
+  <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <span class="fw-semibold text-dark">PSO Series Configurations</span>
+      <span class="text-muted small ms-2">
+        (Date: <strong class="text-primary">{{ ($selectedDate && $selectedDate !== 'ALL') ? date('d/m/Y', strtotime($selectedDate)) : 'All Dates Combined' }}</strong>)
+      </span>
+    </div>
+    <div class="d-flex gap-2">
+      <span class="badge bg-primary font-mono">{{ $psoList->count() }} PSOs Displayed</span>
+      <span class="badge bg-success font-mono">{{ $psoList->where('is_active', true)->where('is_closed', false)->count() }} Active</span>
+      <span class="badge bg-secondary font-mono">{{ $psoList->where('is_closed', true)->count() }} Closed</span>
+    </div>
   </div>
   <div class="table-responsive">
     <table class="table erp-table align-middle">

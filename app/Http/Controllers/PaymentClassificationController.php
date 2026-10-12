@@ -94,12 +94,16 @@ class PaymentClassificationController extends Controller
             $calculatedNet = max(0, (float)$b->amount - (float)$b->cd_amount - (float)$b->refund_amount);
             $effectiveAmt = (float) ($b->net_amount > 0 ? $b->net_amount : $calculatedNet);
 
-            if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+            $isSplit = (bool)($b->is_split_payment || $b->payment_type === 'Split' || ($b->cash_amount > 0 && ($b->paytm_amount > 0 || (float)($b->credit_amount ?? 0) > 0)) || ($b->paytm_amount > 0 && (float)($b->credit_amount ?? 0) > 0));
+            if ($isSplit) {
                 $totCash += (float) $b->cash_amount;
                 $totPaytm += (float) $b->paytm_amount;
+                $creditPart = (float) ($b->credit_amount ?? 0);
+                $totCredit += $creditPart;
                 $countSplit++;
                 if ($b->cash_amount > 0) $countCash++;
                 if ($b->paytm_amount > 0) $countPaytm++;
+                if ($creditPart > 0) $countCredit++;
             } else {
                 if ($b->payment_type === 'Cash') {
                     $totCash += $effectiveAmt;
@@ -165,14 +169,28 @@ class PaymentClassificationController extends Controller
                       ->orWhere('payment_type', 'Cheque');
                 });
             } elseif ($paytype === 'Credit') {
-                $query->where('payment_type', 'Credit');
+                $query->where(function ($q) {
+                    $q->where('payment_type', 'Credit')
+                      ->orWhere(function ($sub) {
+                          $sub->where('is_split_payment', true)->where('credit_amount', '>', 0);
+                      })
+                      ->orWhere(function ($sub) {
+                          $sub->where('credit_amount', '>', 0);
+                      });
+                });
             } elseif ($paytype === 'Cancelled') {
                 $query->where('payment_type', 'Cancelled');
             } elseif ($paytype === 'Split') {
                 $query->where(function ($q) {
                     $q->where('is_split_payment', true)
+                      ->orWhere('payment_type', 'Split')
                       ->orWhere(function ($sub) {
-                          $sub->where('cash_amount', '>', 0)->where('paytm_amount', '>', 0);
+                          $sub->where('cash_amount', '>', 0)->where(function ($s2) {
+                              $s2->where('paytm_amount', '>', 0)->orWhere('credit_amount', '>', 0);
+                          });
+                      })
+                      ->orWhere(function ($sub) {
+                          $sub->where('paytm_amount', '>', 0)->where('credit_amount', '>', 0);
                       });
                 });
             } else {
@@ -183,14 +201,36 @@ class PaymentClassificationController extends Controller
         $bills = $query->orderBy('id', 'asc')->get();
 
         $user = auth()->user();
-        $psoQuery = PsoConfig::where('is_closed', true);
+        $psoQuery = PsoConfig::query();
         if ($user && $user->isOperator()) {
             $psoQuery->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
                   ->orWhere('operator_name', $user->name);
             });
         }
-        $psoList = $psoQuery->orderBy('code')->get();
+        $configuredPsos = $psoQuery->orderBy('code')->get();
+        $billPsoCodes = Bill::whereNotNull('pso_code')->distinct()->pluck('pso_code')->toArray();
+        $allPsoCodes = array_unique(array_filter($billPsoCodes));
+
+        $psoList = collect();
+        $existingCodes = [];
+        foreach ($configuredPsos as $cfg) {
+            $psoList->push($cfg);
+            $existingCodes[] = $cfg->code;
+        }
+        foreach ($allPsoCodes as $code) {
+            if (!in_array($code, $existingCodes)) {
+                $dummy = new PsoConfig();
+                $dummy->id = null;
+                $dummy->code = $code;
+                $dummy->name = $code;
+                $dummy->prefix = $code;
+                $dummy->operator_name = 'Counter Operator';
+                $dummy->is_closed = false;
+                $psoList->push($dummy);
+                $existingCodes[] = $code;
+            }
+        }
 
         return view('payment.index', compact('bills', 'metrics', 'businessDate', 'availableDates', 'psoList'));
     }
@@ -308,11 +348,12 @@ class PaymentClassificationController extends Controller
                 'Net Amount (INR)',
                 'Cash Portion (INR)',
                 'Paytm Portion (INR)',
+                'Credit Portion (INR)',
                 'Verification Status',
                 'Cutoff Status'
             ]);
 
-            $totGross = 0; $totCd = 0; $totRefund = 0; $totNet = 0; $totCash = 0; $totPaytm = 0;
+            $totGross = 0; $totCd = 0; $totRefund = 0; $totNet = 0; $totCash = 0; $totPaytm = 0; $totCredit = 0;
 
             foreach ($bills as $b) {
                 $bDate = $b->business_date ? (is_string($b->business_date) ? substr($b->business_date, 0, 10) : $b->business_date->format('d/m/Y')) : '';
@@ -321,13 +362,26 @@ class PaymentClassificationController extends Controller
 
                 $cashPortion = 0;
                 $paytmPortion = 0;
-                if ($b->is_split_payment || ($b->cash_amount > 0 && $b->paytm_amount > 0)) {
+                $creditPortion = 0;
+
+                $isSplit = (bool)($b->is_split_payment || $b->payment_type === 'Split' || ($b->cash_amount > 0 && ($b->paytm_amount > 0 || (float)($b->credit_amount ?? 0) > 0)) || ($b->paytm_amount > 0 && (float)($b->credit_amount ?? 0) > 0));
+
+                if ($isSplit) {
                     $cashPortion = (float)$b->cash_amount;
                     $paytmPortion = (float)$b->paytm_amount;
+                    $creditPortion = (float)($b->credit_amount ?? 0);
+                    $paymentLabel = 'Split';
                 } elseif ($b->payment_type === 'Cash') {
                     $cashPortion = $net;
+                    $paymentLabel = 'Cash';
                 } elseif ($b->payment_type === 'Paytm') {
                     $paytmPortion = $net;
+                    $paymentLabel = 'Paytm';
+                } elseif ($b->payment_type === 'Credit') {
+                    $creditPortion = $net;
+                    $paymentLabel = 'Credit';
+                } else {
+                    $paymentLabel = $b->payment_type;
                 }
 
                 $totGross += (float)$b->amount;
@@ -336,6 +390,7 @@ class PaymentClassificationController extends Controller
                 $totNet += $net;
                 $totCash += $cashPortion;
                 $totPaytm += $paytmPortion;
+                $totCredit += $creditPortion;
 
                 fputcsv($handle, [
                     $b->bill_no,
@@ -343,13 +398,14 @@ class PaymentClassificationController extends Controller
                     $b->pso_code,
                     $b->customer_name,
                     $b->salesman_name ?: '—',
-                    $b->is_split_payment ? 'Split (Cash+Paytm)' : $b->payment_type,
+                    $paymentLabel,
                     $b->amount,
                     $b->cd_amount,
                     $b->refund_amount,
                     $net,
                     $cashPortion,
                     $paytmPortion,
+                    $creditPortion,
                     $b->status,
                     $b->is_post_cutoff ? 'Post-Cutoff' : 'Regular'
                 ]);
@@ -368,6 +424,7 @@ class PaymentClassificationController extends Controller
                 $totNet,
                 $totCash,
                 $totPaytm,
+                $totCredit,
                 '',
                 ''
             ]);

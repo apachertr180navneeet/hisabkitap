@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 class PsoManagementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
         $query = PsoConfig::with(['creator', 'closer'])->withCount('bills');
@@ -22,9 +22,70 @@ class PsoManagementController extends Controller
             });
         }
 
-        $psoList = $query->get();
+        // Available dates in DB for quick date-picker filter
+        $datesFromBusiness = PsoConfig::whereNotNull('business_date')
+            ->distinct()
+            ->pluck('business_date')
+            ->map(fn($d) => is_string($d) ? substr($d, 0, 10) : (is_object($d) ? $d->format('Y-m-d') : substr((string)$d, 0, 10)))
+            ->toArray();
+        $datesFromCreated = PsoConfig::whereNull('business_date')
+            ->distinct()
+            ->pluck('created_at')
+            ->map(fn($d) => is_string($d) ? substr($d, 0, 10) : (is_object($d) ? $d->format('Y-m-d') : substr((string)$d, 0, 10)))
+            ->toArray();
+        $availableDates = array_values(array_unique(array_filter(array_merge($datesFromBusiness, $datesFromCreated))));
+        rsort($availableDates);
 
-        return view('pso.index', compact('psoList'));
+        // Date Filtering
+        $selectedDate = $request->query('date', 'ALL');
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+
+        if ($selectedDate && $selectedDate !== 'ALL') {
+            $query->where(function ($q) use ($selectedDate) {
+                $q->whereDate('business_date', $selectedDate)
+                  ->orWhere(function ($sub) use ($selectedDate) {
+                      $sub->whereNull('business_date')
+                          ->whereDate('created_at', $selectedDate);
+                  });
+            });
+        } elseif ($dateFrom && $dateTo) {
+            $query->where(function ($q) use ($dateFrom, $dateTo) {
+                $q->whereBetween('business_date', [$dateFrom, $dateTo])
+                  ->orWhere(function ($sub) use ($dateFrom, $dateTo) {
+                      $sub->whereNull('business_date')
+                          ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
+                  });
+            });
+        }
+
+        // Status Filter
+        if ($request->filled('status') && $request->status !== 'ALL') {
+            if ($request->status === 'active') {
+                $query->where('is_active', true)->where('is_closed', false);
+            } elseif ($request->status === 'closed') {
+                $query->where('is_closed', true);
+            } elseif ($request->status === 'inactive') {
+                $query->where('is_active', false);
+            }
+        }
+
+        // Search Filter
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                  ->orWhere('prefix', 'like', "%{$search}%")
+                  ->orWhere('operator_name', 'like', "%{$search}%")
+                  ->orWhere('driver_name', 'like', "%{$search}%")
+                  ->orWhere('gadi_number', 'like', "%{$search}%");
+            });
+        }
+
+        // Order by business date descending so records are organized date-wise, then by code
+        $psoList = $query->orderByRaw('COALESCE(business_date, created_at) DESC')->orderBy('code', 'ASC')->get();
+
+        return view('pso.index', compact('psoList', 'availableDates', 'selectedDate', 'dateFrom', 'dateTo'));
     }
 
     public function create()
