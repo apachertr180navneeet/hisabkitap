@@ -40,9 +40,9 @@
       <label class="form-label small text-muted mb-1 fw-semibold">Business Date</label>
       <div class="input-group input-group-sm">
         <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
-        <input type="date" name="date" class="form-control font-mono" value="{{ ($businessDate && $businessDate !== 'ALL') ? $businessDate : '' }}" placeholder="YYYY-MM-DD" onchange="this.form.submit()" title="Select Business Date">
+        <input type="date" name="date" class="form-control font-mono" value="{{ ($businessDate && $businessDate !== 'ALL') ? $businessDate : '' }}" placeholder="YYYY-MM-DD" onchange="const psoSel = this.form.querySelector('select[name=pso]'); if(psoSel) psoSel.value='ALL'; this.form.submit();" title="Select Business Date">
         @if($businessDate !== 'ALL')
-          <a href="{{ route($routeName, array_merge(request()->query(), ['date' => 'ALL'])) }}" class="btn btn-outline-secondary btn-sm" title="Show All Dates">All</a>
+          <a href="{{ route($routeName, array_merge(request()->except(['date', 'pso']), ['date' => 'ALL'])) }}" class="btn btn-outline-secondary btn-sm" title="Show All Dates">All</a>
         @else
           <span class="input-group-text bg-primary text-white fw-bold">ALL</span>
         @endif
@@ -52,7 +52,7 @@
     @if(!empty($availableDates) && count($availableDates) > 0)
     <div class="col-md-2 col-sm-6">
       <label class="form-label small text-muted mb-1 fw-semibold">Recorded Dates</label>
-      <select class="form-select form-select-sm font-mono" onchange="if(this.value){ window.location.href='{{ route($routeName, array_merge(request()->query(), ['date' => '__DATE__'])) }}'.replace('__DATE__', this.value); }">
+      <select class="form-select form-select-sm font-mono" onchange="if(this.value){ window.location.href='{{ route($routeName, array_merge(request()->except(['date', 'pso']), ['date' => '__DATE__'])) }}'.replace('__DATE__', this.value); }">
         <option value="">-- Jump to Date --</option>
         <option value="ALL" {{ $businessDate === 'ALL' ? 'selected' : '' }}>All Dates (Combined)</option>
         @foreach($availableDates as $d)

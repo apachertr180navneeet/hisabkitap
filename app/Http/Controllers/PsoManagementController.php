@@ -119,7 +119,9 @@ class PsoManagementController extends Controller
             ->unique()->filter()->values();
         $gadiOptions = PsoConfig::whereNotNull('gadi_number')->where('gadi_number', '!=', '')->distinct()->pluck('gadi_number')->values();
 
-        $defaultBusinessDate = (new \App\Services\ReconciliationService())->getBusinessDate();
+        $defaultBusinessDate = request()->query('date')
+            ? (new \App\Services\ReconciliationService())->normalizeDate(request()->query('date'))
+            : date('Y-m-d');
 
         return view('pso.create', compact('prefixes', 'suggestedCode', 'operators', 'drivers', 'helpers', 'gadiOptions', 'defaultBusinessDate'));
     }

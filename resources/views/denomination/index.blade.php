@@ -30,7 +30,7 @@
     <div class="col-md-3">
       <div class="input-group input-group-sm">
         <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
-        <input type="date" name="date" class="form-control font-mono" value="{{ $businessDate }}" onchange="this.form.submit()" title="Select Business Date">
+        <input type="date" name="date" class="form-control font-mono" value="{{ $businessDate }}" onchange="const psoSel = this.form.querySelector('select[name=pso]'); if(psoSel) psoSel.value='ALL'; this.form.submit();" title="Select Business Date">
       </div>
     </div>
     <div class="col-md-4">
@@ -54,7 +54,7 @@
       <span class="fw-semibold"><i class="bi bi-clock-history me-1"></i> Available Dates:</span>
       <div class="d-flex flex-wrap gap-1">
         @foreach($availableDates as $ad)
-          <a href="{{ route('admin.denomination.index', ['date' => $ad, 'pso' => $selectedPso]) }}" class="badge {{ $businessDate === $ad ? 'bg-primary text-white' : 'bg-light text-dark border text-decoration-none' }}">
+          <a href="{{ route('admin.denomination.index', ['date' => $ad]) }}" class="badge {{ $businessDate === $ad ? 'bg-primary text-white' : 'bg-light text-dark border text-decoration-none' }}">
             {{ date('d M Y', strtotime($ad)) }}
           </a>
         @endforeach

@@ -208,8 +208,31 @@ class PaymentClassificationController extends Controller
                   ->orWhere('operator_name', $user->name);
             });
         }
+
+        if ($businessDate && $businessDate !== 'ALL') {
+            $billPsoCodes = Bill::whereNotNull('pso_code')
+                ->whereDate('business_date', $businessDate)
+                ->distinct()
+                ->pluck('pso_code')
+                ->filter()
+                ->values()
+                ->toArray();
+
+            $psoQuery->where(function ($q) use ($businessDate, $billPsoCodes) {
+                $q->whereDate('business_date', $businessDate)
+                  ->orWhere(function ($sub) use ($businessDate) {
+                      $sub->whereNull('business_date')
+                          ->whereDate('created_at', $businessDate);
+                  });
+                if (!empty($billPsoCodes)) {
+                    $q->orWhereIn('code', $billPsoCodes);
+                }
+            });
+        } else {
+            $billPsoCodes = Bill::whereNotNull('pso_code')->distinct()->pluck('pso_code')->filter()->values()->toArray();
+        }
+
         $configuredPsos = $psoQuery->orderBy('code')->get();
-        $billPsoCodes = Bill::whereNotNull('pso_code')->distinct()->pluck('pso_code')->toArray();
         $allPsoCodes = array_unique(array_filter($billPsoCodes));
 
         $psoList = collect();
@@ -231,6 +254,7 @@ class PaymentClassificationController extends Controller
                 $existingCodes[] = $code;
             }
         }
+        $psoList = $psoList->sortBy('code')->values();
 
         return view('payment.index', compact('bills', 'metrics', 'businessDate', 'availableDates', 'psoList'));
     }

@@ -42,14 +42,37 @@ class BillVerificationController extends Controller
                   ->orWhere('operator_name', $user->name);
             });
         }
-        $allPsoConfigs = $psoQuery->orderBy('code')->get();
 
         // Merge any distinct PSO codes from bills for the selected date
-        $distinctBillPsosQuery = Bill::whereNotNull('pso_code');
         if ($businessDate && $businessDate !== 'ALL') {
-            $distinctBillPsosQuery->whereDate('business_date', $businessDate);
+            $distinctBillPsos = Bill::whereNotNull('pso_code')
+                ->whereDate('business_date', $businessDate)
+                ->distinct()
+                ->pluck('pso_code')
+                ->filter()
+                ->values()
+                ->toArray();
+
+            $psoQuery->where(function ($q) use ($businessDate, $distinctBillPsos) {
+                $q->whereDate('business_date', $businessDate)
+                  ->orWhere(function ($sub) use ($businessDate) {
+                      $sub->whereNull('business_date')
+                          ->whereDate('created_at', $businessDate);
+                  });
+                if (!empty($distinctBillPsos)) {
+                    $q->orWhereIn('code', $distinctBillPsos);
+                }
+            });
+        } else {
+            $distinctBillPsos = Bill::whereNotNull('pso_code')
+                ->distinct()
+                ->pluck('pso_code')
+                ->filter()
+                ->values()
+                ->toArray();
         }
-        $distinctBillPsos = $distinctBillPsosQuery->distinct()->pluck('pso_code')->toArray();
+
+        $allPsoConfigs = $psoQuery->orderBy('code')->get();
 
         $existingCodes = $allPsoConfigs->pluck('code')->toArray();
         $psoList = collect($allPsoConfigs);
@@ -68,6 +91,11 @@ class BillVerificationController extends Controller
             }
         }
         $psoList = $psoList->sortBy('code')->values();
+
+        $manualBillPsos = PsoConfig::where('is_active', true)->orderBy('code')->get();
+        if ($manualBillPsos->isEmpty()) {
+            $manualBillPsos = PsoConfig::orderBy('code')->get();
+        }
 
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
 
@@ -100,7 +128,11 @@ class BillVerificationController extends Controller
 
         $selectedPso = $request->input('pso', 'ALL');
         if ($selectedPso && $selectedPso !== 'ALL') {
-            $query->where('pso_code', $selectedPso);
+            if (!$psoList->contains('code', $selectedPso)) {
+                $selectedPso = 'ALL';
+            } else {
+                $query->where('pso_code', $selectedPso);
+            }
         }
 
         if ($request->filled('status') && $request->status !== 'ALL') {
@@ -222,6 +254,7 @@ class BillVerificationController extends Controller
             'billsByPso',
             'psoSubtotals',
             'psoList',
+            'manualBillPsos',
             'metrics',
             'salespersons',
             'businessDate',

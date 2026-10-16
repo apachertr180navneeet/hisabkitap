@@ -56,9 +56,14 @@
             </div>
 
             <div class="col-md-3">
-              <label class="form-label fw-semibold" for="business_date">
-                Business Date <span class="text-danger">*</span>
-              </label>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label fw-semibold mb-0" for="business_date">
+                  Business Date <span class="text-danger">*</span>
+                </label>
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none small text-primary" style="font-size: 0.75rem;" onclick="document.getElementById('business_date').value='{{ date('Y-m-d') }}'">
+                  <i class="bi bi-calendar-check me-1"></i>Today
+                </button>
+              </div>
               <div class="input-group">
                 <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
                 <input type="date" name="business_date" id="business_date" class="form-control font-mono" 

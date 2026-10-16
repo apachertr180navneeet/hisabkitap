@@ -48,12 +48,40 @@ class CashDenominationController extends Controller
                   ->orWhere('operator_name', $user->name);
             });
         }
-        $configuredPsos = $psoQuery->orderBy('code')->get();
+        if ($businessDate && $businessDate !== 'ALL') {
+            $billPsoCodes = Bill::whereNotNull('pso_code')
+                ->whereDate('business_date', $businessDate)
+                ->distinct()
+                ->pluck('pso_code')
+                ->filter()
+                ->values()
+                ->toArray();
+            $denomPsoCodes = CashDenomination::whereNotNull('pso_code')
+                ->whereDate('business_date', $businessDate)
+                ->distinct()
+                ->pluck('pso_code')
+                ->filter()
+                ->values()
+                ->toArray();
+            $allPsoCodes = array_unique(array_filter(array_merge($billPsoCodes, $denomPsoCodes)));
 
-        // Include any distinct PSO codes from bills and denominations to avoid missing PSOs
-        $billPsoCodes = Bill::whereNotNull('pso_code')->distinct()->pluck('pso_code')->toArray();
-        $denomPsoCodes = CashDenomination::whereNotNull('pso_code')->distinct()->pluck('pso_code')->toArray();
-        $allPsoCodes = array_unique(array_filter(array_merge($billPsoCodes, $denomPsoCodes)));
+            $psoQuery->where(function ($q) use ($businessDate, $allPsoCodes) {
+                $q->whereDate('business_date', $businessDate)
+                  ->orWhere(function ($sub) use ($businessDate) {
+                      $sub->whereNull('business_date')
+                          ->whereDate('created_at', $businessDate);
+                  });
+                if (!empty($allPsoCodes)) {
+                    $q->orWhereIn('code', $allPsoCodes);
+                }
+            });
+        } else {
+            $billPsoCodes = Bill::whereNotNull('pso_code')->distinct()->pluck('pso_code')->toArray();
+            $denomPsoCodes = CashDenomination::whereNotNull('pso_code')->distinct()->pluck('pso_code')->toArray();
+            $allPsoCodes = array_unique(array_filter(array_merge($billPsoCodes, $denomPsoCodes)));
+        }
+
+        $configuredPsos = $psoQuery->orderBy('code')->get();
 
         $psoList = collect();
         $existingCodes = [];
@@ -75,6 +103,11 @@ class CashDenominationController extends Controller
                 $psoList->push($dummy);
                 $existingCodes[] = $code;
             }
+        }
+        $psoList = $psoList->sortBy('code')->values();
+
+        if ($selectedPso !== 'ALL' && !$psoList->contains('code', $selectedPso)) {
+            $selectedPso = 'ALL';
         }
 
         // Query existing denominations for this date

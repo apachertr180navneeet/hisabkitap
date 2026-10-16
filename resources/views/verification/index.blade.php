@@ -38,7 +38,7 @@
     <div class="col-md-2">
       <div class="input-group input-group-sm">
         <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
-        <input type="date" name="date" class="form-control font-mono" value="{{ $businessDate !== 'ALL' ? $businessDate : '' }}" placeholder="YYYY-MM-DD" onchange="this.form.submit()" title="Select Business Date">
+        <input type="date" name="date" class="form-control font-mono" value="{{ $businessDate !== 'ALL' ? $businessDate : '' }}" placeholder="YYYY-MM-DD" onchange="const psoSel = this.form.querySelector('select[name=pso]'); if(psoSel) psoSel.value='ALL'; this.form.submit();" title="Select Business Date">
       </div>
     </div>
     <div class="col-md-3">
@@ -51,7 +51,7 @@
       <select name="pso" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="ALL">All PSOs</option>
         @foreach($psoList as $pso)
-          <option value="{{ $pso->code }}" {{ request('pso') === $pso->code ? 'selected' : '' }}>{{ $pso->code }} ({{ $pso->prefix }} - {{ $pso->operator_name }}{{ $pso->driver_name ? ' | Drv: ' . $pso->driver_name : '' }}{{ $pso->gadi_number ? ' | ' . $pso->gadi_number : '' }})</option>
+          <option value="{{ $pso->code }}" {{ ($selectedPso ?? request('pso')) === $pso->code ? 'selected' : '' }}>{{ $pso->code }} ({{ $pso->prefix }} - {{ $pso->operator_name }}{{ $pso->driver_name ? ' | Drv: ' . $pso->driver_name : '' }}{{ $pso->gadi_number ? ' | ' . $pso->gadi_number : '' }})</option>
         @endforeach
       </select>
     </div>
@@ -90,11 +90,11 @@
     <div class="mt-2 pt-2 border-top d-flex flex-wrap align-items-center gap-2 small text-muted">
       <span class="fw-semibold"><i class="bi bi-clock-history me-1"></i> Dates in Database:</span>
       <div class="d-flex flex-wrap gap-1">
-        <a href="{{ route('admin.verification.index', array_merge(request()->except('date'), ['date' => 'ALL'])) }}" class="badge {{ $businessDate === 'ALL' ? 'bg-dark text-white' : 'bg-light text-dark border text-decoration-none' }}">
+        <a href="{{ route('admin.verification.index', array_merge(request()->except(['date', 'pso']), ['date' => 'ALL'])) }}" class="badge {{ $businessDate === 'ALL' ? 'bg-dark text-white' : 'bg-light text-dark border text-decoration-none' }}">
           All Dates
         </a>
         @foreach($availableDates as $ad)
-          <a href="{{ route('admin.verification.index', array_merge(request()->except('date'), ['date' => $ad])) }}" class="badge {{ $businessDate === $ad ? 'bg-primary text-white' : 'bg-light text-dark border text-decoration-none' }}">
+          <a href="{{ route('admin.verification.index', array_merge(request()->except(['date', 'pso']), ['date' => $ad])) }}" class="badge {{ $businessDate === $ad ? 'bg-primary text-white' : 'bg-light text-dark border text-decoration-none' }}">
             {{ date('d M Y', strtotime($ad)) }}
           </a>
         @endforeach
@@ -1447,7 +1447,10 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="col-md-4">
               <label class="form-label fw-semibold">PSO Counter / Series <span class="text-danger">*</span></label>
               <select name="pso_code" id="manual_pso_code" class="form-select" required onchange="updateManualBillPrefix(this)">
-                @foreach($psoList as $pso)
+                @php
+                  $modalPsos = (!empty($psoList) && $psoList->count() > 0) ? $psoList : ($manualBillPsos ?? $psoList);
+                @endphp
+                @foreach($modalPsos as $pso)
                   <option value="{{ $pso->code }}" data-prefix="{{ $pso->prefix }}" data-fy="{{ $pso->financial_year ?? $activeFinancialYear ?? '2026-2027' }}" data-driver="{{ $pso->driver_name }}">
                     {{ $pso->code }} ({{ $pso->prefix }} - {{ $pso->operator_name }})
                   </option>
